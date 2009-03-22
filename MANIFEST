@@ -1,0 +1,7 @@
+Changes
+MANIFEST
+Makefile.PL
+README
+lib/XML/Reader.pm
+t/0010_test.t
+META.yml
