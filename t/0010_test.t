@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 10;
+use Test::More tests => 11;
 
 use_ok('XML::Reader');
 
@@ -82,12 +82,15 @@ use_ok('XML::Reader');
 
     my $start_seq = '';
     my $end_seq   = '';
+    my $lvl_seq   = '';
 
     my $rdr = XML::Reader->new(\$line, {comment => 1, filter => 0});
     while ($rdr->iterate) {
         $start_seq .= $rdr->is_start;
         $end_seq   .= $rdr->is_end;
+        $lvl_seq   .= '['.$rdr->level.']';
     }
     is($start_seq, '11011010000000', 'sequence of start-tags');
     is($end_seq,   '01001000000111', 'sequence of end-tags');
+    is($lvl_seq,   '[1][2][1][2][3][2][3][4][4][3][4][3][2][1]', 'sequence of level information');
 }

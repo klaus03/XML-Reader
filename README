@@ -1,7 +1,6 @@
-XML-Reader Version 0.01
+XML-Reader Version 0.02
 
-This is a Perl extension for displaying a progress indicator on a terminal.
-("Sprog" is a short form for "Show PROGress")
+Reading XML and providing path information based on a pull-parser.
 
 There aren't any machine dependencies, no C compiler is required.
 

@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( 'all' => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.01';
+our $VERSION     = '0.02';
 
 sub new {
     shift;
@@ -36,6 +36,7 @@ sub new {
     $self->{type}     = '?';
     $self->{is_start} = 0;
     $self->{is_end}   = 0;
+    $self->{level}    = 0;
     $self->{prvtoken} = '';
     $self->{item}     = '';
     $self->{status}   = 'ok';
@@ -49,6 +50,7 @@ sub value    { $_[0]->{value};    }
 sub type     { $_[0]->{type};     }
 sub is_start { $_[0]->{is_start}; }
 sub is_end   { $_[0]->{is_end};   }
+sub level    { $_[0]->{level};    }
 
 sub iterate {
     my $self = shift;
@@ -99,6 +101,7 @@ sub iterate {
         $self->{value}    = $cmd->[5];
         $self->{is_start} = $cmd->[2];
         $self->{is_end}   = $cmd->[3];
+        $self->{level}    = @{$cmd->[1]} + 1;
         $self->{type}     = '@';
     }
     elsif ($cmd->[0] eq 'T') {
@@ -107,6 +110,7 @@ sub iterate {
         $self->{value}    = $cmd->[4];
         $self->{is_start} = $cmd->[2];
         $self->{is_end}   = $cmd->[3];
+        $self->{level}    = @{$cmd->[1]};
         $self->{type}     = 'T';
     }
     elsif ($cmd->[0] eq 'C') {
@@ -115,6 +119,7 @@ sub iterate {
         $self->{value}    = $cmd->[4];
         $self->{is_start} = $cmd->[2];
         $self->{is_end}   = $cmd->[3];
+        $self->{level}    = @{$cmd->[1]} + 1;
         $self->{type}     = '#';
     }
     else {
@@ -362,6 +367,10 @@ returned).
 Returns 1 or 0, depending on whether the XML-file had an end tag at the current position.
 Be careful, this method only make sense if filter is switched off (otherwise constant 0 is
 returned).
+
+=item level
+
+Indicates the nesting level of the XPath expression (numeric value greater than zero).
 
 =back
 
