@@ -5,3 +5,6 @@ Revision history for XML-Reader
 
 0.02    25 Mar 2009
         add method level to indicate the nesting level of the XPath expression.
+
+0.03    26 Mar 2009
+        resolve circular reference in XML::TokeParser to avoid Memory leak

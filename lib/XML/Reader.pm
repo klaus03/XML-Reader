@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( 'all' => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.02';
+our $VERSION     = '0.03';
 
 sub new {
     shift;
@@ -210,6 +210,13 @@ sub read_token {
     }
 }
 
+sub DESTROY {
+    my $self = shift;
+
+    # resolve circular reference in XML::TokeParser to avoid Memory leak
+    $self->{parser}{parser}{TokeParser} = undef;
+}
+
 1;
 
 __END__
@@ -373,6 +380,53 @@ returned).
 Indicates the nesting level of the XPath expression (numeric value greater than zero).
 
 =back
+
+=head1 OTHER CONSIDERATIONS
+
+=head2 Memory leak in XML::TokeParser
+
+The XML::TokeParser object has a circular reference, see subroutine XML::TokeParser::new
+
+  $self->{parser} = $parser->parse_start( TokeParser => $self )
+
+This line of code generates a circular reference as follows:
+
+  $self->{parser}{TokeParser} == $self
+
+In order to resolve this circular reference during object destruction, an attempt has been
+made to remove the circular reference in the DESTROY subroutine for XML::TokeParser by
+undefining the first element in the chain of that circular reference.
+
+  package XML::TokeParser;
+
+  sub DESTROY {
+      my $self = shift;
+      ...
+      $self->{parser} = undef;
+  }
+
+Unfortunately, this approach does not work, as the XML::TokeParser object is part of the
+circular reference itself and therefore XML::TokeParser::DESTROY will not be called until
+the circular reference is cleaned up during global destruction.
+
+The solution is to resolve the circular reference in the DESTROY subroutine of a package
+which is not part of the circular reference itself. The obvious solution is the correct one:
+We resolve the circular reference in the DESTROY subroutine of this package XML::Reader.
+
+One thing to remember here is that we now are dealing with an additional level of
+indirection, i.e. in XML::TokeParser::DESTROY, instead of...
+
+  $self->{parser} = undef;
+
+...we now have to say (in XML::Reader::DESTROY)...
+
+  $self->{parser}{parser} = undef;
+
+...This should work, however, tests with XML::Reader have shown that this does not work.
+You may ask why ? - I don't know. - What does work, however is the following instruction
+in XML::Reader::DESTROY...
+
+  $self->{parser}{parser}{TokeParser} = undef;
 
 =head1 AUTHOR
 
