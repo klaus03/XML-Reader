@@ -8,3 +8,7 @@ Revision history for XML-Reader
 
 0.03    26 Mar 2009
         resolve circular reference in XML::TokeParser to avoid Memory leak
+
+0.04    27 Mar 2009
+        Replace XML::TokeParser by XML::Parser
+        add option {using => ...} and also add method prefix

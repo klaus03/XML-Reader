@@ -3,43 +3,109 @@ package XML::Reader;
 use strict;
 use warnings;
 
-use XML::TokeParser;
-use Carp;
+use XML::Parser;
 
 require Exporter;
 
 our @ISA         = qw(Exporter);
-our %EXPORT_TAGS = ( 'all' => [ qw() ] );
+our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.03';
+our $VERSION     = '0.04';
 
 sub new {
-    shift;
+    my $class = shift;
     my $self = {};
-    bless $self;
 
     my %hash = (comment => 0, strip => 1, filter => 1);
     %hash    = (%hash, %{$_[1]}) if defined $_[1];
 
-    my $parser = XML::TokeParser->new($_[0]) or return;
+    my $XmlParser = XML::Parser->new
+      or die "Failed assertion #0010 in subroutine XML::Reader->new: Can't create XML::Parser->new";
 
-    $self->{comment}  = $hash{comment};
-    $self->{strip}    = $hash{strip};
-    $self->{filter}   = $hash{filter};
-    $self->{parser}   = $parser;
+    # The following references to the handler-functions from the XML::Parser object will be 
+    # copied into the ExpatNB object during the later call to XML::Parser->parse_start.
+
+    $XmlParser->setHandlers(
+        Start   => \&handle_start,
+        End     => \&handle_end,
+        Char    => \&handle_char,
+        Comment => \&handle_comment,
+    );
+
+    # This is a crucial moment: we are trying to open the file (the filename is
+    # held in in $_[0]). If the filename happens to be a reference to a scalar, then
+    # it is opened quite naturally as an 'in-memory-file'.
+    # If the open fails, then we return failure from XML::Reader->new and the calling
+    # program has to check $! to handle the failed call.
+
+    open my $fh, '<', $_[0] or return;
+
+    # Now we bless into XML::Reader, and we bless *before* creating the ExpatNB-object.
+    # Thereby, to avoid a memory leak, we ensure that for each ExpatNB-object we call
+    # XML::Reader->DESTROY when the object goes away. (-- by the way, we create that
+    # ExpatNB-object by calling the XML::Parser->parse_start method --)
+
+    bless $self, $class;
+
+    # Now we are ready to call XML::Parser->parse_start -- XML::Parser->parse_start()
+    # returns an object of type XML::Parser::ExpatNB. The XML::Parser::ExpatNB object
+    # is where all the heavy lifting happens.
+
+    # By calling the XML::Parser::Expat->new method (-- yes, XML::Parser::Expat
+    # is a super-class of XML::Parser::ExpatNB --) we will have created a circular reference
+    # in $self->{ExpatNB}{parser}.
+    #
+    # (-- unfortunately, the circular reference does not show up in Data::Dumper, there
+    # is just an integer in $self->{ExpatNB}{parser} that represents a data-structure
+    # within the C-function ParserCreate() --).
+    #
+    # See also the following line of code taken from XML::Parser::Expat->new:
+    #
+    #   $args{Parser} = ParserCreate($self, $args{ProtocolEncoding}, $args{Namespaces});
+    
+    # This means that, in order to avoid a memory leak, we have to break this circular
+    # reference when we are done with the processing. The breaking of the circular reference
+    # will be performed in XML::Reader->DESTROY, which calls XML::Parser::ExpatNB->parse_done.
+    # (-- which, in turn, calls XML::Parser::Expat->release to actually break the circular
+    # reference --)
+
+    $self->{ExpatNB} = $XmlParser->parse_start(XR_Data => [], XR_Text => undef, XR_Status => 'ok', XR_fh => $fh)
+      or die "Failed assertion #0020 in subroutine XML::Reader->new: Can't create XML::Parser->new";
+
+    # The instruction "XR_Data => []" (-- the 'XR_...' prefix stands for 'Xml::Reader...' --)
+    # inside XML::Parser->parse_start() creates an empty array $ExpatNB{XR_Data} = []
+    # inside the ExpatNB object. This array is the place where the handlers put their data.
+    #
+    # Likewise, the instructions "XR_Text => undef", "XR_Status => 'ok'" and "XR_fh => $fh"
+    # create corresponding elements inside the $ExpatNB-object.
+
+    $self->{comment} = $hash{comment};
+    $self->{strip}   = $hash{strip};
+    $self->{filter}  = $hash{filter};
+
+    $self->{using} = !defined($hash{using}) ? [] : ref($hash{using}) ? $hash{using} : [$hash{using}];
+
+    # remove all spaces and then all leading and trailing '/', then put back a single leading '/'
+    for my $check (@{$self->{using}}) {
+        $check =~ s{\s}''xmsg;
+        $check =~ s{\A /+}''xms;
+        $check =~ s{/+ \z}''xms;
+        $check = '/'.$check;
+    }
+
     $self->{command}  = [['Z', [], 0, 0, '']];
     $self->{plist}    = [];
     $self->{path}     = '/';
+    $self->{prefix}   = '';
     $self->{tag}      = '';
     $self->{value}    = '';
     $self->{type}     = '?';
     $self->{is_start} = 0;
     $self->{is_end}   = 0;
     $self->{level}    = 0;
-    $self->{prvtoken} = '';
+    $self->{p_token}  = undef;
     $self->{item}     = '';
-    $self->{status}   = 'ok';
 
     return $self;
 }
@@ -51,49 +117,112 @@ sub type     { $_[0]->{type};     }
 sub is_start { $_[0]->{is_start}; }
 sub is_end   { $_[0]->{is_end};   }
 sub level    { $_[0]->{level};    }
+sub prefix   { $_[0]->{prefix};   }
+
+sub XR_Data         { $_[0]->{ExpatNB}{XR_Data};           }
+sub XR_Stat_not_ok  { $_[0]->{ExpatNB}{XR_Status} ne 'ok'; }
+sub XR_Stat_set_eof { $_[0]->{ExpatNB}{XR_Status} = 'eof'; }
+sub XR_fh           { $_[0]->{ExpatNB}{XR_fh};             }
+
+sub handle_start {
+    my ($ExpatNB, $element, @a) = @_;
+
+    if (defined $ExpatNB->{XR_Text}) {
+        push @{$ExpatNB->{XR_Data}}, ['T', $ExpatNB->{XR_Text}];
+        $ExpatNB->{XR_Text} = undef;
+    }
+
+    my %attr = @a;
+    push @{$ExpatNB->{XR_Data}}, ['S', $element, \%attr];
+}
+
+sub handle_end {
+    my ($ExpatNB, $element) = @_;
+
+    if (defined $ExpatNB->{XR_Text}) {
+        push @{$ExpatNB->{XR_Data}}, ['T', $ExpatNB->{XR_Text}];
+        $ExpatNB->{XR_Text} = undef;
+    }
+
+    push @{$ExpatNB->{XR_Data}}, ['E', $element];
+}
+
+sub handle_comment {
+    my ($ExpatNB, $text) = @_;
+
+    push @{$ExpatNB->{XR_Data}}, ['C', $text];
+}
+
+sub handle_char {
+    my ($ExpatNB, $text) = @_;
+
+    $ExpatNB->{XR_Text} .= $text;
+}
 
 sub iterate {
     my $self = shift;
 
     {
         # try reading 3 tokens...
-        until ($self->{status} ne 'ok' or @{$self->{command}} >= 3) {
+        until ($self->XR_Stat_not_ok or @{$self->{command}} >= 3) {
             $self->read_token;
         }
 
+        # return failure if end-of-file
         unless (@{$self->{command}}) {
             return;
         }
 
-        # checking start- and end-tags can only be performed if the filter is off...
-        unless ($self->{filter}) {
-            # does the 2nd element exist?
-            if (@{$self->{command}} >= 2) {
-                my $cmd = ${$self->{command}}[1]; # take the second line...
-
-                my $prv_length = $self->get_length(0);
-                my $act_length = $self->get_length(1);
-                my $nxt_length = $self->get_length(2);
-
-                if ($prv_length < $act_length) {
-                    $cmd->[2] = 1; # mark as start-tag
-                }
-
-                if ($nxt_length < $act_length) {
-                    $cmd->[3] = 1; # mark as end-tag
-                }
-            }
-        }
+        # populate values
+        $self->populate_values;
 
         # if the current element is of type 'Z', i.e. a dummy header, then get rid of it
-        my $cmd = ${$self->{command}}[0]; # take the first line...
+        my $cmd = ${$self->{command}}[0];
+
         if ($cmd->[0] eq 'Z') {
             shift @{$self->{command}};
             redo;
         }
+
+        # check if option {using => ...} as been requested, and if so, then skip all
+        # lines that don't have a prefix...
+        if (@{$self->{using}} and $self->{prefix} eq '') {
+            shift @{$self->{command}};
+            redo;
+        }
+
+        shift @{$self->{command}};
     }
 
-    my $cmd = shift @{$self->{command}};
+    return 1;
+}
+
+sub populate_values {
+    my $self = shift;
+
+    # checking start- and end-tags can only be performed if the filter is off...
+    unless ($self->{filter}) {
+        # does the 2nd element exist?
+        if (@{$self->{command}} >= 2) {
+            my $cmd = ${$self->{command}}[1]; # take the second line...
+
+            my $prv_length = $self->get_length(0);
+            my $act_length = $self->get_length(1);
+            my $nxt_length = $self->get_length(2);
+
+            if ($prv_length < $act_length) {
+                $cmd->[2] = 1; # mark as start-tag
+            }
+
+            if ($nxt_length < $act_length) {
+                $cmd->[3] = 1; # mark as end-tag
+            }
+        }
+    }
+
+    my $cmd = ${$self->{command}}[0] or die "Failed assertion #0030 in subroutine XML::Reader->populate_values: command stack is empty";
+
+    return if $cmd->[0] eq 'Z';
 
     if ($cmd->[0] eq 'A') {
         $self->{path}     = '/'.join('/', @{$cmd->[1]}).'/@'.$cmd->[4];
@@ -123,10 +252,85 @@ sub iterate {
         $self->{type}     = '#';
     }
     else {
-        die "Failed assertion #0010: Found data type '".$cmd->[0]."', but expected ('A', 'C' or 'T')";
+        die "Failed assertion #0040 in subroutine XML::Reader->iterate: Found data type '".$cmd->[0]."', but expected ('A', 'C' or 'T')";
     }
 
-    return 1;
+    # Here we check for the {using => ...} option
+    $self->{prefix} = '';
+
+    for my $check (@{$self->{using}}) {
+        if ($check.'/' eq substr($self->{path}, 0, length($check) + 1)) {
+            my @ele = split m{/}xms, $check;
+            my $count = @ele - 1;
+            $self->{prefix} = $check;
+            $self->{path}   = substr($self->{path}, length($check));
+            $self->{level} -= $count;
+            last;
+        }
+    }
+}
+
+sub read_token {
+    my $self = shift;
+
+    my $token = $self->get_token;
+
+    unless (defined $token) {
+        return;
+    }
+
+    # inject empty text in front of start- and end-tags, if needed...
+    if (!$self->{filter}) {
+        if ($token->found_start_tag
+        or  $token->found_end_tag
+        or ($token->found_comment and $self->{comment})) {
+            if (defined $self->{p_token} and !$self->{p_token}->found_text) {
+                my @list = @{$self->{plist}};
+                push @{$self->{command}}, ['T', \@list, 0, 0, ''];
+            }
+        }
+    }
+
+    # save the token in p_token...
+    $self->{p_token} = $token;
+
+    if ($token->found_start_tag) {
+        push @{$self->{plist}}, $token->extract_tag;
+        my @list = @{$self->{plist}};
+
+        # inject an empty text-token, in case that there are any attributes that follow...
+        if (!$self->{filter} and keys %{$token->extract_attr}) {
+            push @{$self->{command}}, ['T', \@list, 0, 0, ''];
+        }
+
+        push @{$self->{command}}, map {['A', \@list, 0, 0, $_, $token->extract_attr->{$_}]} sort keys %{$token->extract_attr};
+    }
+    elsif ($token->found_end_tag) {
+        $self->{item} = pop @{$self->{plist}};
+    }
+    elsif ($token->found_text) {
+        my $text = $token->extract_text;
+
+        if (!$self->{filter} or $text =~ m{\S}xms) {
+            if ($self->{strip}) {
+                $text =~ s{\A \s+}''xms;
+                $text =~ s{\s+ \z}''xms;
+                $text =~ s{\s+}' 'xmsg;
+            }
+            my @list = @{$self->{plist}};
+            push @{$self->{command}}, ['T', \@list, 0, 0, $text];
+        }
+    }
+    elsif ($token->found_comment and $self->{comment}) {
+        my $text = $token->extract_text;
+        if ($self->{strip}) {
+            $text =~ s{\A \s+}''xms;
+            $text =~ s{\s+ \z}''xms;
+            $text =~ s{\s+}' 'xmsg;
+        }
+        my @list = @{$self->{plist}};
+        push @{$self->{command}}, ['C', \@list, 0, 0, $text];
+    }
 }
 
 sub get_length {
@@ -143,78 +347,90 @@ sub get_length {
     return $len;
 }
 
-sub read_token {
+sub get_token {
     my $self = shift;
 
-    my $token = $self->{parser}->get_token;
+    until ($self->XR_Stat_not_ok or @{$self->XR_Data}) {
 
-    unless (defined $token) {
-        $self->{status} = 'eof';
+        # Here is the all important reading of a chunk of XML-data from the filehandle...
+        read($self->XR_fh, my $buf, 256); # Buffer-length should really be 4096
+
+        if ($buf eq '') {
+            $self->XR_Stat_set_eof;
+            last;
+        }
+
+        # ...and here is the all important parsing of that chunk:
+        $self->{ExpatNB}->parse_more($buf);
+    }
+
+    unless (@{$self->XR_Data}) {
         return;
     }
 
-    # inject empty text in front of start- and end-tags, if needed...
-    if (!$self->{filter}) {
-        if ($token->is_start_tag
-        or  $token->is_end_tag
-        or ($token->is_comment and $self->{comment})) {
-            if ($self->{prvtoken} ne 'T' and $self->{prvtoken} ne '') {
-                my @list = @{$self->{plist}};
-                push @{$self->{command}}, ['T', \@list, 0, 0, ''];
-            }
-        }
-    }
-
-    # save the token in prvtoken...
-    $self->{prvtoken} = $token->is_text      ? 'T' :
-                        $token->is_start_tag ? 'S' :
-                        $token->is_end_tag   ? 'E' :
-                        $token->is_comment   ? 'C' : '';
-
-    if ($token->is_start_tag) {
-        push @{$self->{plist}}, $token->tag;
-        my @list = @{$self->{plist}};
-
-        # inject an empty text-token, in case that there are any attributes that follow...
-        if (!$self->{filter} and keys %{$token->attr}) {
-            push @{$self->{command}}, ['T', \@list, 0, 0, ''];
-        }
-
-        push @{$self->{command}}, map {['A', \@list, 0, 0, $_, $token->attr->{$_}]} sort keys %{$token->attr};
-    }
-    elsif ($token->is_end_tag) {
-        $self->{item} = pop @{$self->{plist}};
-    }
-    elsif ($token->is_text) {
-        my $text = $token->text;
-
-        if (!$self->{filter} or $text =~ m{\S}xms) {
-            if ($self->{strip}) {
-                $text =~ s{\A \s+}''xms;
-                $text =~ s{\s+ \z}''xms;
-                $text =~ s{\s+}' 'xmsg;
-            }
-            my @list = @{$self->{plist}};
-            push @{$self->{command}}, ['T', \@list, 0, 0, $text];
-        }
-    }
-    elsif ($token->is_comment and $self->{comment}) {
-        my $text = $token->text;
-        if ($self->{strip}) {
-            $text =~ s{\A \s+}''xms;
-            $text =~ s{\s+ \z}''xms;
-            $text =~ s{\s+}' 'xmsg;
-        }
-        my @list = @{$self->{plist}};
-        push @{$self->{command}}, ['C', \@list, 0, 0, $text];
-    }
+    my $token = shift @{$self->XR_Data};
+    bless $token, 'XML::Reader::Token';
 }
 
 sub DESTROY {
     my $self = shift;
 
-    # resolve circular reference in XML::TokeParser to avoid Memory leak
-    $self->{parser}{parser}{TokeParser} = undef;
+    # There are circular references inside an XML::Parser::ExpatNB-object
+    # which need to be cleaned up by calling XML::Parser::Expat->release.
+
+    # I quote from the documentation of 'XML::Parser::Expat' (-- yes,
+    # XML::Parser::Expat is a super-class of XML::Parser::ExpatNB --)
+    #
+    # >> ------------------------------------------------------------------------
+    # >> =item release
+    # >>
+    # >> There are data structures used by XML::Parser::Expat that have circular
+    # >> references. This means that these structures will never be garbage
+    # >> collected unless these references are explicitly broken. Calling this
+    # >> method breaks those references (and makes the instance unusable.)
+    # >>
+    # >> Normally, higher level calls handle this for you, but if you are using
+    # >> XML::Parser::Expat directly, then it's your responsibility to call it.
+    # >> ------------------------------------------------------------------------
+
+    # We call XML::Parser::Expat->release by actually calling
+    # XML::Parser::ExpatNB->parse_done.
+
+    # There is a possibility that the XML::Parser::ExpatNB-object did not get
+    # created, while still blessing the XML::Reader object. Therefore we have to
+    # test for this case before calling XML::Parser::ExpatNB->parse_done.
+
+    if ($self->{ExpatNB}) {
+        $self->{ExpatNB}->parse_done;
+    }
+}
+
+# The package used here - XML::Reader::Token 
+# has been inspired by    XML::TokeParser::Token
+
+package XML::Reader::Token;
+
+sub found_start_tag { $_[0][0] eq 'S'; }
+sub found_end_tag   { $_[0][0] eq 'E'; }
+sub found_comment   { $_[0][0] eq 'C'; }
+sub found_text      { $_[0][0] eq 'T'; }
+
+sub extract_tag {
+    my $self = shift;
+    my $type = $self->[0];
+    return $type eq 'S' || $type eq 'E' ? $self->[1] : '';
+}
+
+sub extract_text {
+    my $self = shift;
+    my $type = $self->[0];
+    return $type eq 'T' || $type eq 'C' ? $self->[1] : '';
+}
+
+sub extract_attr {
+    my $self = shift;
+    my $type = $self->[0];
+    return $type eq 'S' ? $self->[2] : {};
 }
 
 1;
@@ -241,10 +457,11 @@ XML::Reader - Reading XML and providing path information based on a pull-parser.
 XML::Reader provides an easy to use and simple interface for sequentially parsing XML
 files (so called "pull-mode" parsing) and at the same time keeps track of the complete XML-path.
 
-It was developped as a thin wrapper on top of XML::TokeParser. XML::TokeParser allows pull-mode
-parsing, but does not keep track of the complete XML-Path. Also, the interface to XML::TokeParser
-(see $t->is_start_tag, $t->is_end_tag, $t->is_text) requires you to distinguish between start-tags,
-end-tags and text, which, in my view, complicates the interface.
+It was developped as a wrapper on top of XML::Parser (while, at the same time, some basic functions
+have been copied from XML::TokeParser). Both XML::Parser and XML::TokeParser allow pull-mode
+parsing, but do not keep track of the complete XML-Path. Also, the interfaces to XML::Parser and
+XML::TokeParser require you to distinguish between start-tags, end-tags and text, which, in my view,
+complicates the interface.
 
 There is also XML::TiePYX, which lets you pull-mode parse XML-Files (see
 L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> for an introduction to PYX).
@@ -333,6 +550,19 @@ The option {filter => 1} removes all empty text lines. Be careful if you want to
 C<is_start> and C<is_end> methods, in which case you have to set option {filter => 0}.
 The default is {filter => 1}.
 
+=item option {using => ['/path1/path2/path3', '/path4/path5/path6']}
+
+This option removes all lines which do not start with '/path1/path2/path3' (or with
+'/path4/path5/path6', for that matter). This effectively leaves only lines starting with
+'/path1/path2/path3' or '/path4/path5/path6'. Those lines (which are not removed) will have a
+shorter path by effectively removing the prefix '/path1/path2/path3' (or '/path4/path5/path6')
+from the path. The removed prefix, however, shows up in the prefix-method.
+
+'/path1/path2/path3' (or '/path4/path5/path6') are supposed to be absolute and complete, i.e.
+absolute meaning they have to start with a '/'-character and complete meaning that the last
+item in path 'path3' (or 'path6', for that matter) will be completed internally by a trailing
+'/'-character.
+
 =back
 
 =head2 Methods
@@ -379,54 +609,12 @@ returned).
 
 Indicates the nesting level of the XPath expression (numeric value greater than zero).
 
+=item prefix
+
+Shows the prefix which has been removed in option {using => ...}. Returns the empty string if
+option {using => ...} has not been specified.
+
 =back
-
-=head1 OTHER CONSIDERATIONS
-
-=head2 Memory leak in XML::TokeParser
-
-The XML::TokeParser object has a circular reference, see subroutine XML::TokeParser::new
-
-  $self->{parser} = $parser->parse_start( TokeParser => $self )
-
-This line of code generates a circular reference as follows:
-
-  $self->{parser}{TokeParser} == $self
-
-In order to resolve this circular reference during object destruction, an attempt has been
-made to remove the circular reference in the DESTROY subroutine for XML::TokeParser by
-undefining the first element in the chain of that circular reference.
-
-  package XML::TokeParser;
-
-  sub DESTROY {
-      my $self = shift;
-      ...
-      $self->{parser} = undef;
-  }
-
-Unfortunately, this approach does not work, as the XML::TokeParser object is part of the
-circular reference itself and therefore XML::TokeParser::DESTROY will not be called until
-the circular reference is cleaned up during global destruction.
-
-The solution is to resolve the circular reference in the DESTROY subroutine of a package
-which is not part of the circular reference itself. The obvious solution is the correct one:
-We resolve the circular reference in the DESTROY subroutine of this package XML::Reader.
-
-One thing to remember here is that we now are dealing with an additional level of
-indirection, i.e. in XML::TokeParser::DESTROY, instead of...
-
-  $self->{parser} = undef;
-
-...we now have to say (in XML::Reader::DESTROY)...
-
-  $self->{parser}{parser} = undef;
-
-...This should work, however, tests with XML::Reader have shown that this does not work.
-You may ask why ? - I don't know. - What does work, however is the following instruction
-in XML::Reader::DESTROY...
-
-  $self->{parser}{parser}{TokeParser} = undef;
 
 =head1 AUTHOR
 
@@ -449,6 +637,7 @@ DATA_INDENT=>2, which allows for proper indentation in your XML-Output file)
 
 L<XML::TokeParser>,
 L<XML::Parser>,
+L<XML::Parser::Expat>,
 L<XML::TiePYX>,
 L<XML::Writer>.
 
