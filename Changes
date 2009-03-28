@@ -12,3 +12,6 @@ Revision history for XML-Reader
 0.04    27 Mar 2009
         Replace XML::TokeParser by XML::Parser
         add option {using => ...} and also add method prefix
+
+0.05    28 Mar 2009
+        fix a bug in option {using => ...}

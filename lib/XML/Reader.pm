@@ -11,13 +11,13 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.04';
+our $VERSION     = '0.05';
 
 sub new {
     my $class = shift;
     my $self = {};
 
-    my %hash = (comment => 0, strip => 1, filter => 1);
+    my %hash = (comment => 1, strip => 1, filter => 0);
     %hash    = (%hash, %{$_[1]}) if defined $_[1];
 
     my $XmlParser = XML::Parser->new
@@ -70,15 +70,20 @@ sub new {
     # (-- which, in turn, calls XML::Parser::Expat->release to actually break the circular
     # reference --)
 
-    $self->{ExpatNB} = $XmlParser->parse_start(XR_Data => [], XR_Text => undef, XR_Status => 'ok', XR_fh => $fh)
-      or die "Failed assertion #0020 in subroutine XML::Reader->new: Can't create XML::Parser->new";
+    $self->{ExpatNB} = $XmlParser->parse_start(
+        XR_Data    => [],
+        XR_Text    => undef,
+        XR_Comment => undef,
+        XR_Status  => 'ok',
+        XR_fh      => $fh,
+      ) or die "Failed assertion #0020 in subroutine XML::Reader->new: Can't create XML::Parser->new";
 
     # The instruction "XR_Data => []" (-- the 'XR_...' prefix stands for 'Xml::Reader...' --)
     # inside XML::Parser->parse_start() creates an empty array $ExpatNB{XR_Data} = []
     # inside the ExpatNB object. This array is the place where the handlers put their data.
     #
-    # Likewise, the instructions "XR_Text => undef", "XR_Status => 'ok'" and "XR_fh => $fh"
-    # create corresponding elements inside the $ExpatNB-object.
+    # Likewise, the instructions "XR_Text => undef", "XR_Comment => undef", "XR_Status => 'ok'"
+    # and "XR_fh => $fh" create corresponding elements inside the $ExpatNB-object.
 
     $self->{comment} = $hash{comment};
     $self->{strip}   = $hash{strip};
@@ -104,7 +109,7 @@ sub new {
     $self->{is_start} = 0;
     $self->{is_end}   = 0;
     $self->{level}    = 0;
-    $self->{p_token}  = undef;
+    $self->{prev_cd}  = 'T';
     $self->{item}     = '';
 
     return $self;
@@ -119,10 +124,10 @@ sub is_end   { $_[0]->{is_end};   }
 sub level    { $_[0]->{level};    }
 sub prefix   { $_[0]->{prefix};   }
 
-sub XR_Data         { $_[0]->{ExpatNB}{XR_Data};           }
-sub XR_Stat_not_ok  { $_[0]->{ExpatNB}{XR_Status} ne 'ok'; }
-sub XR_Stat_set_eof { $_[0]->{ExpatNB}{XR_Status} = 'eof'; }
-sub XR_fh           { $_[0]->{ExpatNB}{XR_fh};             }
+sub NB_data         { $_[0]->{ExpatNB}{XR_Data};           }
+sub NB_stat_not_ok  { $_[0]->{ExpatNB}{XR_Status} ne 'ok'; }
+sub NB_stat_set_eof { $_[0]->{ExpatNB}{XR_Status} = 'eof'; }
+sub NB_fh           { $_[0]->{ExpatNB}{XR_fh};             }
 
 sub handle_start {
     my ($ExpatNB, $element, @a) = @_;
@@ -132,8 +137,13 @@ sub handle_start {
         $ExpatNB->{XR_Text} = undef;
     }
 
+    if (defined $ExpatNB->{XR_Comment}) {
+        push @{$ExpatNB->{XR_Data}}, ['C', $ExpatNB->{XR_Comment}];
+        $ExpatNB->{XR_Comment} = undef;
+    }
+
     my %attr = @a;
-    push @{$ExpatNB->{XR_Data}}, ['S', $element, \%attr];
+    push @{$ExpatNB->{XR_Data}}, ['S', $element, \%attr, undef];
 }
 
 sub handle_end {
@@ -144,13 +154,18 @@ sub handle_end {
         $ExpatNB->{XR_Text} = undef;
     }
 
+    if (defined $ExpatNB->{XR_Comment}) {
+        push @{$ExpatNB->{XR_Data}}, ['C', $ExpatNB->{XR_Comment}];
+        $ExpatNB->{XR_Comment} = undef;
+    }
+
     push @{$ExpatNB->{XR_Data}}, ['E', $element];
 }
 
 sub handle_comment {
     my ($ExpatNB, $text) = @_;
 
-    push @{$ExpatNB->{XR_Data}}, ['C', $text];
+    $ExpatNB->{XR_Comment} .= $text;
 }
 
 sub handle_char {
@@ -164,7 +179,7 @@ sub iterate {
 
     {
         # try reading 3 tokens...
-        until ($self->XR_Stat_not_ok or @{$self->{command}} >= 3) {
+        until ($self->NB_stat_not_ok or @{$self->{command}} >= 3) {
             $self->read_token;
         }
 
@@ -177,9 +192,7 @@ sub iterate {
         $self->populate_values;
 
         # if the current element is of type 'Z', i.e. a dummy header, then get rid of it
-        my $cmd = ${$self->{command}}[0];
-
-        if ($cmd->[0] eq 'Z') {
+        if (${$self->{command}}[0][0] eq 'Z') {
             shift @{$self->{command}};
             redo;
         }
@@ -259,12 +272,17 @@ sub populate_values {
     $self->{prefix} = '';
 
     for my $check (@{$self->{using}}) {
+        if ($check eq $self->{path}) {
+            $self->{prefix} = $check;
+            $self->{path}   = '/';
+            $self->{level}  = 0;
+            last;
+        }
         if ($check.'/' eq substr($self->{path}, 0, length($check) + 1)) {
-            my @ele = split m{/}xms, $check;
-            my $count = @ele - 1;
+            my @temp = split m{/}xms, $check;
             $self->{prefix} = $check;
             $self->{path}   = substr($self->{path}, length($check));
-            $self->{level} -= $count;
+            $self->{level} -= @temp - 1;
             last;
         }
     }
@@ -282,31 +300,55 @@ sub read_token {
     # inject empty text in front of start- and end-tags, if needed...
     if (!$self->{filter}) {
         if ($token->found_start_tag
-        or  $token->found_end_tag
-        or ($token->found_comment and $self->{comment})) {
-            if (defined $self->{p_token} and !$self->{p_token}->found_text) {
+        or  $token->found_end_tag) {
+            if ($self->{prev_cd} ne 'T') {
                 my @list = @{$self->{plist}};
                 push @{$self->{command}}, ['T', \@list, 0, 0, ''];
             }
         }
     }
 
-    # save the token in p_token...
-    $self->{p_token} = $token;
-
     if ($token->found_start_tag) {
         push @{$self->{plist}}, $token->extract_tag;
         my @list = @{$self->{plist}};
 
-        # inject an empty text-token, in case that there are any attributes that follow...
-        if (!$self->{filter} and keys %{$token->extract_attr}) {
-            push @{$self->{command}}, ['T', \@list, 0, 0, ''];
+        # inject the text-token before the attributes...
+        my $text = $token->extract_text;
+
+        if (defined($text) and $self->{strip}) {
+            $text =~ s{\A \s+}''xms;
+            $text =~ s{\s+ \z}''xms;
+            $text =~ s{\s+}' 'xmsg;
         }
 
+        if ($self->{filter}) {
+            if (defined $text) {
+                push @{$self->{command}}, ['T', \@list, 0, 0, $text];
+            }
+        }
+        else {
+            # if (keys %{$token->extract_attr}) {
+            if (defined($text)) {
+                push @{$self->{command}}, ['T', \@list, 0, 0, $text];
+            }
+            else {
+                push @{$self->{command}}, ['T', \@list, 0, 0, ''];
+            }
+        }
+
+        # inject the attributes...
         push @{$self->{command}}, map {['A', \@list, 0, 0, $_, $token->extract_attr->{$_}]} sort keys %{$token->extract_attr};
+
+        if (keys %{$token->extract_attr}) {
+            $self->{prev_cd} = 'C';
+        }
+        else {
+            $self->{prev_cd} = 'T';
+        }
     }
     elsif ($token->found_end_tag) {
         $self->{item} = pop @{$self->{plist}};
+        $self->{prev_cd} = 'E';
     }
     elsif ($token->found_text) {
         my $text = $token->extract_text;
@@ -320,6 +362,7 @@ sub read_token {
             my @list = @{$self->{plist}};
             push @{$self->{command}}, ['T', \@list, 0, 0, $text];
         }
+        $self->{prev_cd} = 'T';
     }
     elsif ($token->found_comment and $self->{comment}) {
         my $text = $token->extract_text;
@@ -330,6 +373,7 @@ sub read_token {
         }
         my @list = @{$self->{plist}};
         push @{$self->{command}}, ['C', \@list, 0, 0, $text];
+        $self->{prev_cd} = 'C';
     }
 }
 
@@ -350,13 +394,14 @@ sub get_length {
 sub get_token {
     my $self = shift;
 
-    until ($self->XR_Stat_not_ok or @{$self->XR_Data}) {
+    # make sure that we have 2 or more tokens...
+    until ($self->NB_stat_not_ok or @{$self->NB_data} >= 2) {
 
         # Here is the all important reading of a chunk of XML-data from the filehandle...
-        read($self->XR_fh, my $buf, 256); # Buffer-length should really be 4096
+        read($self->NB_fh, my $buf, 4096);
 
         if ($buf eq '') {
-            $self->XR_Stat_set_eof;
+            $self->NB_stat_set_eof;
             last;
         }
 
@@ -364,11 +409,28 @@ sub get_token {
         $self->{ExpatNB}->parse_more($buf);
     }
 
-    unless (@{$self->XR_Data}) {
+    # return failure if end-of-file...
+    unless (@{$self->NB_data}) {
         return;
     }
 
-    my $token = shift @{$self->XR_Data};
+    if (@{$self->NB_data} >= 2) {
+        # Here we manipulate the data:
+
+        my $first_token  = ${$self->NB_data}[0];
+        my $second_token = ${$self->NB_data}[1];
+
+        # if we find (in 'first_token') a start-tag without text, followed (in 'second_token') by a text
+        if ($first_token->[0]  eq 'S' and !defined($first_token->[3])
+        and $second_token->[0] eq 'T' and $second_token->[1] ne '') {
+            # then we take that text (second token[1]) and move it to the text of the start-tag (first token[3]):
+            $first_token->[3] = $second_token->[1];
+            # then we get rid of the second token by making it a dummy 'Z'-entry
+            $second_token->[0] = 'Z';
+        }
+    }
+
+    my $token = shift @{$self->NB_data};
     bless $token, 'XML::Reader::Token';
 }
 
@@ -414,6 +476,7 @@ sub found_start_tag { $_[0][0] eq 'S'; }
 sub found_end_tag   { $_[0][0] eq 'E'; }
 sub found_comment   { $_[0][0] eq 'C'; }
 sub found_text      { $_[0][0] eq 'T'; }
+sub found_dummy     { $_[0][0] eq 'Z'; }
 
 sub extract_tag {
     my $self = shift;
@@ -424,7 +487,7 @@ sub extract_tag {
 sub extract_text {
     my $self = shift;
     my $type = $self->[0];
-    return $type eq 'T' || $type eq 'C' ? $self->[1] : '';
+    return $type eq 'T' || $type eq 'C' ? $self->[1] : $type eq 'S' ? $self->[3] : '';
 }
 
 sub extract_attr {
@@ -471,43 +534,74 @@ provide the full XML-path.
 By contrast, XML::Reader translates start-tags, end-tags and text into XPath-like expressions. So
 you don't need to worry about tags, you just get a path and a value, and that's it.
 
-For example, the following XML...
+For example, the following XML in variable '$line'...
 
-  <data>
-    <item>abc</item>
-    <item>
-      <dummy/>
-      fgh
-      <inner name="ttt" id="fff">
-        ooo <!-- comment --> ppp
-      </inner>
-    </item>
-  </data>
+  my $line = q{
+    <data>
+      <item>abc</item>
+      <item>
+        <dummy/>
+        fgh
+        <inner name="ttt" id="fff">
+          ooo <!-- comment --> ppp
+        </inner>
+      </item>
+    </data>
+  };
 
-...corresponds to a sequence of path/value pairs.
+...can be parsed with XML::Reader using the methods C<iterate> to iterate one-by-one through the
+XML-data, C<path> and C<value> to extract the XML-path and it's value.
 
 You can also keep track of the start- and end-tags: There is a method C<is_start>
 which returns 1 or 0, depending on whether the XML-file had a start tag at the current position. There
 is also the equivalent method C<is_end>. Just remember, those two method only make sense if filter is
-switched off (otherwise those methods return constant 0). Finally, there is the method C<tag> which
-gives you the current tag-name (or attribute-name).
+switched off (otherwise those methods return constant 0). Finally, there are methods C<tag> (which
+gives you the current tag-name or attribute-name), C<type> (which is either 'T' for text, '@' for attributes
+or '#' for comments) and C<level> (which indicates the current nesting-level).
 
-Here is the sequence of path/value pairs, including C<is_start>, C<is_end> and C<tag>:
+Here is a sample program to demonstrate the principle...
 
-  path = '/data'                  value = ''        is_start = 1 is_end = 0 tag = 'data'
-  path = '/data/item'             value = 'abc'     is_start = 1 is_end = 1 tag = 'item'
-  path = '/data'                  value = ''        is_start = 0 is_end = 0 tag = 'data'
-  path = '/data/item'             value = ''        is_start = 1 is_end = 0 tag = 'item'
-  path = '/data/item/dummy'       value = ''        is_start = 1 is_end = 1 tag = 'dummy'
-  path = '/data/item'             value = 'fgh'     is_start = 0 is_end = 0 tag = 'item'
-  path = '/data/item/inner'       value = ''        is_start = 1 is_end = 0 tag = 'inner'
-  path = '/data/item/inner/@id'   value = 'fff'     is_start = 0 is_end = 0 tag = 'id'
-  path = '/data/item/inner/@name' value = 'ttt'     is_start = 0 is_end = 0 tag = 'name'
-  path = '/data/item/inner'       value = 'ooo'     is_start = 0 is_end = 0 tag = 'inner'
-  path = '/data/item/inner/#'     value = 'comment' is_start = 0 is_end = 0 tag = ''
-  path = '/data/item/inner'       value = 'ppp'     is_start = 0 is_end = 1 tag = 'inner'
-  path = '/data/item'             value = ''        is_start = 0 is_end = 1 tag = 'item'
-  path = '/data'                  value = ''        is_start = 0 is_end = 1 tag = 'data'
+  use XML::Reader;
+
+  my $rdr = XML::Reader->new(\$line) or die "Error: $!";
+  my $i = 0;
+  while ($rdr->iterate) { $i++;
+      printf "%3d. pat=%-22s, val=%-9s, s=%-1s, e=%-1s, tag=%-6s, t=%-1s, lvl=%2d\n",
+       $i, $rdr->path, $rdr->value, $rdr->is_start,
+       $rdr->is_end, $rdr->tag, $rdr->type, $rdr->level;
+  }
+
+...and here is the output:
+
+   1. pat=/data                 , val=         , s=1, e=0, tag=data  , t=T, lvl= 1
+   2. pat=/data/item            , val=abc      , s=1, e=1, tag=item  , t=T, lvl= 2
+   3. pat=/data                 , val=         , s=0, e=0, tag=data  , t=T, lvl= 1
+   4. pat=/data/item            , val=         , s=1, e=0, tag=item  , t=T, lvl= 2
+   5. pat=/data/item/dummy      , val=         , s=1, e=1, tag=dummy , t=T, lvl= 3
+   6. pat=/data/item            , val=fgh      , s=0, e=0, tag=item  , t=T, lvl= 2
+   7. pat=/data/item/inner      , val=ooo ppp  , s=1, e=0, tag=inner , t=T, lvl= 3
+   8. pat=/data/item/inner/@id  , val=fff      , s=0, e=0, tag=id    , t=@, lvl= 4
+   9. pat=/data/item/inner/@name, val=ttt      , s=0, e=0, tag=name  , t=@, lvl= 4
+  10. pat=/data/item/inner/#    , val=comment  , s=0, e=0, tag=      , t=#, lvl= 4
+  11. pat=/data/item/inner      , val=         , s=0, e=1, tag=inner , t=T, lvl= 3
+  12. pat=/data/item            , val=         , s=0, e=1, tag=item  , t=T, lvl= 2
+  13. pat=/data                 , val=         , s=0, e=1, tag=data  , t=T, lvl= 1
+
+If you want, you can set a filter to select only those lines that have a value:
+
+  my $rdr = XML::Reader->new(\$line, {filter => 1}) or die "Error: $!";
+
+Then the output will be as follows (be careful not to interpret $rdr->is_start or
+$rdr->is_end when the filter has been activated)
+
+   1. pat=/data                 , val=         , s=0, e=0, tag=data  , t=T, lvl= 1
+   2. pat=/data/item            , val=abc      , s=0, e=0, tag=item  , t=T, lvl= 2
+   3. pat=/data/item            , val=         , s=0, e=0, tag=item  , t=T, lvl= 2
+   4. pat=/data/item            , val=fgh      , s=0, e=0, tag=item  , t=T, lvl= 2
+   5. pat=/data/item/inner      , val=ooo ppp  , s=0, e=0, tag=inner , t=T, lvl= 3
+   6. pat=/data/item/inner/@id  , val=fff      , s=0, e=0, tag=id    , t=@, lvl= 4
+   7. pat=/data/item/inner/@name, val=ttt      , s=0, e=0, tag=name  , t=@, lvl= 4
+   8. pat=/data/item/inner/#    , val=comment  , s=0, e=0, tag=      , t=#, lvl= 4
 
 =head1 INTERFACE
 
@@ -534,21 +628,21 @@ One ,or more, of the following options can be added as a hash-reference:
 
 =over
 
-=item option {comment => 0}
+=item option {comment => 1}
 
 The option {comment => 1} allows comments to be passed through. The option {comment => 0}
-disables comments. The default is {comment => 0}.
+disables comments. The default is {comment => 1}.
 
 =item option {strip => 1}
 
 The option {strip => 1} strips all leading and trailing spaces from text and comments.
 (attributes are never stripped). The default is {strip => 1}.
 
-=item option {filter => 1}
+=item option {filter => 0}
 
 The option {filter => 1} removes all empty text lines. Be careful if you want to use the
 C<is_start> and C<is_end> methods, in which case you have to set option {filter => 0}.
-The default is {filter => 1}.
+The default is {filter => 0}.
 
 =item option {using => ['/path1/path2/path3', '/path4/path5/path6']}
 
@@ -615,6 +709,111 @@ Shows the prefix which has been removed in option {using => ...}. Returns the em
 option {using => ...} has not been specified.
 
 =back
+
+=head1 EXAMPLES
+
+Here is a sample piece of XML (in valiable '$line'):
+
+  my $line = q{
+  <data>
+    <order>
+      <database>
+        <customer name="aaa" />
+        <customer name="bbb" />
+        <customer name="ccc" />
+        <customer name="ddd" />
+      </database>
+    </order>
+    <dummy value="ttt">test</dummy>
+    <supplier>hhh</supplier>
+    <supplier>iii</supplier>
+    <supplier>jjj</supplier>
+  </data>
+  };
+
+=head2 An example with option 'using'
+
+The following program takes this XML and parses it with XML::Reader, including the option 'using'
+to target specific elements:
+
+  use XML::Reader;
+
+  my $rdr = XML::Reader->new(\$line, {filter => 0,
+    using => ['/data/order/database/customer', '/data/supplier']});
+
+  my $i = 0;
+  while ($rdr->iterate) { $i++;
+      printf "%3d. prf=%-29s, pat=%-7s, val=%-3s, s=%-1s, e=%-1s, tag=%-11s, t=%-1s, lvl=%2d\n",
+        $i, $rdr->prefix, $rdr->path, $rdr->value, $rdr->is_start,
+        $rdr->is_end, $rdr->tag, $rdr->type, $rdr->level;
+  }
+
+This is the output of that program:
+
+   1. prf=/data/order/database/customer, pat=/      , val=   , s=1, e=0, tag=customer   , t=T, lvl= 0
+   2. prf=/data/order/database/customer, pat=/@name , val=aaa, s=0, e=0, tag=name       , t=@, lvl= 1
+   3. prf=/data/order/database/customer, pat=/      , val=   , s=0, e=1, tag=customer   , t=T, lvl= 0
+   4. prf=/data/order/database/customer, pat=/      , val=   , s=1, e=0, tag=customer   , t=T, lvl= 0
+   5. prf=/data/order/database/customer, pat=/@name , val=bbb, s=0, e=0, tag=name       , t=@, lvl= 1
+   6. prf=/data/order/database/customer, pat=/      , val=   , s=0, e=1, tag=customer   , t=T, lvl= 0
+   7. prf=/data/order/database/customer, pat=/      , val=   , s=1, e=0, tag=customer   , t=T, lvl= 0
+   8. prf=/data/order/database/customer, pat=/@name , val=ccc, s=0, e=0, tag=name       , t=@, lvl= 1
+   9. prf=/data/order/database/customer, pat=/      , val=   , s=0, e=1, tag=customer   , t=T, lvl= 0
+  10. prf=/data/order/database/customer, pat=/      , val=   , s=1, e=0, tag=customer   , t=T, lvl= 0
+  11. prf=/data/order/database/customer, pat=/@name , val=ddd, s=0, e=0, tag=name       , t=@, lvl= 1
+  12. prf=/data/order/database/customer, pat=/      , val=   , s=0, e=1, tag=customer   , t=T, lvl= 0
+  13. prf=/data/supplier               , pat=/      , val=hhh, s=1, e=1, tag=supplier   , t=T, lvl= 0
+  14. prf=/data/supplier               , pat=/      , val=iii, s=1, e=1, tag=supplier   , t=T, lvl= 0
+  15. prf=/data/supplier               , pat=/      , val=jjj, s=1, e=1, tag=supplier   , t=T, lvl= 0
+
+=head2 An example without option 'using'
+
+The following program takes the same XML and parses it with XML::Reader, but without the option 'using'.
+
+  use XML::Reader;
+
+  my $rdr = XML::Reader->new(\$line, {filter => 0});
+  my $i = 0;
+  while ($rdr->iterate) { $i++;
+      printf "%3d. prf=%-1s, pat=%-37s, val=%-6s, s=%-1s, e=%-1s, tag=%-11s, t=%-1s, lvl=%2d\n",
+       $i, $rdr->prefix, $rdr->path, $rdr->value, $rdr->is_start,
+       $rdr->is_end, $rdr->tag, $rdr->type, $rdr->level;
+  }
+
+As you can see in the following output, there are many more lines written, the prefix is empty and the path
+is much longer than in the previous program:
+
+   1. prf= , pat=/data                                , val=      , s=1, e=0, tag=data       , t=T, lvl= 1
+   2. prf= , pat=/data/order                          , val=      , s=1, e=0, tag=order      , t=T, lvl= 2
+   3. prf= , pat=/data/order/database                 , val=      , s=1, e=0, tag=database   , t=T, lvl= 3
+   4. prf= , pat=/data/order/database/customer        , val=      , s=1, e=0, tag=customer   , t=T, lvl= 4
+   5. prf= , pat=/data/order/database/customer/@name  , val=aaa   , s=0, e=0, tag=name       , t=@, lvl= 5
+   6. prf= , pat=/data/order/database/customer        , val=      , s=0, e=1, tag=customer   , t=T, lvl= 4
+   7. prf= , pat=/data/order/database                 , val=      , s=0, e=0, tag=database   , t=T, lvl= 3
+   8. prf= , pat=/data/order/database/customer        , val=      , s=1, e=0, tag=customer   , t=T, lvl= 4
+   9. prf= , pat=/data/order/database/customer/@name  , val=bbb   , s=0, e=0, tag=name       , t=@, lvl= 5
+  10. prf= , pat=/data/order/database/customer        , val=      , s=0, e=1, tag=customer   , t=T, lvl= 4
+  11. prf= , pat=/data/order/database                 , val=      , s=0, e=0, tag=database   , t=T, lvl= 3
+  12. prf= , pat=/data/order/database/customer        , val=      , s=1, e=0, tag=customer   , t=T, lvl= 4
+  13. prf= , pat=/data/order/database/customer/@name  , val=ccc   , s=0, e=0, tag=name       , t=@, lvl= 5
+  14. prf= , pat=/data/order/database/customer        , val=      , s=0, e=1, tag=customer   , t=T, lvl= 4
+  15. prf= , pat=/data/order/database                 , val=      , s=0, e=0, tag=database   , t=T, lvl= 3
+  16. prf= , pat=/data/order/database/customer        , val=      , s=1, e=0, tag=customer   , t=T, lvl= 4
+  17. prf= , pat=/data/order/database/customer/@name  , val=ddd   , s=0, e=0, tag=name       , t=@, lvl= 5
+  18. prf= , pat=/data/order/database/customer        , val=      , s=0, e=1, tag=customer   , t=T, lvl= 4
+  19. prf= , pat=/data/order/database                 , val=      , s=0, e=1, tag=database   , t=T, lvl= 3
+  20. prf= , pat=/data/order                          , val=      , s=0, e=1, tag=order      , t=T, lvl= 2
+  21. prf= , pat=/data                                , val=      , s=0, e=0, tag=data       , t=T, lvl= 1
+  22. prf= , pat=/data/dummy                          , val=test  , s=1, e=0, tag=dummy      , t=T, lvl= 2
+  23. prf= , pat=/data/dummy/@value                   , val=ttt   , s=0, e=0, tag=value      , t=@, lvl= 3
+  24. prf= , pat=/data/dummy                          , val=      , s=0, e=1, tag=dummy      , t=T, lvl= 2
+  25. prf= , pat=/data                                , val=      , s=0, e=0, tag=data       , t=T, lvl= 1
+  26. prf= , pat=/data/supplier                       , val=hhh   , s=1, e=1, tag=supplier   , t=T, lvl= 2
+  27. prf= , pat=/data                                , val=      , s=0, e=0, tag=data       , t=T, lvl= 1
+  28. prf= , pat=/data/supplier                       , val=iii   , s=1, e=1, tag=supplier   , t=T, lvl= 2
+  29. prf= , pat=/data                                , val=      , s=0, e=0, tag=data       , t=T, lvl= 1
+  30. prf= , pat=/data/supplier                       , val=jjj   , s=1, e=1, tag=supplier   , t=T, lvl= 2
+  31. prf= , pat=/data                                , val=      , s=0, e=1, tag=data       , t=T, lvl= 1
 
 =head1 AUTHOR
 
