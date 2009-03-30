@@ -1,9 +1,15 @@
 use strict;
 use warnings;
 
-use Test::More tests => 26;
+use Test::More tests => 30;
 
 use_ok('XML::Reader');
+
+{
+    my $msg = '';
+    my $rdr = XML::Reader->new('<') or $msg = "$!";
+    is($msg, 'Invalid argument', 'Message correctly returned from new');
+}
 
 {
     my $line = '';
@@ -29,7 +35,7 @@ use_ok('XML::Reader');
         my $info = '';
         my $rdr = XML::Reader->new(\$line, {filter => 1, using => '/data/data/data/data'});
         while ($rdr->iterate) { $info .= '['.$rdr->level.']'; }
-        is($info, '[7][8][8]', 'level information with using and filter');
+        is($info, '[8][8][7]', 'level information with using and filter');
     }
 }
 
@@ -38,7 +44,15 @@ use_ok('XML::Reader');
     my $out = '';
     my $rdr = XML::Reader->new(\$line, {filter => 1});
     while ($rdr->iterate) { $out .= '['.$rdr->tag.'='.$rdr->value.']'; }
-    is($out, '[a=1][b=2][c=3]', 'attributes in alphabetical order');
+    is($out, '[@a=1][@b=2][@c=3]', 'attributes in alphabetical order');
+}
+
+{
+    my $line = q{<data>a     b  <!-- c --> d</data>};
+    my $out = '';
+    my $rdr = XML::Reader->new(\$line);
+    while ($rdr->iterate) { $out .= '['.$rdr->tag.'='.$rdr->value.']'; }
+    is($out, '[data=][#=c][data=a b d]', 'defaults are ok {comment => 1, strip => 1, filter => 0');
 }
 
 {
@@ -47,6 +61,14 @@ use_ok('XML::Reader');
     my $rdr = XML::Reader->new(\$line, {comment => 1, filter => 1});
     while ($rdr->iterate) { $out .= '['.$rdr->type.'='.$rdr->value.']'; }
     is($out, '[#=test]', 'comment is produced');
+}
+
+{
+    my $line = q{<data><!-- test --></data>};
+    my $out = '';
+    my $rdr = XML::Reader->new(\$line, {comment => 1, filter => 0});
+    while ($rdr->iterate) { $out .= '['.$rdr->type.'='.$rdr->value.']'; }
+    is($out, '[T=][#=test][T=]', 'comment is produced with filter off');
 }
 
 {
@@ -81,7 +103,7 @@ use_ok('XML::Reader');
           <dummy/>
           fgh
           <inner name="ttt" id="fff">
-            ooo <!-- comment --> ppp
+            o <!-- comment --> p <!-- comment2 --> q
           </inner>
         </item>
       </data>
@@ -103,6 +125,18 @@ use_ok('XML::Reader');
 }
 
 {
+    my $line = q{<a><b><c><d></d></c></b></a>};
+
+    my $info = '';
+
+    my $rdr = XML::Reader->new(\$line, {filter => 0});
+    while ($rdr->iterate) {
+        $info .= '['.$rdr->path.'='.$rdr->value.']';
+    }
+    is($info, '[/a=][/a/b=][/a/b/c=][/a/b/c/d=][/a/b/c=][/a/b=][/a=]', 'an empty, 4-level deep, nested XML');
+}
+
+{
     my $line = q{
       <data>
         ooo <!-- comment --> ppp
@@ -116,11 +150,11 @@ use_ok('XML::Reader');
         my $rdr = XML::Reader->new(\$line, {comment => 1, filter => 0});
         my $i = 0;
         while ($rdr->iterate) { $i++;
-            $data    = $rdr->value if $i == 1;
             $comment = $rdr->value if $i == 2;
+            $data    = $rdr->value if $i == 3;
         }
+        is($comment, 'comment', 'comment comes before data');
         is($data,    'ooo ppp', 'data is not broken up by comments');
-        is($comment, 'comment', 'comment comes after data');
     }
 
     {
