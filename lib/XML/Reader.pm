@@ -11,13 +11,13 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.06';
+our $VERSION     = '0.07';
 
 sub new {
     my $class = shift;
     my $self = {};
 
-    my %opt = (comment => 1, strip => 1, filter => 0);
+    my %opt = (strip => 1, filter => 0);
     %opt    = (%opt, %{$_[1]}) if defined $_[1];
 
     my $XmlParser = XML::Parser->new
@@ -75,14 +75,13 @@ sub new {
     # be cleaned up when the XML::Reader-object goes away (see XML::Reader->DESTROY).
 
     $self->{ExpatNB} = $XmlParser->parse_start(
-        XR_Data        => [],
-        XR_Text        => undef,
-        XR_Comment     => undef,
-        XR_Status      => 'ok',
-        XR_fh          => $fh,
-        XR_First       => 1,
-        XR_Opt_Comment => $opt{comment},
-        XR_Opt_Strip   => $opt{strip},
+        XR_Data    => [],
+        XR_Text    => '',
+        XR_Comment => '',
+        XR_Status  => 'ok',
+        XR_fh      => $fh,
+        XR_First   => 1,
+        XR_Strip   => $opt{strip},
 
       ) or die "Failed assertion #0020 in subroutine XML::Reader->new: Can't create XML::Parser->new";
 
@@ -90,7 +89,7 @@ sub new {
     # inside XML::Parser->parse_start() creates an empty array $ExpatNB{XR_Data} = []
     # inside the ExpatNB object. This array is the place where the handlers put their data.
     #
-    # Likewise, the instructions "XR_Text => undef", "XR_Comment => undef", "XR_Status => 'ok'"
+    # Likewise, the instructions "XR_Text => ''", "XR_Comment => ''", "XR_Status => 'ok'"
     # and "XR_fh => $fh" create corresponding elements inside the $ExpatNB-object.
 
     $self->{filter}  = $opt{filter};
@@ -110,6 +109,7 @@ sub new {
     $self->{prefix}   = '';
     $self->{tag}      = '';
     $self->{value}    = '';
+    $self->{comment}  = '';
     $self->{type}     = '?';
     $self->{is_start} = 0;
     $self->{is_end}   = 0;
@@ -123,6 +123,7 @@ sub new {
 sub path     { $_[0]->{path};     }
 sub tag      { $_[0]->{tag};      }
 sub value    { $_[0]->{value};    }
+sub comment  { $_[0]->{comment};  }
 sub type     { $_[0]->{type};     }
 sub is_start { $_[0]->{is_start}; }
 sub is_end   { $_[0]->{is_end};   }
@@ -135,73 +136,54 @@ sub NB_stat_set_eof { $_[0]->{ExpatNB}{XR_Status} = 'eof'; }
 sub NB_fh           { $_[0]->{ExpatNB}{XR_fh};             }
 
 sub handle_start {
-    my ($ExpatNB, $element, @a) = @_;
+    my ($ExpatNB, $element, @attr) = @_;
 
-    unless (defined $ExpatNB->{XR_Comment} or defined $ExpatNB->{XR_Text}) {
-        push @{$ExpatNB->{XR_Data}}, ['T', ''] unless $ExpatNB->{XR_First};
+    my $text    = $ExpatNB->{XR_Text};
+    my $comment = $ExpatNB->{XR_Comment};
+
+    if ($ExpatNB->{XR_Strip}) {
+        for ($text, $comment) { 
+            s{\A \s+}''xms;
+            s{\s+ \z}''xms;
+            s{\s+}' 'xmsg;
+        }
     }
 
+    push @{$ExpatNB->{XR_Data}}, ['T', $text, $comment] unless $ExpatNB->{XR_First};
     $ExpatNB->{XR_First} = 0;
 
-    if (defined $ExpatNB->{XR_Comment}) {
-        if ($ExpatNB->{XR_Opt_Strip}) {
-            $ExpatNB->{XR_Comment} =~ s{\A \s+}''xms;
-            $ExpatNB->{XR_Comment} =~ s{\s+ \z}''xms;
-            $ExpatNB->{XR_Comment} =~ s{\s+}' 'xmsg;
-        }
-        push @{$ExpatNB->{XR_Data}}, ['C', $ExpatNB->{XR_Comment}];
-        $ExpatNB->{XR_Comment} = undef;
-    }
+    $ExpatNB->{XR_Text}    = '';
+    $ExpatNB->{XR_Comment} = '';
 
-    if (defined $ExpatNB->{XR_Text}) {
-        if ($ExpatNB->{XR_Opt_Strip}) {
-            $ExpatNB->{XR_Text} =~ s{\A \s+}''xms;
-            $ExpatNB->{XR_Text} =~ s{\s+ \z}''xms;
-            $ExpatNB->{XR_Text} =~ s{\s+}' 'xmsg;
-        }
-        push @{$ExpatNB->{XR_Data}}, ['T', $ExpatNB->{XR_Text}];
-        $ExpatNB->{XR_Text} = undef;
-    }
-
-    my %attr = @a;
-    push @{$ExpatNB->{XR_Data}}, ['S', $element, \%attr];
+    push @{$ExpatNB->{XR_Data}}, ['S', $element, {@attr}];
 }
 
 sub handle_end {
     my ($ExpatNB, $element) = @_;
 
-    unless (defined $ExpatNB->{XR_Comment} or defined $ExpatNB->{XR_Text}) {
-        push @{$ExpatNB->{XR_Data}}, ['T', ''];
-    }
-    if (defined $ExpatNB->{XR_Comment}) {
-        if ($ExpatNB->{XR_Opt_Strip}) {
-            $ExpatNB->{XR_Comment} =~ s{\A \s+}''xms;
-            $ExpatNB->{XR_Comment} =~ s{\s+ \z}''xms;
-            $ExpatNB->{XR_Comment} =~ s{\s+}' 'xmsg;
+    my $text    = $ExpatNB->{XR_Text};
+    my $comment = $ExpatNB->{XR_Comment};
+
+    if ($ExpatNB->{XR_Strip}) {
+        for ($text, $comment) { 
+            s{\A \s+}''xms;
+            s{\s+ \z}''xms;
+            s{\s+}' 'xmsg;
         }
-        push @{$ExpatNB->{XR_Data}}, ['C', $ExpatNB->{XR_Comment}];
-        $ExpatNB->{XR_Comment} = undef;
     }
 
-    if (defined $ExpatNB->{XR_Text}) {
-        if ($ExpatNB->{XR_Opt_Strip}) {
-            $ExpatNB->{XR_Text} =~ s{\A \s+}''xms;
-            $ExpatNB->{XR_Text} =~ s{\s+ \z}''xms;
-            $ExpatNB->{XR_Text} =~ s{\s+}' 'xmsg;
-        }
-        push @{$ExpatNB->{XR_Data}}, ['T', $ExpatNB->{XR_Text}];
-        $ExpatNB->{XR_Text} = undef;
-    }
+    push @{$ExpatNB->{XR_Data}}, ['T', $text, $comment];
+
+    $ExpatNB->{XR_Text}    = '';
+    $ExpatNB->{XR_Comment} = '';
 
     push @{$ExpatNB->{XR_Data}}, ['E', $element];
 }
 
 sub handle_comment {
-    my ($ExpatNB, $text) = @_;
+    my ($ExpatNB, $comment) = @_;
 
-    if ($ExpatNB->{XR_Opt_Comment}) {
-        $ExpatNB->{XR_Comment} .= $text;
-    }
+    $ExpatNB->{XR_Comment} .= $comment;
 }
 
 sub handle_char {
@@ -277,6 +259,7 @@ sub populate_values {
         $self->{path}     = '/'.join('/', @{$cmd->[1]}).'/@'.$cmd->[4];
         $self->{tag}      = '@'.$cmd->[4];
         $self->{value}    = $cmd->[5];
+        $self->{comment}  = '';
         $self->{is_start} = $cmd->[2];
         $self->{is_end}   = $cmd->[3];
         $self->{level}    = @{$cmd->[1]} + 1;
@@ -286,22 +269,14 @@ sub populate_values {
         $self->{path}     = '/'.join('/', @{$cmd->[1]});
         $self->{tag}      = ${$cmd->[1]}[-1];
         $self->{value}    = $cmd->[4];
+        $self->{comment}  = $cmd->[5];
         $self->{is_start} = $cmd->[2];
         $self->{is_end}   = $cmd->[3];
         $self->{level}    = @{$cmd->[1]};
         $self->{type}     = 'T';
     }
-    elsif ($cmd->[0] eq 'C') {
-        $self->{path}     = '/'.join('/', @{$cmd->[1]}).'/#';
-        $self->{tag}      = '#';
-        $self->{value}    = $cmd->[4];
-        $self->{is_start} = $cmd->[2];
-        $self->{is_end}   = $cmd->[3];
-        $self->{level}    = @{$cmd->[1]} + 1;
-        $self->{type}     = '#';
-    }
     else {
-        die "Failed assertion #0040 in subroutine XML::Reader->iterate: Found data type '".$cmd->[0]."', but expected ('A', 'C' or 'T')";
+        die "Failed assertion #0040 in subroutine XML::Reader->iterate: Found data type '".$cmd->[0]."', but expected ('A' or 'T')";
     }
 
     # Here we check for the {using => ...} option
@@ -339,7 +314,7 @@ sub read_token {
 
         unless ($self->{filter}) {
             if (keys %{$token->extract_attr}) {
-                push @{$self->{command}}, ['T', \@list, 0, 0, ''];
+                push @{$self->{command}}, ['T', \@list, 0, 0, '', ''];
             }
         }
 
@@ -354,34 +329,19 @@ sub read_token {
         unless ($self->{filter}) {
             if ($self->{prev_cd} eq 'A' or $self->{prev_cd} eq 'C') {
                 my @list = @{$self->{plist}};
-                push @{$self->{command}}, ['T', \@list, 0, 0, ''];
+                push @{$self->{command}}, ['T', \@list, 0, 0, '', ''];
                 $self->{prev_cd} = 'T';
             }
         }
         $self->{item} = pop @{$self->{plist}};
     }
-    elsif ($token->found_comment) {
-        # remember, a comment comes after attributes, but before text, so it fits nicely in the
-        # sequence of events...
-
-        unless ($self->{filter}) {
-            unless ($self->{prev_cd} eq 'A' or $self->{prev_cd} eq 'C') {
-                my @list = @{$self->{plist}};
-                push @{$self->{command}}, ['T', \@list, 0, 0, ''];
-            }
-        }
-
-        my $text = $token->extract_text;
-        my @list = @{$self->{plist}};
-        push @{$self->{command}}, ['C', \@list, 0, 0, $text];
-        $self->{prev_cd} = 'C';
-    }
     elsif ($token->found_text) {
-        my $text = $token->extract_text;
+        my $text    = $token->extract_text;
+        my $comment = $token->extract_comment;
 
         if (!$self->{filter} or $text =~ m{\S}xms) {
             my @list = @{$self->{plist}};
-            push @{$self->{command}}, ['T', \@list, 0, 0, $text];
+            push @{$self->{command}}, ['T', \@list, 0, 0, $text, $comment];
         }
         $self->{prev_cd} = 'T';
     }
@@ -479,7 +439,13 @@ sub extract_tag {
 sub extract_text {
     my $self = shift;
     my $type = $self->[0];
-    return $type eq 'T' || $type eq 'C' ? $self->[1] : '';
+    return $type eq 'T' ? $self->[1] : '';
+}
+
+sub extract_comment {
+    my $self = shift;
+    my $type = $self->[0];
+    return $type eq 'T' ? $self->[2] : '';
 }
 
 sub extract_attr {
@@ -513,8 +479,6 @@ The above program produces the following output:
   Path: /root/test        , Value:
   Path: /root/test/@param , Value: v
   Path: /root/test        , Value: w
-  Path: /root             , Value:
-  Path: /root/#           , Value: remark
   Path: /root             , Value: x yz
 
 =head1 DESCRIPTION
@@ -541,11 +505,11 @@ For example, the following XML in variable '$line1'...
   my $line1 = q{
     <data>
       <item>abc</item>
-      <item>
+      <item><!-- c1 -->
         <dummy/>
         fgh
         <inner name="ttt" id="fff">
-          ooo <!-- comment --> ppp
+          ooo <!-- c2 --> ppp
         </inner>
       </item>
     </data>
@@ -559,9 +523,9 @@ You can also keep track of the start- and end-tags: There is a method C<is_start
 equivalent method C<is_end>. Just remember, those two method only make sense if filter is switched
 off (otherwise those methods return constant 0).
 
-There are also the methods C<tag>, C<type> and C<level>. C<tag> gives you the current tag-name or
-attribute-name), C<type> returns either 'T' for text, '@' for attributes or '#' for comments and
-C<level> indicates the current nesting-level, a number >= 0.
+There are also the methods C<comment>, C<tag>, C<type> and C<level>. C<comment> returns the comment,
+if any. C<tag> gives you the current tag-name or attribute-name), C<type> returns either 'T' for text or
+'@' for attributes and C<level> indicates the current nesting-level, a number >= 0.
 
 Here is a sample program which parses the XML in '$line1' from above to demonstrate the principle...
 
@@ -570,40 +534,40 @@ Here is a sample program which parses the XML in '$line1' from above to demonstr
   my $rdr = XML::Reader->new(\$line1) or die "Error: $!";
   my $i = 0;
   while ($rdr->iterate) { $i++;
-      printf "%3d. pat=%-22s, val=%-9s, s=%-1s, e=%-1s, tag=%-6s, t=%-1s, lvl=%2d\n",
+      printf "%3d. pat=%-22s, val=%-9s, s=%-1s, e=%-1s, tag=%-6s, t=%-1s, lvl=%2d, c=%s\n",
        $i, $rdr->path, $rdr->value, $rdr->is_start,
-       $rdr->is_end, $rdr->tag, $rdr->type, $rdr->level;
+       $rdr->is_end, $rdr->tag, $rdr->type, $rdr->level, $rdr->comment;
   }
 
 ...and here is the output:
 
-   1. pat=/data                 , val=         , s=1, e=0, tag=data  , t=T, lvl= 1
-   2. pat=/data/item            , val=abc      , s=1, e=1, tag=item  , t=T, lvl= 2
-   3. pat=/data                 , val=         , s=0, e=0, tag=data  , t=T, lvl= 1
-   4. pat=/data/item            , val=         , s=1, e=0, tag=item  , t=T, lvl= 2
-   5. pat=/data/item/dummy      , val=         , s=1, e=1, tag=dummy , t=T, lvl= 3
-   6. pat=/data/item            , val=fgh      , s=0, e=0, tag=item  , t=T, lvl= 2
-   7. pat=/data/item/inner      , val=         , s=1, e=0, tag=inner , t=T, lvl= 3
-   8. pat=/data/item/inner/@id  , val=fff      , s=0, e=0, tag=@id   , t=@, lvl= 4
-   9. pat=/data/item/inner/@name, val=ttt      , s=0, e=0, tag=@name , t=@, lvl= 4
-  10. pat=/data/item/inner/#    , val=comment  , s=0, e=0, tag=#     , t=#, lvl= 4
-  11. pat=/data/item/inner      , val=ooo ppp  , s=0, e=1, tag=inner , t=T, lvl= 3
-  12. pat=/data/item            , val=         , s=0, e=1, tag=item  , t=T, lvl= 2
-  13. pat=/data                 , val=         , s=0, e=1, tag=data  , t=T, lvl= 1
- 
-If you want, you can set a filter to select only those lines that have a value:
+   1. pat=/data                 , val=         , s=1, e=0, tag=data  , t=T, lvl= 1, c=
+   2. pat=/data/item            , val=abc      , s=1, e=1, tag=item  , t=T, lvl= 2, c=
+   3. pat=/data                 , val=         , s=0, e=0, tag=data  , t=T, lvl= 1, c=
+   4. pat=/data/item            , val=         , s=1, e=0, tag=item  , t=T, lvl= 2, c=c1
+   5. pat=/data/item/dummy      , val=         , s=1, e=1, tag=dummy , t=T, lvl= 3, c=
+   6. pat=/data/item            , val=fgh      , s=0, e=0, tag=item  , t=T, lvl= 2, c=
+   7. pat=/data/item/inner      , val=         , s=1, e=0, tag=inner , t=T, lvl= 3, c=
+   8. pat=/data/item/inner/@id  , val=fff      , s=0, e=0, tag=@id   , t=@, lvl= 4, c=
+   9. pat=/data/item/inner/@name, val=ttt      , s=0, e=0, tag=@name , t=@, lvl= 4, c=
+  10. pat=/data/item/inner      , val=ooo ppp  , s=0, e=1, tag=inner , t=T, lvl= 3, c=c2
+  11. pat=/data/item            , val=         , s=0, e=1, tag=item  , t=T, lvl= 2, c=
+  12. pat=/data                 , val=         , s=0, e=1, tag=data  , t=T, lvl= 1, c=
+
+If you want, you can set a filter to select only those lines that have a value.
 
   my $rdr = XML::Reader->new(\$line1, {filter => 1}) or die "Error: $!";
 
 Then the output will be as follows (be careful not to interpret $rdr->is_start or
-$rdr->is_end when the filter has been activated)
+$rdr->is_end when the filter has been activated. Also be careful if you are looking for
+comments. Comments with filter on are only returned if the tag is not empty, that's why
+you don't see comment 'c1' in the output below)
 
-   1. pat=/data/item            , val=abc      , s=0, e=0, tag=item  , t=T, lvl= 2
-   2. pat=/data/item            , val=fgh      , s=0, e=0, tag=item  , t=T, lvl= 2
-   3. pat=/data/item/inner/@id  , val=fff      , s=0, e=0, tag=@id   , t=@, lvl= 4
-   4. pat=/data/item/inner/@name, val=ttt      , s=0, e=0, tag=@name , t=@, lvl= 4
-   5. pat=/data/item/inner/#    , val=comment  , s=0, e=0, tag=#     , t=#, lvl= 4
-   6. pat=/data/item/inner      , val=ooo ppp  , s=0, e=0, tag=inner , t=T, lvl= 3
+   1. pat=/data/item            , val=abc      , s=0, e=0, tag=item  , t=T, lvl= 2, c=
+   2. pat=/data/item            , val=fgh      , s=0, e=0, tag=item  , t=T, lvl= 2, c=
+   3. pat=/data/item/inner/@id  , val=fff      , s=0, e=0, tag=@id   , t=@, lvl= 4, c=
+   4. pat=/data/item/inner/@name, val=ttt      , s=0, e=0, tag=@name , t=@, lvl= 4, c=
+   5. pat=/data/item/inner      , val=ooo ppp  , s=0, e=0, tag=inner , t=T, lvl= 3, c=c2
 
 =head1 INTERFACE
 
@@ -612,7 +576,7 @@ $rdr->is_end when the filter has been activated)
 To create an XML::Reader object, the following syntax is used:
 
   my $rdr = XML::Reader->new($data,
-    {comment => 1, strip => 1, filter => 0, using => ['/path1', '/path2']})
+    {strip => 1, filter => 0, using => ['/path1', '/path2']})
     or die "Error: $!";
 
 The element $data (which is mandatory) is either the name of the XML-file, or a
@@ -630,11 +594,6 @@ Here is another example to create an XML::Reader object with a reference:
 One or more of the following options can be added as a hash-reference:
 
 =over
-
-=item option {comment => 1}
-
-The option {comment => 1} allows comments to be passed through. The option {comment => 0}
-disables comments. The default is {comment => 1}.
 
 =item option {strip => 1}
 
@@ -682,9 +641,13 @@ by leading '@'-signs, comments are represented by a '#'-symbol.
 
 Provides the actual value (i.e. the value of the current text, attribute or comment).
 
+=item comment
+
+Provides the comments of the XML.
+
 =item type
 
-Provides the type of the value: 'T' for text, '@' for attributes, '#' for comments.
+Provides the type of the value: 'T' for text or '@' for attributes.
 
 =item tag
 
@@ -746,28 +709,28 @@ to target specific elements:
 
   my $i = 0;
   while ($rdr->iterate) { $i++;
-      printf "%3d. prf=%-29s, pat=%-7s, val=%-3s, s=%-1s, e=%-1s, tag=%-11s, t=%-1s, lvl=%2d\n",
+      printf "%3d. prf=%-29s, pat=%-7s, val=%-3s, s=%-1s, e=%-1s, tag=%-6s, t=%-1s, lvl=%2d\n",
         $i, $rdr->prefix, $rdr->path, $rdr->value, $rdr->is_start,
         $rdr->is_end, $rdr->tag, $rdr->type, $rdr->level;
   }
 
 This is the output of that program:
 
-   1. prf=/data/order/database/customer, pat=/      , val=   , s=1, e=0, tag=           , t=T, lvl= 0
-   2. prf=/data/order/database/customer, pat=/@name , val=aaa, s=0, e=0, tag=@name      , t=@, lvl= 1
-   3. prf=/data/order/database/customer, pat=/      , val=   , s=0, e=1, tag=           , t=T, lvl= 0
-   4. prf=/data/order/database/customer, pat=/      , val=   , s=1, e=0, tag=           , t=T, lvl= 0
-   5. prf=/data/order/database/customer, pat=/@name , val=bbb, s=0, e=0, tag=@name      , t=@, lvl= 1
-   6. prf=/data/order/database/customer, pat=/      , val=   , s=0, e=1, tag=           , t=T, lvl= 0
-   7. prf=/data/order/database/customer, pat=/      , val=   , s=1, e=0, tag=           , t=T, lvl= 0
-   8. prf=/data/order/database/customer, pat=/@name , val=ccc, s=0, e=0, tag=@name      , t=@, lvl= 1
-   9. prf=/data/order/database/customer, pat=/      , val=   , s=0, e=1, tag=           , t=T, lvl= 0
-  10. prf=/data/order/database/customer, pat=/      , val=   , s=1, e=0, tag=           , t=T, lvl= 0
-  11. prf=/data/order/database/customer, pat=/@name , val=ddd, s=0, e=0, tag=@name      , t=@, lvl= 1
-  12. prf=/data/order/database/customer, pat=/      , val=   , s=0, e=1, tag=           , t=T, lvl= 0
-  13. prf=/data/supplier               , pat=/      , val=hhh, s=1, e=1, tag=           , t=T, lvl= 0
-  14. prf=/data/supplier               , pat=/      , val=iii, s=1, e=1, tag=           , t=T, lvl= 0
-  15. prf=/data/supplier               , pat=/      , val=jjj, s=1, e=1, tag=           , t=T, lvl= 0
+   1. prf=/data/order/database/customer, pat=/      , val=   , s=1, e=0, tag=      , t=T, lvl= 0
+   2. prf=/data/order/database/customer, pat=/@name , val=aaa, s=0, e=0, tag=@name , t=@, lvl= 1
+   3. prf=/data/order/database/customer, pat=/      , val=   , s=0, e=1, tag=      , t=T, lvl= 0
+   4. prf=/data/order/database/customer, pat=/      , val=   , s=1, e=0, tag=      , t=T, lvl= 0
+   5. prf=/data/order/database/customer, pat=/@name , val=bbb, s=0, e=0, tag=@name , t=@, lvl= 1
+   6. prf=/data/order/database/customer, pat=/      , val=   , s=0, e=1, tag=      , t=T, lvl= 0
+   7. prf=/data/order/database/customer, pat=/      , val=   , s=1, e=0, tag=      , t=T, lvl= 0
+   8. prf=/data/order/database/customer, pat=/@name , val=ccc, s=0, e=0, tag=@name , t=@, lvl= 1
+   9. prf=/data/order/database/customer, pat=/      , val=   , s=0, e=1, tag=      , t=T, lvl= 0
+  10. prf=/data/order/database/customer, pat=/      , val=   , s=1, e=0, tag=      , t=T, lvl= 0
+  11. prf=/data/order/database/customer, pat=/@name , val=ddd, s=0, e=0, tag=@name , t=@, lvl= 1
+  12. prf=/data/order/database/customer, pat=/      , val=   , s=0, e=1, tag=      , t=T, lvl= 0
+  13. prf=/data/supplier               , pat=/      , val=hhh, s=1, e=1, tag=      , t=T, lvl= 0
+  14. prf=/data/supplier               , pat=/      , val=iii, s=1, e=1, tag=      , t=T, lvl= 0
+  15. prf=/data/supplier               , pat=/      , val=jjj, s=1, e=1, tag=      , t=T, lvl= 0
 
 =head2 An example without option 'using'
 
