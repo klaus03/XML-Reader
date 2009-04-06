@@ -21,3 +21,6 @@ Revision history for XML-Reader
 
 0.07    02 Apr 2009
         add a method XML::Reader->comment
+
+0.08    06 Apr 2009
+        update warranty
