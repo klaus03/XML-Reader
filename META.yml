@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                XML-Reader
-version:             0.08
+version:             0.09
 abstract:            Reading XML and providing path information based on a pull-parser.
 license:             ~
 author:              
@@ -8,7 +8,7 @@ author:
 generated_by:        ExtUtils::MakeMaker version 6.42_01
 distribution_type:   module
 requires:     
-    XML::TokeParser:               0.05
+    XML::Parser:                   1
 meta-spec:
     url:     http://module-build.sourceforge.net/META-spec-v1.3.html
     version: 1.3

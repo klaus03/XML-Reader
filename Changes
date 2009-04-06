@@ -24,3 +24,7 @@ Revision history for XML-Reader
 
 0.08    06 Apr 2009
         update warranty
+
+0.09    06 Apr 2009
+        update licence
+        update Makefile.PL

@@ -11,7 +11,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.08';
+our $VERSION     = '0.09';
 
 sub new {
     my $class = shift;
@@ -791,10 +791,6 @@ Copyright (C) 2009 by Klaus Eichner
 
 All rights reserved. This program is free software; you can redistribute it
 and/or modify it under the same terms as Perl itself.
-
-This library is distributed in the hope that it will be useful, but without
-any warranty; without even the implied warranty of merchantibility or fitness
-for a particular purpose.
 
 =head1 RELATED MODULES
 
