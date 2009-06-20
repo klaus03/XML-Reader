@@ -28,3 +28,6 @@ Revision history for XML-Reader
 0.09    06 Apr 2009
         update licence
         update Makefile.PL
+
+0.10    20 Jun 2009
+        Take out one test from t/0010-test.t

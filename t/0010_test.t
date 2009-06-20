@@ -1,15 +1,9 @@
 use strict;
 use warnings;
 
-use Test::More tests => 29;
+use Test::More tests => 28;
 
 use_ok('XML::Reader');
-
-{
-    my $msg = '';
-    my $rdr = XML::Reader->new('<') or $msg = "$!";
-    is($msg, 'Invalid argument', 'Message correctly returned from new');
-}
 
 {
     my $line = '';
