@@ -31,3 +31,10 @@ Revision history for XML-Reader
 
 0.10    20 Jun 2009
         Take out one test from t/0010-test.t
+
+0.11    24 Jun 2009
+        add method XML::Reader->is_init_attr() and XML::Reader->attr().
+        also, in case of {filter => 1}, undefine XML::Reader->is_start(),
+        XML::Reader->is_init_attr(), XML::Reader->is_end(), XML::Reader->comment().
+        Introduce {filter => 2} which removes the redundant start-line before
+        attributes.

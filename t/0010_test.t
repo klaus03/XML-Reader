@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 28;
+use Test::More tests => 43;
 
 use_ok('XML::Reader');
 
@@ -258,4 +258,128 @@ use_ok('XML::Reader');
         $output .= '['.$rdr->value.']';
     }
     is($output, '[abc x y z > < & def]', 'CDATA is processed correctly');
+}
+
+{
+    my $line = q{<root><id order='desc' nb='no' screen='color'>show
+    <data name='abc' addr='def'>definition</data>text</id></root>};
+
+    my $rdr = XML::Reader->new(\$line, {filter => 2});
+
+    my $output = '';
+
+    my $i = 0;
+    while ($rdr->iterate) { $i++;
+        $output .= '['.$rdr->is_start.$rdr->is_init_attr.$rdr->is_end.']';
+    }
+    is($output, '[100][010][000][000][100][010][000][101][001][001]',
+       'filter => 2 for is_start, is_init_attr, is_end');
+}
+
+{
+    my $line = q{
+      <data>
+        <item>abc</item>
+        <item>
+          <dummy/>
+          fgh
+          <inner name="ttt" id="fff">
+            o <!-- comment --> p
+          </inner>
+        </item>
+        <btem>
+          <record id="77" used="no">Player 1</record>
+          <record id="88" used="no">Player 2</record>
+          <user>
+            <lvl>
+              <a>
+                <line water="abc" ice="iii">jump</line>
+                <line water="def" ice="jjj">go</line>
+                <line water="ghi" ice="kkk">crawl</line>
+              </a>
+            </lvl>
+          </user>
+          <record id="99" used="no">Player 3</record>
+        </btem>
+        <item ts="vy">
+          <alpha name="lll" type="qqq" age="999" />
+          <beta test="sful">
+            <gamma>
+              <d num="undef">
+                letter
+              </d>
+            </gamma>
+            <test>one</test>
+            <test>t         o</test>
+            <test>three</test>
+          </beta>
+        </item>
+      </data>
+};
+
+    my $point_01 = '';
+    my $point_05 = '';
+    my $point_08 = '';
+    my $point_14 = '';
+    my $point_15 = '';
+    my $point_16 = '';
+    my $point_22 = '';
+    my $point_38 = '';
+    my $point_42 = '';
+
+    my $rdr = XML::Reader->new(\$line, {filter => 2, using => ['/data/item', '/data/btem/user/lvl/a']});
+
+    my $i = 0;
+    while ($rdr->iterate) { $i++;
+        my $point = '['.$rdr->prefix.']['.$rdr->path.']['.$rdr->value.']['.$rdr->type.
+                    ']['.$rdr->is_start.$rdr->is_init_attr.$rdr->is_end.']['.$rdr->tag.']['.$rdr->attr.']';
+
+        if    ($i ==  1) { $point_01 = $point; }
+        elsif ($i ==  5) { $point_05 = $point; }
+        elsif ($i ==  8) { $point_08 = $point; }
+        elsif ($i == 14) { $point_14 = $point; }
+        elsif ($i == 15) { $point_15 = $point; }
+        elsif ($i == 16) { $point_16 = $point; }
+        elsif ($i == 22) { $point_22 = $point; }
+        elsif ($i == 38) { $point_38 = $point; }
+        elsif ($i == 42) { $point_42 = $point; }
+    }
+    is($point_01, '[/data/item][/][abc][T][101][][]',                                  'check filter=>2 at data point 01');
+    is($point_05, '[/data/item][/inner/@id][fff][@][010][@id][id]',                    'check filter=>2 at data point 05');
+    is($point_08, '[/data/item][/][][T][001][][]',                                     'check filter=>2 at data point 08');
+    is($point_14, '[/data/btem/user/lvl/a][/line/@ice][jjj][@][010][@ice][ice]',       'check filter=>2 at data point 14');
+    is($point_15, '[/data/btem/user/lvl/a][/line/@water][def][@][000][@water][water]', 'check filter=>2 at data point 15');
+    is($point_16, '[/data/btem/user/lvl/a][/line][go][T][101][line][]',                'check filter=>2 at data point 16');
+    is($point_22, '[/data/item][/@ts][vy][@][010][@ts][ts]',                           'check filter=>2 at data point 22');
+    is($point_38, '[/data/item][/beta/test][t o][T][101][test][]',                     'check filter=>2 at data point 38');
+    is($point_42, '[/data/item][/][][T][001][][]',                                     'check filter=>2 at data point 42');
+}
+
+{
+    my $line = q{<data>abc</data>};
+
+
+    my $rdr = XML::Reader->new(\$line, {filter => 1});
+
+    my $is_start     = 'z';
+    my $is_init_attr = 'z';
+    my $is_end       = 'z';
+    my $comment      = 'z';
+    my $path         = 'z';
+
+    my $i = 0;
+    while ($rdr->iterate) { $i++;
+        if ($i ==  1) {
+            $is_start     = $rdr->is_start;
+            $is_init_attr = $rdr->is_init_attr;
+            $is_end       = $rdr->is_end;
+            $comment      = $rdr->comment;
+            $path         = $rdr->path;
+        }
+    }
+    ok(!defined($is_start),     'method is_start is undef for {filter => 1}');
+    ok(!defined($is_init_attr), 'method is_init_attr is undef for {filter => 1}');
+    ok(!defined($is_end),       'method is_end is undef for {filter => 1}');
+    ok(!defined($comment),      'method comment is undef for {filter => 1}');
+    ok(defined($path),          'method path is defined for {filter => 1}');
 }
