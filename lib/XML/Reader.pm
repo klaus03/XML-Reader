@@ -11,17 +11,17 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.11';
+our $VERSION     = '0.12';
 
-sub new {
+sub newhd {
     my $class = shift;
     my $self = {};
 
-    my %opt = (strip => 1, filter => 0);
+    my %opt = (strip => 1, filter => 2); # newhd defaults to filter=>2
     %opt    = (%opt, %{$_[1]}) if defined $_[1];
 
     my $XmlParser = XML::Parser->new
-      or die "Failed assertion #0010 in subroutine XML::Reader->new: Can't create XML::Parser->new";
+      or die "Failed assertion #0010 in subroutine XML::Reader->newhd: Can't create XML::Parser->new";
 
     # The following references to the handler-functions from the XML::Parser object will be 
     # copied into the ExpatNB object during the later call to XML::Parser->parse_start.
@@ -35,7 +35,7 @@ sub new {
 
     # We are trying to open the file (the filename is held in in $_[0]). If the filename
     # happens to be a reference to a scalar, then it is opened quite naturally as an
-    # 'in-memory-file'. If the open fails, then we return failure from XML::Reader->new
+    # 'in-memory-file'. If the open fails, then we return failure from XML::Reader->newhd
     # and the calling program has to check $! to handle the failed call.
 
     open my $fh, '<', $_[0] or return;
@@ -83,7 +83,7 @@ sub new {
         XR_First   => 1,
         XR_Strip   => $opt{strip},
 
-      ) or die "Failed assertion #0020 in subroutine XML::Reader->new: Can't create XML::Parser->new";
+      ) or die "Failed assertion #0020 in subroutine XML::Reader->newhd: Can't create XML::Parser->new";
 
     # The instruction "XR_Data => []" (-- the 'XR_...' prefix stands for 'Xml::Reader...' --)
     # inside XML::Parser->parse_start() creates an empty array $ExpatNB{XR_Data} = []
@@ -119,6 +119,15 @@ sub new {
     $self->{item}         = '';
 
     return $self;
+}
+
+# subroutine new is deprecated (use newhd instead)
+sub new {
+    my $class = shift;
+
+    my %opt = (strip => 1, filter => 0); # new is depreceated, it defaults to filter=>0
+    %opt    = (%opt, %{$_[1]}) if defined $_[1];
+    return XML::Reader->newhd($_[0], \%opt);
 }
 
 sub path         { $_[0]->{path};         }
@@ -475,7 +484,7 @@ XML::Reader - Reading XML and providing path information based on a pull-parser.
 
   my $text = q{<init><page node="400">m <!-- remark --> r</page></init>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 2}) or die "Error: $!";
+  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
   while ($rdr->iterate) {
       printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
   }
@@ -538,7 +547,7 @@ Here is a sample program which parses the XML in '$line1' from above to demonstr
 
   use XML::Reader;
 
-  my $rdr = XML::Reader->new(\$line1, {filter => 2}) or die "Error: $!";
+  my $rdr = XML::Reader->newhd(\$line1) or die "Error: $!";
   my $i = 0;
   while ($rdr->iterate) { $i++;
       printf "%3d. pat=%-22s, val=%-9s, s=%-1s, i=%-1s, e=%-1s, tag=%-6s, atr=%-6s, t=%-1s, lvl=%2d, c=%s\n",
@@ -564,16 +573,16 @@ If you want, you can set option {filter => 1} to select only those lines that ha
 
   use XML::Reader;
 
-  my $rdr = XML::Reader->new(\$line1, {filter => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->newhd(\$line1, {filter => 1}) or die "Error: $!";
   my $i = 0;
   while ($rdr->iterate) { $i++;
       printf "%3d. pat=%-22s, val=%-9s, tag=%-6s, atr=%-6s, t=%-1s, lvl=%2d\n",
        $i, $rdr->path, $rdr->value, $rdr->tag, $rdr->attr, $rdr->type, $rdr->level;
   }
 
-Then the output will be as follows (be careful not to interpret the methods $rdr->is_start,
-$rdr->is_init_attr, $rdr->is_end or $rdr->comment when the filter has been activated, those methods
-will be undefined when option {filter => 1} is set).
+In this case the output will be as follows (be careful not to interpret the methods $rdr->is_start,
+$rdr->is_init_attr, $rdr->is_end or $rdr->comment when option {filter => 1} is set (those methods
+will, in fact, be undefined).
 
    1. pat=/data/item            , val=abc      , tag=item  , atr=      , t=T, lvl= 2
    2. pat=/data/item            , val=fgh      , tag=item  , atr=      , t=T, lvl= 2
@@ -587,7 +596,7 @@ will be undefined when option {filter => 1} is set).
 
 To create an XML::Reader object, the following syntax is used:
 
-  my $rdr = XML::Reader->new($data,
+  my $rdr = XML::Reader->newhd($data,
     {strip => 1, filter => 2, using => ['/path1', '/path2']})
     or die "Error: $!";
 
@@ -597,44 +606,36 @@ text of the XML.
 
 Here is an example to create an XML::Reader object with a file-name:
 
-  my $rdr = XML::Reader->new('input.xml') or die "Error: $!";
+  my $rdr = XML::Reader->newhd('input.xml') or die "Error: $!";
 
 Here is another example to create an XML::Reader object with a reference:
 
-  my $rdr = XML::Reader->new(\'<data>abc</data>') or die "Error: $!";
+  my $rdr = XML::Reader->newhd(\'<data>abc</data>') or die "Error: $!";
 
 One or more of the following options can be added as a hash-reference:
 
 =over
 
-=item option {strip => 0|1}
+=item option {using => }
 
-The option {strip => 1} strips all leading and trailing spaces from text and comments.
-(attributes are never stripped).
+Option Using allows for selecting a sub-tree of the XML.
 
+The syntax is {using => ['/path1/path2/path3', '/path4/path5/path6']}
+
+=item option {filter => }
+
+Option Filter allows to switch on ({filter => 1}), or to switch off ({filter => 2}) a filter for
+empty lines.
+
+The syntax is {filter => 1|2}, default is {filter => 2}
+
+=item option {strip => }
+
+Option {strip => 1} strips all leading and trailing spaces from text and comments.
+(attributes are never stripped). {strip => 0} leaves text and comments unmodified.
 The default is {strip => 1}.
 
-=item option {filter => 0|1|2}
-
-Option {filter => 0} produces the maximum number of output lines. Option {filter => 1}
-produces the minimum number of output lines. Be careful if you want to use one of the four
-methods C<is_start>, C<is_init_attr>, C<is_end> or C<comment>. If you have option {filter => 1},
-then those four methods will return undef.
-
-The default is {filter => 0}.
-
-=item option {using => ['/path1/path2/path3', '/path4/path5/path6']}
-
-This option removes all lines which do not start with '/path1/path2/path3' (or with
-'/path4/path5/path6', for that matter). This effectively leaves only lines starting with
-'/path1/path2/path3' or '/path4/path5/path6'. Those lines (which are not removed) will have a
-shorter path by effectively removing the prefix '/path1/path2/path3' (or '/path4/path5/path6')
-from the path. The removed prefix, however, shows up in the prefix-method.
-
-'/path1/path2/path3' (or '/path4/path5/path6') are supposed to be absolute and complete, i.e.
-absolute meaning they have to start with a '/'-character and complete meaning that the last
-item in path 'path3' (or 'path6', for that matter) will be completed internally by a trailing
-'/'-character.
+The syntax is {strip => 0|1}, default is {strip => 1}
 
 =back
 
@@ -660,7 +661,8 @@ Provides the actual value (i.e. the value of the current text, attribute or comm
 
 =item comment
 
-Provides the comments of the XML.
+Provides the comments of the XML. Be careful, this method only make sense for option
+{filter => 2} (otherwise, in case of {filter => 1}, the method C<comment> returns undef).
 
 =item type
 
@@ -677,19 +679,19 @@ Provides the current attribute (returns the empty string for non-attribute lines
 =item is_start
 
 Returns 1 or 0, depending on whether the XML-file had a start tag at the current position.
-Be careful, this method only make sense for option {filter => 0} or {filter => 2} (otherwise,
+Be careful, this method only make sense for option {filter => 2} (otherwise,
 in case of {filter => 1}, the method C<is_start> returns undef).
 
 =item is_init_attr
 
 Returns 1 or 0, depending on whether a new sequence of attributes is initiated.
-Be careful, this method only make sense for option {filter => 0} or {filter => 2} (otherwise,
+Be careful, this method only make sense for option {filter => 2} (otherwise,
 in case of {filter => 1}, the method C<is_init_attr> returns undef).
 
 =item is_end
 
 Returns 1 or 0, depending on whether the XML-file had an end tag at the current position.
-Be careful, this method only make sense for option {filter => 0} or {filter => 2} (otherwise,
+Be careful, this method only make sense for option {filter => 2} (otherwise,
 in case of {filter => 1}, the method C<is_end> returns undef).
 
 =item level
@@ -705,7 +707,29 @@ option {using => ...} has not been specified.
 
 =head1 OPTION USING
 
-Here is a sample piece of XML (in variable '$line2'):
+Option Using allows for selecting a sub-tree of the XML.
+
+Here is how it works in detail...
+
+option {using => ['/path1/path2/path3', '/path4/path5/path6']} removes all lines which do not
+start with '/path1/path2/path3' (or with '/path4/path5/path6', for that matter). This effectively
+leaves only lines starting with '/path1/path2/path3' or '/path4/path5/path6'.
+
+Those lines (which are not removed) will have a shorter path by effectively removing the prefix 
+'/path1/path2/path3' (or '/path4/path5/path6') from the path. The removed prefix, however, shows
+up in the prefix-method.
+
+'/path1/path2/path3' (or '/path4/path5/path6') are supposed to be absolute and complete, i.e.
+absolute meaning they have to start with a '/'-character and complete meaning that the last
+item in path 'path3' (or 'path6', for that matter) will be completed internally by a trailing
+'/'-character.
+
+=head2 An example with option 'using'
+
+The following program takes this XML and parses it with XML::Reader, including the option 'using'
+to target specific elements:
+
+  use XML::Reader;
 
   my $line2 = q{
   <data>
@@ -724,15 +748,8 @@ Here is a sample piece of XML (in variable '$line2'):
   </data>
   };
 
-=head2 An example with option 'using'
-
-The following program takes this XML and parses it with XML::Reader, including the option 'using'
-to target specific elements:
-
-  use XML::Reader;
-
-  my $rdr = XML::Reader->new(\$line2, {filter => 2,
-    using => ['/data/order/database/customer', '/data/supplier']});
+  my $rdr = XML::Reader->newhd(\$line2,
+    {using => ['/data/order/database/customer', '/data/supplier']});
 
   my $i = 0;
   while ($rdr->iterate) { $i++;
@@ -760,7 +777,7 @@ The following program takes the same XML and parses it with XML::Reader, but wit
 
   use XML::Reader;
 
-  my $rdr = XML::Reader->new(\$line2, {filter => 2});
+  my $rdr = XML::Reader->newhd(\$line2);
   my $i = 0;
   while ($rdr->iterate) { $i++;
       printf "%3d. prf=%-1s, pat=%-37s, val=%-6s, tag=%-11s, t=%-1s, lvl=%2d\n",
@@ -799,77 +816,55 @@ is much longer than in the previous program:
 
 =head1 OPTION FILTER
 
-=head2 Option {filter => 0}
-
-Option {filter => 0} produces the maximum number of output lines. Here is a sample program to demonstrate
-the option {filter => 0}.
-
-  use XML::Reader;
-
-  my $text = q{<root><test param="v">e<data id="z">g</data>f</test>x <!-- remark --> yz</root>};
-
-  my $rdr = XML::Reader->new(\$text, {filter => 0}) or die "Error: $!";
-  while ($rdr->iterate) {
-      printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
-  }
-
-This program produces the following output:
-
-  Path: /root              , Value:
-  Path: /root/test         , Value:
-  Path: /root/test/@param  , Value: v
-  Path: /root/test         , Value: e
-  Path: /root/test/data    , Value:
-  Path: /root/test/data/@id, Value: z
-  Path: /root/test/data    , Value: g
-  Path: /root/test         , Value: f
-  Path: /root              , Value: x yz
+Option Filter allows to switch on ({filter => 1}), or to switch off ({filter => 2}) a filter for
+empty lines.
 
 =head2 Option {filter => 2}
 
-The above example shows lines with empty values, which could be considered as
-redundant. In particular the second line ("Path: /root/test, Value:") is not needed, as it is
-immediately followed by its own attribute line ("Path: /root/test/@param, Value: v").
+With option {filter => 2}, that is the filter for empty lines is switched off, XML::Reader
+produces one line for each start-tag and one line for each end-tag. (consecutive start- and
+end-tags can be combined into one single line.) Also, attribute lines are added via the
+special '/@...' syntax.
 
-The same goes for line five ("Path: /root/test/data, Value:") which is also unnecessary, as it is
-immediately followed by its own attribute line ("Path: /root/test/data/@id, Value: z").
+Option {filter => 2} is the default.
 
-In order to remove those two redundant lines (lines two and five), we can employ the option {filter => 2}.
+Here is an example...
 
   use XML::Reader;
 
-  my $text = q{<root><test param="v">e<data id="z">g</data>f</test>x <!-- remark --> yz</root>};
+  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 2}) or die "Error: $!";
+  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
   while ($rdr->iterate) {
-      printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
+      printf "Path: %-24s, Value: %s\n", $rdr->path, $rdr->value;
   }
 
-The program with option {filter => 2} produces the following output:
+This program (with implicit option {filter => 2} as default) produces the following output:
 
-  Path: /root              , Value:
-  Path: /root/test/@param  , Value: v
-  Path: /root/test         , Value: e
-  Path: /root/test/data/@id, Value: z
-  Path: /root/test/data    , Value: g
-  Path: /root/test         , Value: f
-  Path: /root              , Value: x yz
+  Path: /root                   , Value:
+  Path: /root/test/@param       , Value: v
+  Path: /root/test              , Value:
+  Path: /root/test/a            , Value:
+  Path: /root/test/a/b          , Value: e
+  Path: /root/test/a/b/data/@id , Value: z
+  Path: /root/test/a/b/data     , Value: g
+  Path: /root/test/a/b          , Value: f
+  Path: /root/test/a            , Value:
+  Path: /root/test              , Value:
+  Path: /root                   , Value: x yz
 
-This looks better now: the redundant lines are gone. Please note that the first line
-("Path: /root, Value:") is also empty, but has not been removed by {filter => 2},
-i.e. it is not followed by its own attribute, (-- well, it is followed by an attribute,
-but with a different path -- that's why we can't easily take it out).
+{filter => 2} also allows to rebuild the structure of the XML with the help of the methods
+C<is_start>, C<is_init_attr> and C<is_end>. Please note that the first line ("Path: /root, Value:")
+is empty, but important for the structure of the XML. Therefore we can't ignore it.
 
-In fact, the first line is necessary for the structure of the XML.
-
-Anyway, let us now look at the same example (with option {filter => 2}), but with an
+Let us now look at the same example (with option {filter => 2}), but with an
 additional algorithm to reconstruct the original XML:
 
   use XML::Reader;
 
-  my $text = q{<root><test param="v">e<data id="z">g</data>f</test>x <!-- remark --> yz</root>};
+  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 2}) or die "Error: $!";
+  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
 
   my %at  = ();
 
@@ -901,44 +896,52 @@ additional algorithm to reconstruct the original XML:
 
   <root>
     <test param='v'>
-      e
-      <data id='z'>
-        g
-      </data>
-      f
+      <a param='v'>
+        <b param='v'>
+          e
+          <data id='z'>
+            g
+          </data>
+          f
+        </b>
+      </a>
     </test>
     x yz
   </root>
 
+...this is proof that the original structure of the XML is not lost.
+
 =head2 Option {filter => 1}
 
-Now that we have seen that option {filter => 2} allows us to reconstruct the XML, we
-might want to remove empty lines alltogether. That's what option {filter => 1} is all about.
+Option {filter => 1} reduces the the minimum number of output lines (i.e. it removes all
+lines that don't have a value).
+
+Be careful if you want to use one of the four methods C<is_start>, C<is_init_attr>,
+C<is_end> or C<comment>. In fact, if you have option {filter => 1}, then those four
+methods will return undef.
+
 With option {filter => 1} we lose the ability to reconstruct the XML, but simple data
 processing is easier.
 
-Here is a program:
+Here is a sample program:
 
   use XML::Reader;
 
-  my $text = q{<root><test param="v">e<data id="z">g</data>f</test>x <!-- remark --> yz</root>};
+  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->newhd(\$text, {filter => 1}) or die "Error: $!";
   while ($rdr->iterate) {
-      printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
+      printf "Path: %-24s, Value: %s\n", $rdr->path, $rdr->value;
   }
 
 ...and here is the output:
 
-  Path: /root/test/@param  , Value: v
-  Path: /root/test         , Value: e
-  Path: /root/test/data/@id, Value: z
-  Path: /root/test/data    , Value: g
-  Path: /root/test         , Value: f
-  Path: /root              , Value: x yz
-
-Please be aware that with option {filter => 1}, the methods comment(), is_start(), is_init_attr()
-and is_end() are all out of service, i.e. they return undef.
+  Path: /root/test/@param       , Value: v
+  Path: /root/test/a/b          , Value: e
+  Path: /root/test/a/b/data/@id , Value: z
+  Path: /root/test/a/b/data     , Value: g
+  Path: /root/test/a/b          , Value: f
+  Path: /root                   , Value: x yz
 
 =head1 AUTHOR
 

@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 43;
+use Test::More tests => 64;
 
 use_ok('XML::Reader');
 
@@ -13,21 +13,28 @@ use_ok('XML::Reader');
 
     {
         my $count = 0;
-        my $rdr = XML::Reader->new(\$line, {filter => 1});
+        my $rdr = XML::Reader->newhd(\$line, {filter => 1});
         while ($rdr->iterate) { $count++; }
-        is($count, 3, 'counting filtered values');
+        is($count, 3, 'counting values {filter => 1}');
     }
 
     {
         my $count = 0;
-        my $rdr = XML::Reader->new(\$line, {filter => 0});
+        my $rdr = XML::Reader->new(\$line);
         while ($rdr->iterate) { $count++; }
-        is($count, 24, 'counting unfiltered values');
+        is($count, 24, 'counting values (with new)');
+    }
+
+    {
+        my $count = 0;
+        my $rdr = XML::Reader->newhd(\$line, {filter => 2});
+        while ($rdr->iterate) { $count++; }
+        is($count, 23, 'counting values {filter => 2}');
     }
 
     {
         my $info = '';
-        my $rdr = XML::Reader->new(\$line, {filter => 1, using => '/data/data/data/data'});
+        my $rdr = XML::Reader->newhd(\$line, {filter => 1, using => '/data/data/data/data'});
         while ($rdr->iterate) { $info .= '['.$rdr->level.']'; }
         is($info, '[8][8][7]', 'level information with using and filter');
     }
@@ -36,7 +43,7 @@ use_ok('XML::Reader');
 {
     my $line = q{<data c='3' a='1' b='2' />};
     my $out = '';
-    my $rdr = XML::Reader->new(\$line, {filter => 1});
+    my $rdr = XML::Reader->newhd(\$line, {filter => 1});
     while ($rdr->iterate) { $out .= '['.$rdr->tag.'='.$rdr->value.']'; }
     is($out, '[@a=1][@b=2][@c=3]', 'attributes in alphabetical order');
 }
@@ -44,15 +51,15 @@ use_ok('XML::Reader');
 {
     my $line = q{<data><dummy></dummy>a      <!-- b -->    c</data>};
     my $out = '';
-    my $rdr = XML::Reader->new(\$line);
+    my $rdr = XML::Reader->newhd(\$line);
     while ($rdr->iterate) { $out .= '['.$rdr->tag.'='.$rdr->value.']'; }
-    is($out, '[data=][dummy=][data=a c]', 'defaults are ok {strip => 1, filter => 0}');
+    is($out, '[data=][dummy=][data=a c]', 'defaults are ok {strip => 1, filter => 2}');
 }
 
 {
     my $line = q{<data><dummy><!-- test --></dummy></data>};
     my $out = '';
-    my $rdr = XML::Reader->new(\$line);
+    my $rdr = XML::Reader->newhd(\$line);
     while ($rdr->iterate) { $out .= '['.$rdr->path.'='.$rdr->comment.']'; }
     is($out, '[/data=][/data/dummy=test][/data=]', 'comment is produced');
 }
@@ -60,7 +67,7 @@ use_ok('XML::Reader');
 {
     my $line = q{<data>     a        b c             </data>};
     my $out = '';
-    my $rdr = XML::Reader->new(\$line, {strip => 1});
+    my $rdr = XML::Reader->newhd(\$line, {strip => 1});
     while ($rdr->iterate) { $out .= '['.$rdr->type.'='.$rdr->value.']'; }
     is($out, '[T=a b c]', 'field is stripped of spaces');
 }
@@ -68,7 +75,7 @@ use_ok('XML::Reader');
 {
     my $line = q{<data>     a        b c             </data>};
     my $out = '';
-    my $rdr = XML::Reader->new(\$line, {strip => 0});
+    my $rdr = XML::Reader->newhd(\$line, {strip => 0});
     while ($rdr->iterate) { $out .= '['.$rdr->type.'='.$rdr->value.']'; }
     is($out, '[T=     a        b c             ]', 'field is not stripped of spaces');
 }
@@ -87,31 +94,68 @@ use_ok('XML::Reader');
       </data>
       };
 
-    my $start_seq = '';
-    my $end_seq   = '';
-    my $lvl_seq   = '';
+    {
+        my $start_seq = '';
+        my $ini_seq   = '';
+        my $end_seq   = '';
+        my $lvl_seq   = '';
 
-    my $rdr = XML::Reader->new(\$line, {filter => 0});
-    while ($rdr->iterate) {
-        $start_seq .= $rdr->is_start;
-        $end_seq   .= $rdr->is_end;
-        $lvl_seq   .= '['.$rdr->level.']';
+        my $rdr = XML::Reader->new(\$line);
+        while ($rdr->iterate) {
+            $start_seq .= $rdr->is_start;
+            $ini_seq   .= $rdr->is_init_attr;
+            $end_seq   .= $rdr->is_end;
+            $lvl_seq   .= '['.$rdr->level.']';
+        }
+        is($start_seq, '110110100000', 'sequence of start-tags (with new)');
+        is($ini_seq,   '000000010000', 'sequence of init_attr (with new)');
+        is($end_seq,   '010010000111', 'sequence of end-tags (with new)');
+        is($lvl_seq,   '[1][2][1][2][3][2][3][4][4][3][2][1]', 'sequence of level information (with new)');
     }
-    is($start_seq, '110110100000', 'sequence of start-tags');
-    is($end_seq,   '010010000111', 'sequence of end-tags');
-    is($lvl_seq,   '[1][2][1][2][3][2][3][4][4][3][2][1]', 'sequence of level information');
+
+    {
+        my $start_seq = '';
+        my $ini_seq   = '';
+        my $end_seq   = '';
+        my $lvl_seq   = '';
+
+        my $rdr = XML::Reader->newhd(\$line);
+        while ($rdr->iterate) {
+            $start_seq .= $rdr->is_start;
+            $ini_seq   .= $rdr->is_init_attr;
+            $end_seq   .= $rdr->is_end;
+            $lvl_seq   .= '['.$rdr->level.']';
+        }
+
+        is($start_seq, '11011000100', 'sequence of start-tags (with newhd)');
+        is($ini_seq,   '00000010000', 'sequence of init_attr (with newhd)');
+        is($end_seq,   '01001000111', 'sequence of end-tags (with newhd)');
+        is($lvl_seq,   '[1][2][1][2][3][2][4][4][3][2][1]', 'sequence of level information (with newhd)');
+    }
 }
 
 {
     my $line = q{<a><b><c><d></d></c></b></a>};
 
-    my $info = '';
+    {
+        my $info = '';
 
-    my $rdr = XML::Reader->new(\$line, {filter => 0});
-    while ($rdr->iterate) {
-        $info .= '['.$rdr->path.'='.$rdr->value.']';
+        my $rdr = XML::Reader->new(\$line);
+        while ($rdr->iterate) {
+            $info .= '['.$rdr->path.'='.$rdr->value.']';
+        }
+        is($info, '[/a=][/a/b=][/a/b/c=][/a/b/c/d=][/a/b/c=][/a/b=][/a=]', 'an empty, 4-level deep, nested XML (with new)');
     }
-    is($info, '[/a=][/a/b=][/a/b/c=][/a/b/c/d=][/a/b/c=][/a/b=][/a=]', 'an empty, 4-level deep, nested XML');
+
+    {
+        my $info = '';
+
+        my $rdr = XML::Reader->newhd(\$line);
+        while ($rdr->iterate) {
+            $info .= '['.$rdr->path.'='.$rdr->value.']';
+        }
+        is($info, '[/a=][/a/b=][/a/b/c=][/a/b/c/d=][/a/b/c=][/a/b=][/a=]', 'an empty, 4-level deep, nested XML (with newhd)');
+    }
 }
 
 {
@@ -125,7 +169,7 @@ use_ok('XML::Reader');
         my $data    = '';
         my $comment = '';
 
-        my $rdr = XML::Reader->new(\$line);
+        my $rdr = XML::Reader->newhd(\$line);
         my $i = 0;
         while ($rdr->iterate) { $i++;
             $comment = $rdr->comment if $i == 1;
@@ -139,15 +183,29 @@ use_ok('XML::Reader');
         my $data    = '';
         my $comment = '';
 
-        my $rdr = XML::Reader->new(\$line, {filter => 0});
+        my $rdr = XML::Reader->new(\$line);
         my $i = 0;
         while ($rdr->iterate) { $i++;
             $comment .= $rdr->comment if $rdr->type eq 'T';
             $data    .= $rdr->value   if $rdr->type eq 'T';
         }
-        is($i,       1, 'only one line is produced');
-        is($comment, 'hello', 'comment is found to be correct');
-        is($data,    'ooo ppp', 'data is not empty');
+        is($i,       1, 'only one line is produced (with new)');
+        is($comment, 'hello', 'comment is found to be correct (with new)');
+        is($data,    'ooo ppp', 'data is not empty (with new)');
+    }
+    {
+        my $data    = '';
+        my $comment = '';
+
+        my $rdr = XML::Reader->newhd(\$line);
+        my $i = 0;
+        while ($rdr->iterate) { $i++;
+            $comment .= $rdr->comment if $rdr->type eq 'T';
+            $data    .= $rdr->value   if $rdr->type eq 'T';
+        }
+        is($i,       1, 'only one line is produced (with newhd)');
+        is($comment, 'hello', 'comment is found to be correct (with newhd)');
+        is($data,    'ooo ppp', 'data is not empty (with newhd)');
     }
 }
 
@@ -192,33 +250,71 @@ use_ok('XML::Reader');
       </data>
     };
 
-    my $point_01 = '';
-    my $point_09 = '';
-    my $point_10 = '';
-    my $point_25 = '';
-    my $point_26 = '';
-    my $point_38 = '';
-    my $point_48 = '';
+    {
+        my $point_01 = '';
+        my $point_09 = '';
+        my $point_10 = '';
+        my $point_25 = '';
+        my $point_26 = '';
+        my $point_38 = '';
+        my $point_48 = '';
 
-    my $rdr = XML::Reader->new(\$line, {filter => 0, using => ['/data/item', '/data/btem/user/level/agreement']});
-    my $i = 0;
-    while ($rdr->iterate) { $i++;
-        my $point = '['.$rdr->prefix.']['.$rdr->path.']['.$rdr->is_start.']['.$rdr->is_end.']['.$rdr->level.']';
-        if    ($i ==  1) { $point_01 = $point; }
-        elsif ($i ==  9) { $point_09 = $point; }
-        elsif ($i == 10) { $point_10 = $point; }
-        elsif ($i == 25) { $point_25 = $point; }
-        elsif ($i == 26) { $point_26 = $point; }
-        elsif ($i == 38) { $point_38 = $point; }
-        elsif ($i == 48) { $point_48 = $point; }
+        my $rdr = XML::Reader->new(\$line, {using => ['/data/item', '/data/btem/user/level/agreement']});
+        my $i = 0;
+        while ($rdr->iterate) { $i++;
+            my $point = '['.$rdr->prefix.']['.$rdr->path.']['.$rdr->is_start.']['.$rdr->is_end.']['.$rdr->level.']';
+            if    ($i ==  1) { $point_01 = $point; }
+            elsif ($i ==  9) { $point_09 = $point; }
+            elsif ($i == 10) { $point_10 = $point; }
+            elsif ($i == 25) { $point_25 = $point; }
+            elsif ($i == 26) { $point_26 = $point; }
+            elsif ($i == 38) { $point_38 = $point; }
+            elsif ($i == 48) { $point_48 = $point; }
+        }
+        is($point_01, '[/data/item][/][1][1][0]',                         'check using at data point 01 {filter => 0}');
+        is($point_09, '[/data/item][/][0][1][0]',                         'check using at data point 09 {filter => 0}');
+        is($point_10, '[/data/btem/user/level/agreement][/][1][0][0]',    'check using at data point 10 {filter => 0}');
+        is($point_25, '[/data/btem/user/level/agreement][/][0][1][0]',    'check using at data point 25 {filter => 0}');
+        is($point_26, '[/data/item][/][1][0][0]',                         'check using at data point 26 {filter => 0}');
+        is($point_38, '[/data/item][/beta/gamma/delta/@number][0][0][4]', 'check using at data point 38 {filter => 0}');
+        is($point_48, '[/data/item][/][0][1][0]',                         'check using at data point 48 {filter => 0}');
     }
-    is($point_01, '[/data/item][/][1][1][0]',                         'check using at data point 01');
-    is($point_09, '[/data/item][/][0][1][0]',                         'check using at data point 09');
-    is($point_10, '[/data/btem/user/level/agreement][/][1][0][0]',    'check using at data point 10');
-    is($point_25, '[/data/btem/user/level/agreement][/][0][1][0]',    'check using at data point 25');
-    is($point_26, '[/data/item][/][1][0][0]',                         'check using at data point 26');
-    is($point_38, '[/data/item][/beta/gamma/delta/@number][0][0][4]', 'check using at data point 38');
-    is($point_48, '[/data/item][/][0][1][0]',                         'check using at data point 48');
+
+    {
+        my $point_01 = '';
+        my $point_07 = '';
+        my $point_08 = '';
+        my $point_09 = '';
+        my $point_15 = '';
+        my $point_18 = '';
+        my $point_19 = '';
+        my $point_30 = '';
+        my $point_41 = '';
+
+        my $rdr = XML::Reader->newhd(\$line, {using => ['/data/item', '/data/btem/user/level/agreement']});
+        my $i = 0;
+        while ($rdr->iterate) { $i++;
+            my $point = '['.$rdr->prefix.']['.$rdr->path.']['.$rdr->is_start.$rdr->is_init_attr.$rdr->is_end.']['.$rdr->level.']';
+            if    ($i ==  1) { $point_01 = $point; }
+            elsif ($i ==  7) { $point_07 = $point; }
+            elsif ($i ==  8) { $point_08 = $point; }
+            elsif ($i ==  9) { $point_09 = $point; }
+            elsif ($i == 15) { $point_15 = $point; }
+            elsif ($i == 18) { $point_18 = $point; }
+            elsif ($i == 19) { $point_19 = $point; }
+            elsif ($i == 30) { $point_30 = $point; }
+            elsif ($i == 41) { $point_41 = $point; }
+        }
+        is($point_01, '[/data/item][/][101][0]',                                 'check using at data point 01 {filter => 2}');
+        is($point_07, '[/data/item][/inner][101][1]',                            'check using at data point 07 {filter => 2}');
+        is($point_08, '[/data/item][/][001][0]',                                 'check using at data point 08 {filter => 2}');
+        is($point_09, '[/data/btem/user/level/agreement][/][100][0]',            'check using at data point 09 {filter => 2}');
+        is($point_15, '[/data/btem/user/level/agreement][/line/@water][000][2]', 'check using at data point 15 {filter => 2}');
+        is($point_18, '[/data/btem/user/level/agreement][/line/@ice][010][2]',   'check using at data point 18 {filter => 2}');
+        is($point_19, '[/data/btem/user/level/agreement][/line/@water][000][2]', 'check using at data point 19 {filter => 2}');
+        is($point_30, '[/data/item][/beta/gamma][100][2]',                       'check using at data point 30 {filter => 2}');
+        is($point_41, '[/data/item][/][001][0]',                                 'check using at data point 41 {filter => 2}');
+    }
 }
 
 {
@@ -226,12 +322,12 @@ use_ok('XML::Reader');
 
     my $output = '';
 
-    my $rdr = XML::Reader->new(\$line, {filter => 0});
+    my $rdr = XML::Reader->newhd(\$line);
     my $i = 0;
     while ($rdr->iterate) { $i++;
-        $output .= '['.$rdr->path.'-'.$rdr->value.'-'.$rdr->is_start.'-'.$rdr->is_end.'-'.$rdr->level.']';
+        $output .= '['.$rdr->path.'-'.$rdr->value.']['.$rdr->is_start.$rdr->is_init_attr.$rdr->is_end.']['.$rdr->level.']';
     }
-    is($output, '[/data--1-1-1]', 'the simplest XML possible');
+    is($output, '[/data-][101][1]', 'the simplest XML possible');
 }
 
 {
@@ -239,12 +335,28 @@ use_ok('XML::Reader');
 
     my $output = '';
 
-    my $rdr = XML::Reader->new(\$line);
+    my $rdr = XML::Reader->newhd(\$line);
     my $i = 0;
     while ($rdr->iterate) { $i++;
-        $output .= '['.$rdr->path.'-'.$rdr->value.'-'.$rdr->is_start.'-'.$rdr->is_end.'-'.$rdr->level.']';
+        $output .= '['.$rdr->path.'-'.$rdr->value.']['.$rdr->is_start.$rdr->is_init_attr.$rdr->is_end.']['.$rdr->level.']';
     }
-    is($output, '[/data--1-0-1][/data/@id-z-0-0-2][/data--0-1-1]', 'a simple XML with attribute');
+    is($output, '[/data/@id-z][010][2][/data-][101][1]', 'a simple XML with attribute');
+}
+
+{
+    my $line = q{<apple orange="banana" />};
+
+    my $tag  = '';
+    my $attr = '';
+
+    my $rdr = XML::Reader->newhd(\$line);
+    my $i = 0;
+    while ($rdr->iterate) { $i++;
+        $tag  .= '['.$rdr->tag.']';
+        $attr .= '['.$rdr->attr.']';
+    }
+    is($tag,  '[@orange][apple]', 'verify tags');
+    is($attr, '[orange][]', 'verify attributes');
 }
 
 {
@@ -252,7 +364,7 @@ use_ok('XML::Reader');
 
     my $output = '';
 
-    my $rdr = XML::Reader->new(\$line);
+    my $rdr = XML::Reader->newhd(\$line);
     my $i = 0;
     while ($rdr->iterate) { $i++;
         $output .= '['.$rdr->value.']';
@@ -264,7 +376,7 @@ use_ok('XML::Reader');
     my $line = q{<root><id order='desc' nb='no' screen='color'>show
     <data name='abc' addr='def'>definition</data>text</id></root>};
 
-    my $rdr = XML::Reader->new(\$line, {filter => 2});
+    my $rdr = XML::Reader->newhd(\$line);
 
     my $output = '';
 
@@ -327,7 +439,7 @@ use_ok('XML::Reader');
     my $point_38 = '';
     my $point_42 = '';
 
-    my $rdr = XML::Reader->new(\$line, {filter => 2, using => ['/data/item', '/data/btem/user/lvl/a']});
+    my $rdr = XML::Reader->newhd(\$line, {using => ['/data/item', '/data/btem/user/lvl/a']});
 
     my $i = 0;
     while ($rdr->iterate) { $i++;
@@ -359,7 +471,7 @@ use_ok('XML::Reader');
     my $line = q{<data>abc</data>};
 
 
-    my $rdr = XML::Reader->new(\$line, {filter => 1});
+    my $rdr = XML::Reader->newhd(\$line, {filter => 1});
 
     my $is_start     = 'z';
     my $is_init_attr = 'z';

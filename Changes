@@ -38,3 +38,8 @@ Revision history for XML-Reader
         XML::Reader->is_init_attr(), XML::Reader->is_end(), XML::Reader->comment().
         Introduce {filter => 2} which removes the redundant start-line before
         attributes.
+
+0.12    28 Jun 2009
+        add constructor XML::Reader->newhd, which is almost identical to
+        XML::Reader->new, except it defaults to {filter => 2}, whereas
+        the existing XML::Reader->new defaults to {filter => 0}
