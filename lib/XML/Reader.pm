@@ -11,7 +11,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.12';
+our $VERSION     = '0.13';
 
 sub newhd {
     my $class = shift;
@@ -268,7 +268,7 @@ sub populate_values {
                 $cmd_act->[3] = ($act_type eq 'T' and                      $nxt_length < $act_length ) ? 1 : 0; # mark as end-tag
             }
 
-            $cmd_act->[6] = ($act_type eq 'A' and  $prv_type ne 'A') ? 1 : 0; # mark as init_attr
+            $cmd_act->[6] = $prv_type ne 'A' ? 1 : 0; # mark as init_attr
         }
     }
 
@@ -557,17 +557,17 @@ Here is a sample program which parses the XML in '$line1' from above to demonstr
 
 ...and here is the output:
 
-   1. pat=/data                 , val=         , s=1, i=0, e=0, tag=data  , atr=      , t=T, lvl= 1, c=
-   2. pat=/data/item            , val=abc      , s=1, i=0, e=1, tag=item  , atr=      , t=T, lvl= 2, c=
-   3. pat=/data                 , val=         , s=0, i=0, e=0, tag=data  , atr=      , t=T, lvl= 1, c=
-   4. pat=/data/item            , val=         , s=1, i=0, e=0, tag=item  , atr=      , t=T, lvl= 2, c=c1
-   5. pat=/data/item/dummy      , val=         , s=1, i=0, e=1, tag=dummy , atr=      , t=T, lvl= 3, c=
-   6. pat=/data/item            , val=fgh      , s=0, i=0, e=0, tag=item  , atr=      , t=T, lvl= 2, c=
+   1. pat=/data                 , val=         , s=1, i=1, e=0, tag=data  , atr=      , t=T, lvl= 1, c=
+   2. pat=/data/item            , val=abc      , s=1, i=1, e=1, tag=item  , atr=      , t=T, lvl= 2, c=
+   3. pat=/data                 , val=         , s=0, i=1, e=0, tag=data  , atr=      , t=T, lvl= 1, c=
+   4. pat=/data/item            , val=         , s=1, i=1, e=0, tag=item  , atr=      , t=T, lvl= 2, c=c1
+   5. pat=/data/item/dummy      , val=         , s=1, i=1, e=1, tag=dummy , atr=      , t=T, lvl= 3, c=
+   6. pat=/data/item            , val=fgh      , s=0, i=1, e=0, tag=item  , atr=      , t=T, lvl= 2, c=
    7. pat=/data/item/inner/@id  , val=fff      , s=0, i=1, e=0, tag=@id   , atr=id    , t=@, lvl= 4, c=
    8. pat=/data/item/inner/@name, val=ttt      , s=0, i=0, e=0, tag=@name , atr=name  , t=@, lvl= 4, c=
    9. pat=/data/item/inner      , val=ooo ppp  , s=1, i=0, e=1, tag=inner , atr=      , t=T, lvl= 3, c=c2
-  10. pat=/data/item            , val=         , s=0, i=0, e=1, tag=item  , atr=      , t=T, lvl= 2, c=
-  11. pat=/data                 , val=         , s=0, i=0, e=1, tag=data  , atr=      , t=T, lvl= 1, c=
+  10. pat=/data/item            , val=         , s=0, i=1, e=1, tag=item  , atr=      , t=T, lvl= 2, c=
+  11. pat=/data                 , val=         , s=0, i=1, e=1, tag=data  , atr=      , t=T, lvl= 1, c=
 
 If you want, you can set option {filter => 1} to select only those lines that have a value.
 
@@ -633,7 +633,6 @@ The syntax is {filter => 1|2}, default is {filter => 2}
 
 Option {strip => 1} strips all leading and trailing spaces from text and comments.
 (attributes are never stripped). {strip => 0} leaves text and comments unmodified.
-The default is {strip => 1}.
 
 The syntax is {strip => 0|1}, default is {strip => 1}
 
@@ -653,7 +652,7 @@ it hits end-of-file.
 =item path
 
 Provides the complete path of the currently selected value, attributes are represented
-by leading '@'-signs, comments are represented by a '#'-symbol.
+by leading '@'-signs.
 
 =item value
 
@@ -896,8 +895,8 @@ additional algorithm to reconstruct the original XML:
 
   <root>
     <test param='v'>
-      <a param='v'>
-        <b param='v'>
+      <a>
+        <b>
           e
           <data id='z'>
             g

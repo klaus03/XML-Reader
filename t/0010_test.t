@@ -108,7 +108,7 @@ use_ok('XML::Reader');
             $lvl_seq   .= '['.$rdr->level.']';
         }
         is($start_seq, '110110100000', 'sequence of start-tags (with new)');
-        is($ini_seq,   '000000010000', 'sequence of init_attr (with new)');
+        is($ini_seq,   '111111110011', 'sequence of init_attr (with new)');
         is($end_seq,   '010010000111', 'sequence of end-tags (with new)');
         is($lvl_seq,   '[1][2][1][2][3][2][3][4][4][3][2][1]', 'sequence of level information (with new)');
     }
@@ -128,7 +128,7 @@ use_ok('XML::Reader');
         }
 
         is($start_seq, '11011000100', 'sequence of start-tags (with newhd)');
-        is($ini_seq,   '00000010000', 'sequence of init_attr (with newhd)');
+        is($ini_seq,   '11111110011', 'sequence of init_attr (with newhd)');
         is($end_seq,   '01001000111', 'sequence of end-tags (with newhd)');
         is($lvl_seq,   '[1][2][1][2][3][2][4][4][3][2][1]', 'sequence of level information (with newhd)');
     }
@@ -305,15 +305,15 @@ use_ok('XML::Reader');
             elsif ($i == 30) { $point_30 = $point; }
             elsif ($i == 41) { $point_41 = $point; }
         }
-        is($point_01, '[/data/item][/][101][0]',                                 'check using at data point 01 {filter => 2}');
+        is($point_01, '[/data/item][/][111][0]',                                 'check using at data point 01 {filter => 2}');
         is($point_07, '[/data/item][/inner][101][1]',                            'check using at data point 07 {filter => 2}');
-        is($point_08, '[/data/item][/][001][0]',                                 'check using at data point 08 {filter => 2}');
-        is($point_09, '[/data/btem/user/level/agreement][/][100][0]',            'check using at data point 09 {filter => 2}');
+        is($point_08, '[/data/item][/][011][0]',                                 'check using at data point 08 {filter => 2}');
+        is($point_09, '[/data/btem/user/level/agreement][/][110][0]',            'check using at data point 09 {filter => 2}');
         is($point_15, '[/data/btem/user/level/agreement][/line/@water][000][2]', 'check using at data point 15 {filter => 2}');
         is($point_18, '[/data/btem/user/level/agreement][/line/@ice][010][2]',   'check using at data point 18 {filter => 2}');
         is($point_19, '[/data/btem/user/level/agreement][/line/@water][000][2]', 'check using at data point 19 {filter => 2}');
-        is($point_30, '[/data/item][/beta/gamma][100][2]',                       'check using at data point 30 {filter => 2}');
-        is($point_41, '[/data/item][/][001][0]',                                 'check using at data point 41 {filter => 2}');
+        is($point_30, '[/data/item][/beta/gamma][110][2]',                       'check using at data point 30 {filter => 2}');
+        is($point_41, '[/data/item][/][011][0]',                                 'check using at data point 41 {filter => 2}');
     }
 }
 
@@ -327,7 +327,7 @@ use_ok('XML::Reader');
     while ($rdr->iterate) { $i++;
         $output .= '['.$rdr->path.'-'.$rdr->value.']['.$rdr->is_start.$rdr->is_init_attr.$rdr->is_end.']['.$rdr->level.']';
     }
-    is($output, '[/data-][101][1]', 'the simplest XML possible');
+    is($output, '[/data-][111][1]', 'the simplest XML possible');
 }
 
 {
@@ -384,7 +384,7 @@ use_ok('XML::Reader');
     while ($rdr->iterate) { $i++;
         $output .= '['.$rdr->is_start.$rdr->is_init_attr.$rdr->is_end.']';
     }
-    is($output, '[100][010][000][000][100][010][000][101][001][001]',
+    is($output, '[110][010][000][000][100][010][000][101][011][011]',
        'filter => 2 for is_start, is_init_attr, is_end');
 }
 
@@ -456,15 +456,15 @@ use_ok('XML::Reader');
         elsif ($i == 38) { $point_38 = $point; }
         elsif ($i == 42) { $point_42 = $point; }
     }
-    is($point_01, '[/data/item][/][abc][T][101][][]',                                  'check filter=>2 at data point 01');
+    is($point_01, '[/data/item][/][abc][T][111][][]',                                  'check filter=>2 at data point 01');
     is($point_05, '[/data/item][/inner/@id][fff][@][010][@id][id]',                    'check filter=>2 at data point 05');
-    is($point_08, '[/data/item][/][][T][001][][]',                                     'check filter=>2 at data point 08');
+    is($point_08, '[/data/item][/][][T][011][][]',                                     'check filter=>2 at data point 08');
     is($point_14, '[/data/btem/user/lvl/a][/line/@ice][jjj][@][010][@ice][ice]',       'check filter=>2 at data point 14');
     is($point_15, '[/data/btem/user/lvl/a][/line/@water][def][@][000][@water][water]', 'check filter=>2 at data point 15');
     is($point_16, '[/data/btem/user/lvl/a][/line][go][T][101][line][]',                'check filter=>2 at data point 16');
     is($point_22, '[/data/item][/@ts][vy][@][010][@ts][ts]',                           'check filter=>2 at data point 22');
-    is($point_38, '[/data/item][/beta/test][t o][T][101][test][]',                     'check filter=>2 at data point 38');
-    is($point_42, '[/data/item][/][][T][001][][]',                                     'check filter=>2 at data point 42');
+    is($point_38, '[/data/item][/beta/test][t o][T][111][test][]',                     'check filter=>2 at data point 38');
+    is($point_42, '[/data/item][/][][T][011][][]',                                     'check filter=>2 at data point 42');
 }
 
 {

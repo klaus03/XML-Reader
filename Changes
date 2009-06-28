@@ -43,3 +43,6 @@ Revision history for XML-Reader
         add constructor XML::Reader->newhd, which is almost identical to
         XML::Reader->new, except it defaults to {filter => 2}, whereas
         the existing XML::Reader->new defaults to {filter => 0}
+
+0.13    28 Jun 2009
+        error correction in XML::Reader->is_init_attr()
