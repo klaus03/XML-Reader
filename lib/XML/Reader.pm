@@ -11,7 +11,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.13';
+our $VERSION     = '0.14';
 
 sub newhd {
     my $class = shift;
@@ -109,6 +109,7 @@ sub newhd {
     $self->{prefix}       = '';
     $self->{tag}          = '';
     $self->{value}        = '';
+    $self->{att_hash}     = {};
     $self->{comment}      = '';
     $self->{type}         = '?';
     $self->{is_init_attr} = 0;
@@ -134,6 +135,7 @@ sub path         { $_[0]->{path};         }
 sub tag          { $_[0]->{tag};          }
 sub attr         { $_[0]->{attr};         }
 sub value        { $_[0]->{value};        }
+sub att_hash     { $_[0]->{att_hash};     }
 sub type         { $_[0]->{type};         }
 sub level        { $_[0]->{level};        }
 sub prefix       { $_[0]->{prefix};       }
@@ -234,6 +236,12 @@ sub iterate {
             redo;
         }
 
+        # skip attributes when filter == 3
+        if ($self->{filter} == 3 and $self->{type} eq '@') {
+            shift @{$self->{command}};
+            redo;
+        }
+
         shift @{$self->{command}};
     }
 
@@ -300,6 +308,15 @@ sub populate_values {
     }
     else {
         die "Failed assertion #0040 in subroutine XML::Reader->iterate: Found data type '".$cmd->[0]."', but expected ('A' or 'T')";
+    }
+
+    if ($self->{filter} == 3) {
+        if ($self->{is_init_attr}) {
+            $self->{att_hash} = {};
+        }
+        if ($self->{type} eq '@') {
+            $self->{att_hash}{$self->{attr}} = $self->{value};
+        }
     }
 
     if ($self->{filter} == 1) {
@@ -865,7 +882,7 @@ additional algorithm to reconstruct the original XML:
 
   my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
 
-  my %at  = ();
+  my %at;
 
   while ($rdr->iterate) {
       my $indentation = '  ' x $rdr->level;
@@ -874,12 +891,7 @@ additional algorithm to reconstruct the original XML:
       if ($rdr->type eq '@')  { $at{$rdr->attr} = $rdr->value; }
 
       if ($rdr->is_start) {
-          print $indentation, '<', $rdr->tag;
-          if (%at) {
-              my @a = map{" $_='$at{$_}'"} sort keys %at;
-              print "@a";
-          }
-          print '>', "\n";
+          print $indentation, '<', $rdr->tag, join('', map{" $_='$at{$_}'"} sort keys %at), '>', "\n";
       }
 
       if ($rdr->type eq 'T' and $rdr->value ne '') {
@@ -910,9 +922,64 @@ additional algorithm to reconstruct the original XML:
 
 ...this is proof that the original structure of the XML is not lost.
 
+=head2 Option {filter => 3}
+
+Option {filter = 3} works very much like {filter => 2}.
+
+The difference, though, is that with option {filter => 3} all attribute-lines are filtered
+out and instead, the attributes are presented for each start-line in a hash $rdr->att_hash().
+
+This allows, in fact, to dispense with the global %at variable of the previous algorithm, and
+use a local %at variable instead:
+
+  my %at = %{$rdr->att_hash};
+
+Here is the new algorithm for {filter => 3}, we don't need to worry about attributes (that is,
+we don't need to check fot $rdr->type eq '@') and, as already mentioned, the %at variable is now local:
+
+  use XML::Reader;
+
+  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
+
+  my $rdr = XML::Reader->newhd(\$text, {filter => 3}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      my $indentation = '  ' x $rdr->level;
+
+      if ($rdr->is_start) {
+          my %at = %{$rdr->att_hash};
+          print $indentation, '<', $rdr->tag, join('', map{" $_='$at{$_}'"} sort keys %at), '>', "\n";
+      }
+
+      if ($rdr->type eq 'T' and $rdr->value ne '') {
+          print $indentation, '  ', $rdr->value, "\n";
+      }
+
+      if ($rdr->is_end) {
+          print $indentation, '</', $rdr->tag, '>', "\n";
+      }
+  }
+
+...the output for {filter => 3} is identical to the output for {filter => 2}:
+
+  <root>
+    <test param='v'>
+      <a>
+        <b>
+          e
+          <data id='z'>
+            g
+          </data>
+          f
+        </b>
+      </a>
+    </test>
+    x yz
+  </root>
+
 =head2 Option {filter => 1}
 
-Option {filter => 1} reduces the the minimum number of output lines (i.e. it removes all
+Option {filter => 1} reduces the number of output lines (i.e. it removes all
 lines that don't have a value).
 
 Be careful if you want to use one of the four methods C<is_start>, C<is_init_attr>,

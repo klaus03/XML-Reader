@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 64;
+use Test::More tests => 66;
 
 use_ok('XML::Reader');
 
@@ -249,6 +249,31 @@ use_ok('XML::Reader');
         </item>
       </data>
     };
+
+    {
+        my $att_seq = '';
+
+        my $rdr = XML::Reader->new(\$line, {filter => 3, using => ['/data/item/alpha', '/data/item/beta']});
+        my $i = 0;
+        while ($rdr->iterate) { $i++;
+            my %at = %{$rdr->att_hash};
+            $att_seq .= '['.join(' ', map {qq($_="$at{$_}")} sort keys %at).']';
+        }
+        is($att_seq, '[age="999" name="lll" type="qqq"][test="successful"][][number="undef"][][][][][][][][]',
+          'check $rdr->att_hash {filter => 3}');
+    }
+
+    {
+        my $att_seq = '';
+
+        my $rdr = XML::Reader->new(\$line, {filter => 2, using => ['/data/item/alpha', '/data/item/beta']});
+        my $i = 0;
+        while ($rdr->iterate) { $i++;
+            my %at = %{$rdr->att_hash};
+            $att_seq .= '['.join(' ', map {qq($_="$at{$_}")} sort keys %at).']';
+        }
+        is($att_seq, '[][][][][][][][][][][][][][][][][]', 'check $rdr->att_hash {filter => 2}');
+    }
 
     {
         my $point_01 = '';

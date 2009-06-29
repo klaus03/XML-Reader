@@ -46,3 +46,6 @@ Revision history for XML-Reader
 
 0.13    28 Jun 2009
         error correction in XML::Reader->is_init_attr()
+
+0.14    29 Jun 2009
+        add {filter => 3} and method $rdr->att_hash()
