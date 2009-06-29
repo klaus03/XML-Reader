@@ -49,3 +49,6 @@ Revision history for XML-Reader
 
 0.14    29 Jun 2009
         add {filter => 3} and method $rdr->att_hash()
+
+0.15    29 Jun 2009
+        internal tuning
