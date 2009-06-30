@@ -11,11 +11,16 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.15';
+our $VERSION     = '0.16';
 
 sub newhd {
     my $class = shift;
     my $self = {};
+
+    # Option {filter => 0} is obsolete and deprecated.
+    # Option {filter => 1} activates    the filter to remove empty lines, includes attribute lines.
+    # Option {filter => 2} desactivates the filter to remove empty lines, includes attribute lines.
+    # Option {filter => 3} desactivates the filter to remove empty lines, excludes attribute lines.
 
     my %opt = (strip => 1, filter => 2); # newhd defaults to filter=>2
     %opt    = (%opt, %{$_[1]}) if defined $_[1];
@@ -75,14 +80,16 @@ sub newhd {
     # be cleaned up when the XML::Reader-object goes away (see XML::Reader->DESTROY).
 
     $self->{ExpatNB} = $XmlParser->parse_start(
-        XR_Data    => [],
-        XR_Text    => '',
-        XR_Comment => '',
-        XR_Status  => 'ok',
-        XR_fh      => $fh,
-        XR_First   => 1,
-        XR_Strip   => $opt{strip},
-
+        XR_Data      => [],
+        XR_Text      => '',
+        XR_Comment   => '',
+        XR_Status    => 'ok',
+        XR_fh        => $fh,
+        XR_Att       => [],
+        XR_Prv_SE    => '',
+        XR_Extraline => ($opt{filter} == 0 ? 1 : 0),
+        XR_Emit_attr => ($opt{filter} == 3 ? 0 : 1),
+        XR_Strip     => $opt{strip},
       ) or die "Failed assertion #0020 in subroutine XML::Reader->newhd: Can't create XML::Parser->new";
 
     # The instruction "XR_Data => []" (-- the 'XR_...' prefix stands for 'Xml::Reader...' --)
@@ -103,7 +110,6 @@ sub newhd {
         $check = '/'.$check;
     }
 
-    $self->{command}      = [['Z', [], 0, 0, '', '', 0]];
     $self->{plist}        = [];
     $self->{path}         = '/';
     $self->{prefix}       = '';
@@ -116,7 +122,6 @@ sub newhd {
     $self->{is_start}     = 0;
     $self->{is_end}       = 0;
     $self->{level}        = 0;
-    $self->{prev_cd}      = 'T';
     $self->{item}         = '';
 
     return $self;
@@ -131,267 +136,121 @@ sub new {
     return XML::Reader->newhd($_[0], \%opt);
 }
 
-sub path         { $_[0]->{path};         }
-sub tag          { $_[0]->{tag};          }
-sub attr         { $_[0]->{attr};         }
-sub value        { $_[0]->{value};        }
-sub att_hash     { $_[0]->{att_hash};     }
-sub type         { $_[0]->{type};         }
-sub level        { $_[0]->{level};        }
-sub prefix       { $_[0]->{prefix};       }
-sub comment      { $_[0]->{comment};      }
-sub is_init_attr { $_[0]->{is_init_attr}; }
-sub is_start     { $_[0]->{is_start};     }
-sub is_end       { $_[0]->{is_end};       }
+sub path         { $_[0]{path};         }
+sub tag          { $_[0]{tag};          }
+sub attr         { $_[0]{attr};         }
+sub value        { $_[0]{value};        }
+sub att_hash     { $_[0]{att_hash};     }
+sub type         { $_[0]{type};         }
+sub level        { $_[0]{level};        }
+sub prefix       { $_[0]{prefix};       }
+sub comment      { $_[0]{comment};      }
+sub is_init_attr { $_[0]{is_init_attr}; }
+sub is_start     { $_[0]{is_start};     }
+sub is_end       { $_[0]{is_end};       }
 
-sub NB_data         { $_[0]->{ExpatNB}{XR_Data};           }
-sub NB_stat_not_ok  { $_[0]->{ExpatNB}{XR_Status} ne 'ok'; }
-sub NB_stat_set_eof { $_[0]->{ExpatNB}{XR_Status} = 'eof'; }
-sub NB_fh           { $_[0]->{ExpatNB}{XR_fh};             }
-
-sub handle_start {
-    my ($ExpatNB, $element, @attr) = @_;
-
-    my $text    = $ExpatNB->{XR_Text};
-    my $comment = $ExpatNB->{XR_Comment};
-
-    if ($ExpatNB->{XR_Strip}) {
-        for ($text, $comment) { 
-            s{\A \s+}''xms;
-            s{\s+ \z}''xms;
-            s{\s+}' 'xmsg;
-        }
-    }
-
-    push @{$ExpatNB->{XR_Data}}, ['T', $text, $comment] unless $ExpatNB->{XR_First};
-    $ExpatNB->{XR_First} = 0;
-
-    $ExpatNB->{XR_Text}    = '';
-    $ExpatNB->{XR_Comment} = '';
-
-    push @{$ExpatNB->{XR_Data}}, ['S', $element, {@attr}];
-}
-
-sub handle_end {
-    my ($ExpatNB, $element) = @_;
-
-    my $text    = $ExpatNB->{XR_Text};
-    my $comment = $ExpatNB->{XR_Comment};
-
-    if ($ExpatNB->{XR_Strip}) {
-        for ($text, $comment) { 
-            s{\A \s+}''xms;
-            s{\s+ \z}''xms;
-            s{\s+}' 'xmsg;
-        }
-    }
-
-    push @{$ExpatNB->{XR_Data}}, ['T', $text, $comment];
-
-    $ExpatNB->{XR_Text}    = '';
-    $ExpatNB->{XR_Comment} = '';
-
-    push @{$ExpatNB->{XR_Data}}, ['E', $element];
-}
-
-sub handle_comment {
-    my ($ExpatNB, $comment) = @_;
-
-    $ExpatNB->{XR_Comment} .= $comment;
-}
-
-sub handle_char {
-    my ($ExpatNB, $text) = @_;
-
-    $ExpatNB->{XR_Text} .= $text;
-}
+sub NB_data         { $_[0]{ExpatNB}{XR_Data};           }
+sub NB_stat_not_ok  { $_[0]{ExpatNB}{XR_Status} ne 'ok'; }
+sub NB_stat_set_eof { $_[0]{ExpatNB}{XR_Status} = 'eof'; }
+sub NB_fh           { $_[0]{ExpatNB}{XR_fh};             }
 
 sub iterate {
     my $self = shift;
 
     {
-        # try reading 3 tokens...
-        until ($self->NB_stat_not_ok or @{$self->{command}} >= 3) {
-            $self->read_token;
-        }
-
-        # return failure if end-of-file
-        unless (@{$self->{command}}) {
+        my $token = $self->get_token;
+        unless (defined $token) {
             return;
         }
 
-        # populate values
-        $self->populate_values;
-
-        # if the current element is of type 'Z', i.e. a dummy header, then get rid of it
-        if (${$self->{command}}[0][0] eq 'Z') {
-            shift @{$self->{command}};
+        if ($token->found_start_tag) {
+            push @{$self->{plist}}, $token->extract_tag;
             redo;
         }
+        elsif ($token->found_end_tag) {
+            pop @{$self->{plist}};
+            redo;
+        }
+        elsif ($token->found_text) {
+            my $text    = $token->extract_text;
+            my $comment = $token->extract_comment;
 
-        # check if option {using => ...} as been requested, and if so, then skip all
+            if ($self->{filter} == 1 and $text =~ m{\A \s* \z}xms) {
+                redo;
+            }
+
+            $self->{is_start}     = $token->extract_prv_SE eq 'S' ? 1 : 0;
+            $self->{is_end}       = $token->extract_nxt_SE eq 'E' ? 1 : 0;
+            $self->{is_init_attr} = $token->extract_ini_att;
+            $self->{path}         = '/'.join('/', @{$self->{plist}});
+            $self->{attr}         = '';
+            $self->{value}        = $text;
+            $self->{comment}      = $comment;
+            $self->{level}        = @{$self->{plist}};
+            $self->{tag}          = ${$self->{plist}}[-1];
+            $self->{type}         = 'T';
+            $self->{att_hash}     = {@{$token->extract_attr}};
+        }
+        elsif ($token->found_attr) {
+            my $key = $token->extract_attkey;
+            my $val = $token->extract_attval;
+
+            $self->{is_start}     = 0;
+            $self->{is_end}       = 0;
+            $self->{is_init_attr} = $token->extract_ini_att;
+            $self->{path}         = '/'.join('/', @{$self->{plist}}).'/@'.$key;
+            $self->{attr}         = $key;
+            $self->{value}        = $val;
+            $self->{comment}      = '';
+            $self->{level}        = @{$self->{plist}} + 1;
+            $self->{tag}          = '@'.$key;
+            $self->{type}         = '@';
+            $self->{att_hash}     = {};
+        }
+        else {
+            die "Failed assertion #0040 in subroutine XML::Reader->iterate: Found data type '".$token->[0]."'";
+        }
+
+        # for {filter => 1}, override 'is_start', 'is_end', 'is_init_attr' and 'comment'
+        if ($self->{filter} == 1) {
+            $self->{is_start}     = undef;
+            $self->{is_end}       = undef;
+            $self->{is_init_attr} = undef;
+            $self->{comment}      = undef;
+        }
+
+        # for other than {filter => 3}, override 'att_hash'
+        unless ($self->{filter} == 3) {
+            $self->{att_hash}     = {};
+        }
+
+        # Here we check for the {using => ...} option
+        $self->{prefix} = '';
+
+        for my $check (@{$self->{using}}) {
+            if ($check eq $self->{path}) {
+                $self->{prefix} = $check;
+                $self->{path}   = '/';
+                $self->{level}  = 0;
+                $self->{tag}    = ''; # unfortunately we have to nullify the tag here...
+                last;
+            }
+            if ($check.'/' eq substr($self->{path}, 0, length($check) + 1)) { my @temp = split m{/}xms, $check;
+                $self->{prefix} = $check;
+                $self->{path}   = substr($self->{path}, length($check));
+                $self->{level} -= @temp - 1;
+                last;
+            }
+        }
+
+        # check if option {using => ...} has been requested, and if so, then skip all
         # lines that don't have a prefix...
         if (@{$self->{using}} and $self->{prefix} eq '') {
-            shift @{$self->{command}};
             redo;
         }
-
-        # skip attributes when filter == 3
-        if ($self->{filter} == 3 and $self->{type} eq '@') {
-            shift @{$self->{command}};
-            redo;
-        }
-
-        shift @{$self->{command}};
     }
 
     return 1;
-}
-
-sub populate_values {
-    my $self = shift;
-
-    # checking start- and end-tags can only be performed if the filter is off...
-    unless ($self->{filter} == 1) {
-        # does the 2nd element exist?
-        if (@{$self->{command}} >= 2) {
-            my $cmd_prv =                            ${$self->{command}}[0];                              # take the first line as previous...
-            my $cmd_act =                            ${$self->{command}}[1];                              # take the second line as current...
-            my $cmd_nxt = @{$self->{command}} >= 3 ? ${$self->{command}}[2] : ['Z', [], 0, 0, '', '', 0]; # take the third line as next...
-
-            my $prv_length = @{$cmd_prv->[1]};
-            my $act_length = @{$cmd_act->[1]};
-            my $nxt_length = @{$cmd_nxt->[1]};
-
-            my $prv_type = $cmd_prv->[0];
-            my $act_type = $cmd_act->[0];
-            my $nxt_type = $cmd_nxt->[0];
-
-            if ($self->{filter} == 0) {
-                $cmd_act->[2] = (                                          $prv_length < $act_length ) ? 1 : 0; # mark as start-tag
-                $cmd_act->[3] = (                                          $nxt_length < $act_length ) ? 1 : 0; # mark as end-tag
-            }
-            else {
-                $cmd_act->[2] = ($act_type eq 'T' and ($prv_type ne 'T' or $prv_length < $act_length)) ? 1 : 0; # mark as start-tag
-                $cmd_act->[3] = ($act_type eq 'T' and                      $nxt_length < $act_length ) ? 1 : 0; # mark as end-tag
-            }
-
-            $cmd_act->[6] = $prv_type ne 'A' ? 1 : 0; # mark as init_attr
-        }
-    }
-
-    my $cmd = ${$self->{command}}[0] or die "Failed assertion #0030 in subroutine XML::Reader->populate_values: command stack is empty";
-
-    return if $cmd->[0] eq 'Z';
-
-    $self->{is_start}     = $cmd->[2];
-    $self->{is_end}       = $cmd->[3];
-    $self->{is_init_attr} = $cmd->[6];
-
-    if ($cmd->[0] eq 'A') {
-        $self->{path}     = '/'.join('/', @{$cmd->[1]}).'/@'.$cmd->[4];
-        $self->{attr}     = $cmd->[4];
-        $self->{value}    = $cmd->[5];
-        $self->{comment}  = '';
-        $self->{level}    = @{$cmd->[1]} + 1;
-        $self->{tag}      = '@'.$cmd->[4];
-        $self->{type}     = '@';
-    }
-    elsif ($cmd->[0] eq 'T') {
-        $self->{path}     = '/'.join('/', @{$cmd->[1]});
-        $self->{attr}     = '';
-        $self->{value}    = $cmd->[4];
-        $self->{comment}  = $cmd->[5];
-        $self->{level}    = @{$cmd->[1]};
-        $self->{tag}      = ${$cmd->[1]}[-1];
-        $self->{type}     = 'T';
-    }
-    else {
-        die "Failed assertion #0040 in subroutine XML::Reader->iterate: Found data type '".$cmd->[0]."', but expected ('A' or 'T')";
-    }
-
-    if ($self->{filter} == 3) {
-        if ($self->{is_init_attr}) {
-            %{$self->{att_hash}} = () if %{$self->{att_hash}};
-        }
-        if ($self->{type} eq '@') {
-            $self->{att_hash}{$self->{attr}} = $self->{value};
-        }
-    }
-
-    if ($self->{filter} == 1) {
-        $self->{is_start}     = undef;
-        $self->{is_end}       = undef;
-        $self->{is_init_attr} = undef;
-        $self->{comment}      = undef;
-    }
-
-    # Here we check for the {using => ...} option
-    $self->{prefix} = '';
-
-    for my $check (@{$self->{using}}) {
-        if ($check eq $self->{path}) {
-            $self->{prefix} = $check;
-            $self->{path}   = '/';
-            $self->{level}  = 0;
-            $self->{tag}    = ''; # unfortunately we have to nullify the tag here...
-            last;
-        }
-        if ($check.'/' eq substr($self->{path}, 0, length($check) + 1)) { my @temp = split m{/}xms, $check;
-            $self->{prefix} = $check;
-            $self->{path}   = substr($self->{path}, length($check));
-            $self->{level} -= @temp - 1;
-            last;
-        }
-    }
-}
-
-sub read_token {
-    my $self = shift;
-
-    my $token = $self->get_token;
-
-    unless (defined $token) {
-        return;
-    }
-
-    if ($token->found_start_tag) {
-        push @{$self->{plist}}, $token->extract_tag;
-        my @list = @{$self->{plist}};
-
-        if ($self->{filter} == 0) {
-            if (keys %{$token->extract_attr}) {
-                push @{$self->{command}}, ['T', \@list, 0, 0, '', '', 0];
-            }
-        }
-
-        # inject the attributes...
-        push @{$self->{command}},
-          map {['A', \@list, 0, 0, $_, $token->extract_attr->{$_}]}
-            sort keys %{$token->extract_attr};
-
-        $self->{prev_cd} = keys(%{$token->extract_attr}) ? 'A' : 'T';
-    }
-    elsif ($token->found_end_tag) {
-        unless ($self->{filter} == 1) {
-            if ($self->{prev_cd} eq 'A' or $self->{prev_cd} eq 'C') {
-                my @list = @{$self->{plist}};
-                push @{$self->{command}}, ['T', \@list, 0, 0, '', '', 0];
-                $self->{prev_cd} = 'T';
-            }
-        }
-        $self->{item} = pop @{$self->{plist}};
-    }
-    elsif ($token->found_text) {
-        my $text    = $token->extract_text;
-        my $comment = $token->extract_comment;
-
-        if ($self->{filter} != 1 or $text =~ m{\S}xms) {
-            my @list = @{$self->{plist}};
-            push @{$self->{command}}, ['T', \@list, 0, 0, $text, $comment, 0];
-        }
-        $self->{prev_cd} = 'T';
-    }
 }
 
 sub get_token {
@@ -418,6 +277,115 @@ sub get_token {
 
     my $token = shift @{$self->NB_data};
     bless $token, 'XML::Reader::Token';
+}
+
+sub handle_start {
+    my ($ExpatNB, $element, @attr) = @_;
+
+    my $text    = $ExpatNB->{XR_Text};
+    my $comment = $ExpatNB->{XR_Comment};
+
+    if ($ExpatNB->{XR_Strip}) {
+        for ($text, $comment) { 
+            s{\A \s+}''xms;
+            s{\s+ \z}''xms;
+            s{\s+}' 'xmsg;
+        }
+    }
+
+    my $prev_SE = $ExpatNB->{XR_Prv_SE};
+    my $next_SE = 'S';
+
+    unless ($ExpatNB->{XR_Prv_SE} eq '') {
+
+        my $ini_tag = 1;
+
+        if ($ExpatNB->{XR_Emit_attr}) {
+
+            my %at = @{$ExpatNB->{XR_Att}};
+
+            if ($ExpatNB->{XR_Extraline} and %at) {
+                push @{$ExpatNB->{XR_Data}},
+                  ['T', '', '', $ini_tag, $prev_SE, 0, []];
+                $prev_SE = 0;
+            }
+
+            my $i = 0;
+            for my $key (sort keys %at) { $i++;
+                my $ini_att = 0; if ($i == 1) { $ini_tag = 0; $ini_att = 1; }
+                push @{$ExpatNB->{XR_Data}}, ['A', $key, $at{$key}, $ini_att];
+            }
+        }
+        push @{$ExpatNB->{XR_Data}},
+          ['T', $text, $comment, $ini_tag, $prev_SE, $next_SE, $ExpatNB->{XR_Att}];
+    }
+
+    $ExpatNB->{XR_Text}    = '';
+    $ExpatNB->{XR_Comment} = '';
+
+    $ExpatNB->{XR_Att} = \@attr;
+    $ExpatNB->{XR_Prv_SE} = $next_SE;
+
+    push @{$ExpatNB->{XR_Data}}, ['S', $element];
+}
+
+sub handle_end {
+    my ($ExpatNB, $element) = @_;
+
+    my $text    = $ExpatNB->{XR_Text};
+    my $comment = $ExpatNB->{XR_Comment};
+
+    if ($ExpatNB->{XR_Strip}) {
+        for ($text, $comment) { 
+            s{\A \s+}''xms;
+            s{\s+ \z}''xms;
+            s{\s+}' 'xmsg;
+        }
+    }
+
+    my $prev_SE = $ExpatNB->{XR_Prv_SE};
+    my $next_SE = 'E';
+
+    my $ini_tag = 1;
+
+    if ($ExpatNB->{XR_Emit_attr}) {
+
+        my %at = @{$ExpatNB->{XR_Att}};
+
+        if ($ExpatNB->{XR_Extraline} and %at) {
+            push @{$ExpatNB->{XR_Data}},
+              ['T', '', '', $ini_tag, $prev_SE, 0, []];
+            $prev_SE = 0;
+        }
+
+        my $i = 0;
+        for my $key (sort keys %at) { $i++;
+            my $ini_att = 0; if ($i == 1) { $ini_tag = 0; $ini_att = 1; }
+            push @{$ExpatNB->{XR_Data}}, ['A', $key, $at{$key}, $ini_att];
+        }
+    }
+    push @{$ExpatNB->{XR_Data}},
+      ['T', $text, $comment, $ini_tag, $prev_SE, $next_SE, $ExpatNB->{XR_Att}];
+
+    $ExpatNB->{XR_Text}    = '';
+    $ExpatNB->{XR_Comment} = '';
+
+    $ExpatNB->{XR_Att} = [];
+    $ExpatNB->{XR_Prv_SE} = $next_SE;
+
+    push @{$ExpatNB->{XR_Data}}, ['E', $element];
+}
+
+sub handle_comment {
+    my ($ExpatNB, $comment) = @_;
+
+    $ExpatNB->{XR_Comment} .= $comment;
+}
+
+sub handle_char {
+    my ($ExpatNB, $text) = @_;
+
+    $ExpatNB->{XR_Text} .= $text;
 }
 
 sub DESTROY {
@@ -460,32 +428,21 @@ package XML::Reader::Token;
 
 sub found_start_tag { $_[0][0] eq 'S'; }
 sub found_end_tag   { $_[0][0] eq 'E'; }
-sub found_comment   { $_[0][0] eq 'C'; }
+sub found_attr      { $_[0][0] eq 'A'; }
 sub found_text      { $_[0][0] eq 'T'; }
 
-sub extract_tag {
-    my $self = shift;
-    my $type = $self->[0];
-    return $type eq 'S' || $type eq 'E' ? $self->[1] : '';
-}
+sub extract_tag     { $_[0][1]; } # type eq 'S' or 'E'
 
-sub extract_text {
-    my $self = shift;
-    my $type = $self->[0];
-    return $type eq 'T' ? $self->[1] : '';
-}
+sub extract_attkey  { $_[0][1]; } # type eq 'A'
+sub extract_attval  { $_[0][2]; } # type eq 'A'
 
-sub extract_comment {
-    my $self = shift;
-    my $type = $self->[0];
-    return $type eq 'T' ? $self->[2] : '';
-}
+sub extract_text    { $_[0][1]; } # type eq 'T'
+sub extract_comment { $_[0][2]; } # type eq 'T'
 
-sub extract_attr {
-    my $self = shift;
-    my $type = $self->[0];
-    return $type eq 'S' ? $self->[2] : {};
-}
+sub extract_ini_att { $_[0][3]; } # type eq 'T' or 'A'
+sub extract_prv_SE  { $_[0][4]; } # type eq 'T'
+sub extract_nxt_SE  { $_[0][5]; } # type eq 'T'
+sub extract_attr    { $_[0][6]; } # type eq 'T'
 
 1;
 
@@ -641,10 +598,16 @@ The syntax is {using => ['/path1/path2/path3', '/path4/path5/path6']}
 
 =item option {filter => }
 
-Option Filter allows to switch on ({filter => 1}), or to switch off ({filter => 2}) a filter for
-empty lines.
+Option {filter => 1} activates a filter to remove lines with an empty value.
 
-The syntax is {filter => 1|2}, default is {filter => 2}
+Option {filter => 2} desactivates the filter, so all lines are shown, even
+lines with an empty value.
+
+Option {filter => 3} also desactivates the filter, but removes attribute lines
+(i.e. it removes lines where $rdr->type = '@'). Instead, it returns the attributes
+in a hash $rdr->att_hash.
+
+The syntax is {filter => 1|2|3}, default is {filter => 2}
 
 =item option {strip => }
 

@@ -4,4 +4,5 @@ Makefile.PL
 README
 lib/XML/Reader.pm
 t/0010_test.t
+t/0020_test.t
 META.yml
