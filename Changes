@@ -55,3 +55,6 @@ Revision history for XML-Reader
 
 0.16    30 Jun 2009
         more internal tuning
+
+0.17    05 Jul 2009
+        even more internal tuning in handle_start() and in handle_end()

@@ -11,7 +11,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.16';
+our $VERSION     = '0.17';
 
 sub newhd {
     my $class = shift;
@@ -282,97 +282,18 @@ sub get_token {
 sub handle_start {
     my ($ExpatNB, $element, @attr) = @_;
 
-    my $text    = $ExpatNB->{XR_Text};
-    my $comment = $ExpatNB->{XR_Comment};
-
-    if ($ExpatNB->{XR_Strip}) {
-        for ($text, $comment) { 
-            s{\A \s+}''xms;
-            s{\s+ \z}''xms;
-            s{\s+}' 'xmsg;
-        }
-    }
-
-    my $prev_SE = $ExpatNB->{XR_Prv_SE};
-    my $next_SE = 'S';
-
-    unless ($ExpatNB->{XR_Prv_SE} eq '') {
-
-        my $ini_tag = 1;
-
-        if ($ExpatNB->{XR_Emit_attr}) {
-
-            my %at = @{$ExpatNB->{XR_Att}};
-
-            if ($ExpatNB->{XR_Extraline} and %at) {
-                push @{$ExpatNB->{XR_Data}},
-                  ['T', '', '', $ini_tag, $prev_SE, 0, []];
-                $prev_SE = 0;
-            }
-
-            my $i = 0;
-            for my $key (sort keys %at) { $i++;
-                my $ini_att = 0; if ($i == 1) { $ini_tag = 0; $ini_att = 1; }
-                push @{$ExpatNB->{XR_Data}}, ['A', $key, $at{$key}, $ini_att];
-            }
-        }
-        push @{$ExpatNB->{XR_Data}},
-          ['T', $text, $comment, $ini_tag, $prev_SE, $next_SE, $ExpatNB->{XR_Att}];
-    }
-
-    $ExpatNB->{XR_Text}    = '';
-    $ExpatNB->{XR_Comment} = '';
-
+    process_handle($ExpatNB, 'S');
     $ExpatNB->{XR_Att} = \@attr;
-    $ExpatNB->{XR_Prv_SE} = $next_SE;
-
+    $ExpatNB->{XR_Prv_SE} = 'S';
     push @{$ExpatNB->{XR_Data}}, ['S', $element];
 }
 
 sub handle_end {
     my ($ExpatNB, $element) = @_;
 
-    my $text    = $ExpatNB->{XR_Text};
-    my $comment = $ExpatNB->{XR_Comment};
-
-    if ($ExpatNB->{XR_Strip}) {
-        for ($text, $comment) { 
-            s{\A \s+}''xms;
-            s{\s+ \z}''xms;
-            s{\s+}' 'xmsg;
-        }
-    }
-
-    my $prev_SE = $ExpatNB->{XR_Prv_SE};
-    my $next_SE = 'E';
-
-    my $ini_tag = 1;
-
-    if ($ExpatNB->{XR_Emit_attr}) {
-
-        my %at = @{$ExpatNB->{XR_Att}};
-
-        if ($ExpatNB->{XR_Extraline} and %at) {
-            push @{$ExpatNB->{XR_Data}},
-              ['T', '', '', $ini_tag, $prev_SE, 0, []];
-            $prev_SE = 0;
-        }
-
-        my $i = 0;
-        for my $key (sort keys %at) { $i++;
-            my $ini_att = 0; if ($i == 1) { $ini_tag = 0; $ini_att = 1; }
-            push @{$ExpatNB->{XR_Data}}, ['A', $key, $at{$key}, $ini_att];
-        }
-    }
-    push @{$ExpatNB->{XR_Data}},
-      ['T', $text, $comment, $ini_tag, $prev_SE, $next_SE, $ExpatNB->{XR_Att}];
-
-    $ExpatNB->{XR_Text}    = '';
-    $ExpatNB->{XR_Comment} = '';
-
+    process_handle($ExpatNB, 'E');
     $ExpatNB->{XR_Att} = [];
-    $ExpatNB->{XR_Prv_SE} = $next_SE;
-
+    $ExpatNB->{XR_Prv_SE} = 'E';
     push @{$ExpatNB->{XR_Data}}, ['E', $element];
 }
 
@@ -386,6 +307,68 @@ sub handle_char {
     my ($ExpatNB, $text) = @_;
 
     $ExpatNB->{XR_Text} .= $text;
+}
+
+sub process_handle {
+    my ($ExpatNB, $Param_SE) = @_; # $Param_SE can be either 'S' or 'E'
+
+    # These are the text and comment that preceed the current start- or end-tag
+    my $text    = $ExpatNB->{XR_Text};
+    my $comment = $ExpatNB->{XR_Comment};
+
+    $ExpatNB->{XR_Text}    = '';
+    $ExpatNB->{XR_Comment} = '';
+
+    # strip spaces if requested...
+    if ($ExpatNB->{XR_Strip}) {
+        for ($text, $comment) { 
+            s{\A \s+}''xms;
+            s{\s+ \z}''xms;
+            s{\s+}' 'xmsg;
+        }
+    }
+
+    # Here we save the previous 'SE' and the current (i.e. next) 'SE' into lexicals
+    # so that we can manipulate them
+    my $prev_SE = $ExpatNB->{XR_Prv_SE};
+    my $next_SE = $Param_SE;
+
+    # Don't do anything for the first tag (which, by definition, must be a start-tag)
+    unless ($ExpatNB->{XR_Prv_SE} eq '') {
+
+        # In case that we have attributes: set up a lexical to designate the first,
+        # initial attribute $ini_tag == 1, the following attributes (plus the corresponding
+        # start-tag) will then be $ini_tag == 0...
+        my $ini_tag = 1;
+
+        # Do we really want to emit attributes on their proper lines ? -- or do we just
+        # want to publish the attributes on element ${$ExpatNB->{XR_Data}}[6] ?
+        if ($ExpatNB->{XR_Emit_attr}) {
+
+            my %at = @{$ExpatNB->{XR_Att}};
+
+            # This part is purely for backwards compatibility -- The question is: Do we
+            # want to emit a dummy text-line if there are attributes that follow ?
+            # (This is really obsolete and deprecated, but as I said, we need it for
+            # backward compatibility)
+            if ($ExpatNB->{XR_Extraline} and %at) {
+                push @{$ExpatNB->{XR_Data}},
+                  ['T', '', '', $ini_tag, $prev_SE, '*', []];
+                $prev_SE = '*';
+            }
+
+            # Here we emit attributes on their proper lines...
+            my $i = 0;
+            for my $key (sort keys %at) { $i++;
+                my $ini_att = 0; if ($i == 1) { $ini_tag = 0; $ini_att = 1; }
+                push @{$ExpatNB->{XR_Data}}, ['A', $key, $at{$key}, $ini_att];
+            }
+        }
+
+        # And here we emit the start- or end-tag
+        push @{$ExpatNB->{XR_Data}},
+          ['T', $text, $comment, $ini_tag, $prev_SE, $next_SE, $ExpatNB->{XR_Att}];
+    }
 }
 
 sub DESTROY {
