@@ -58,3 +58,10 @@ Revision history for XML-Reader
 
 0.17    05 Jul 2009
         even more internal tuning in handle_start() and in handle_end()
+
+0.18    30 Jul 2009
+        remove method XML::Reader->is_init_attr()
+        add processing instructions ("PI")
+        add option {parse_ct} for comments
+        add option {parse_pi} for processing-instructions
+        add option {filter => 4} and method XML::Reader->pyx() for PYX compliant data

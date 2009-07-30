@@ -11,7 +11,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.17';
+our $VERSION     = '0.18';
 
 sub newhd {
     my $class = shift;
@@ -20,9 +20,10 @@ sub newhd {
     # Option {filter => 0} is obsolete and deprecated.
     # Option {filter => 1} activates    the filter to remove empty lines, includes attribute lines.
     # Option {filter => 2} desactivates the filter to remove empty lines, includes attribute lines.
-    # Option {filter => 3} desactivates the filter to remove empty lines, excludes attribute lines.
+    # Option {filter => 3} desactivates the filter to remove empty lines, no       attribute lines.
+    # Option {filter => 4} desactivates the filter to remove empty lines, includes attribute lines after <start> and splits <start>, text and </end>.
 
-    my %opt = (strip => 1, filter => 2); # newhd defaults to filter=>2
+    my %opt = (strip => 1, filter => 2, parse_pi => 0, parse_ct => 0); # newhd defaults to filter=>2
     %opt    = (%opt, %{$_[1]}) if defined $_[1];
 
     my $XmlParser = XML::Parser->new
@@ -34,6 +35,8 @@ sub newhd {
     $XmlParser->setHandlers(
         Start   => \&handle_start,
         End     => \&handle_end,
+        Proc    => \&handle_procinst,
+        XMLDecl => \&handle_decl,
         Char    => \&handle_char,
         Comment => \&handle_comment,
     );
@@ -42,8 +45,16 @@ sub newhd {
     # happens to be a reference to a scalar, then it is opened quite naturally as an
     # 'in-memory-file'. If the open fails, then we return failure from XML::Reader->newhd
     # and the calling program has to check $! to handle the failed call.
+    # If, however, the filename is already a filehandle (i.e. ref($_[0]) eq 'GLOB'), then
+    # we use that filehandle directly
 
-    open my $fh, '<', $_[0] or return;
+    my $fh;
+    if (ref($_[0]) eq 'GLOB') {
+        $fh = $_[0];
+    }
+    else {
+        open $fh, '<', $_[0] or return;
+    }
 
     # Now we bless into XML::Reader, and we bless *before* creating the ExpatNB-object.
     # Thereby, to avoid a memory leak, we ensure that for each ExpatNB-object we call
@@ -83,21 +94,25 @@ sub newhd {
         XR_Data      => [],
         XR_Text      => '',
         XR_Comment   => '',
-        XR_Status    => 'ok',
         XR_fh        => $fh,
         XR_Att       => [],
-        XR_Prv_SE    => '',
+        XR_ProcInst  => [],
+        XR_Decl      => {},
+        XR_Prv_SPECD => '',
         XR_Extraline => ($opt{filter} == 0 ? 1 : 0),
         XR_Emit_attr => ($opt{filter} == 3 ? 0 : 1),
+        XR_Split_up  => ($opt{filter} == 4 ? 1 : 0),
         XR_Strip     => $opt{strip},
-      ) or die "Failed assertion #0020 in subroutine XML::Reader->newhd: Can't create XML::Parser->new";
+        XR_ParseInst => $opt{parse_pi},
+        XR_ParseComm => $opt{parse_ct},
+      ) or die "Failed assertion #0020 in subroutine XML::Reader->newhd: Can't create XML::Parser->parse_start";
 
     # The instruction "XR_Data => []" (-- the 'XR_...' prefix stands for 'Xml::Reader...' --)
     # inside XML::Parser->parse_start() creates an empty array $ExpatNB{XR_Data} = []
     # inside the ExpatNB object. This array is the place where the handlers put their data.
     #
-    # Likewise, the instructions "XR_Text => ''", "XR_Comment => ''", "XR_Status => 'ok'"
-    # and "XR_fh => $fh" create corresponding elements inside the $ExpatNB-object.
+    # Likewise, the instructions "XR_Text => ''", "XR_Comment => ''", and "XR_fh => $fh" , etc...
+    # create corresponding elements inside the $ExpatNB-object.
 
     $self->{filter}  = $opt{filter};
     $self->{using}   = !defined($opt{using}) ? [] : ref($opt{using}) ? $opt{using} : [$opt{using}];
@@ -116,11 +131,18 @@ sub newhd {
     $self->{tag}          = '';
     $self->{value}        = '';
     $self->{att_hash}     = {};
+    $self->{dec_hash}     = {};
     $self->{comment}      = '';
+    $self->{pyx}          = '';
+    $self->{proc}         = '';
     $self->{type}         = '?';
-    $self->{is_init_attr} = 0;
     $self->{is_start}     = 0;
     $self->{is_end}       = 0;
+    $self->{is_decl}      = 0;
+    $self->{is_proc}      = 0;
+    $self->{is_comment}   = 0;
+    $self->{is_text}      = 0;
+    $self->{is_attr}      = 0;
     $self->{level}        = 0;
     $self->{item}         = '';
 
@@ -131,9 +153,9 @@ sub newhd {
 sub new {
     my $class = shift;
 
-    my %opt = (strip => 1, filter => 0); # new is depreceated, it defaults to filter=>0
+    my %opt = (strip => 1, filter => 0, parse_pi => 0, parse_ct => 0); # new is depreceated, it defaults to filter=>0
     %opt    = (%opt, %{$_[1]}) if defined $_[1];
-    return XML::Reader->newhd($_[0], \%opt);
+    return $class->newhd($_[0], \%opt);
 }
 
 sub path         { $_[0]{path};         }
@@ -141,18 +163,24 @@ sub tag          { $_[0]{tag};          }
 sub attr         { $_[0]{attr};         }
 sub value        { $_[0]{value};        }
 sub att_hash     { $_[0]{att_hash};     }
+sub dec_hash     { $_[0]{dec_hash};     }
 sub type         { $_[0]{type};         }
 sub level        { $_[0]{level};        }
 sub prefix       { $_[0]{prefix};       }
 sub comment      { $_[0]{comment};      }
-sub is_init_attr { $_[0]{is_init_attr}; }
+sub pyx          { $_[0]{pyx};          }
+sub proc_tgt     { $_[0]{proc_tgt};     }
+sub proc_data    { $_[0]{proc_data};    }
+sub is_decl      { $_[0]{is_decl};      }
 sub is_start     { $_[0]{is_start};     }
+sub is_proc      { $_[0]{is_proc};      }
+sub is_comment   { $_[0]{is_comment};   }
+sub is_text      { $_[0]{is_text};      }
+sub is_attr      { $_[0]{is_attr};      }
 sub is_end       { $_[0]{is_end};       }
 
-sub NB_data         { $_[0]{ExpatNB}{XR_Data};           }
-sub NB_stat_not_ok  { $_[0]{ExpatNB}{XR_Status} ne 'ok'; }
-sub NB_stat_set_eof { $_[0]{ExpatNB}{XR_Status} = 'eof'; }
-sub NB_fh           { $_[0]{ExpatNB}{XR_fh};             }
+sub NB_data      { $_[0]{ExpatNB}{XR_Data}; }
+sub NB_fh        { $_[0]{ExpatNB}{XR_fh};   }
 
 sub iterate {
     my $self = shift;
@@ -167,61 +195,107 @@ sub iterate {
             push @{$self->{plist}}, $token->extract_tag;
             redo;
         }
-        elsif ($token->found_end_tag) {
+
+        if ($token->found_end_tag) {
             pop @{$self->{plist}};
             redo;
         }
-        elsif ($token->found_text) {
+
+        my $prv_SPECD = $token->extract_prv_SPECD;
+        my $nxt_SPECD = $token->extract_nxt_SPECD;
+
+        if ($token->found_text) {
             my $text    = $token->extract_text;
             my $comment = $token->extract_comment;
+
+            my $proc_tgt  = '';
+            my $proc_data = '';
+            if (@{$token->extract_proc} == 2) {
+                $proc_tgt  = ${$token->extract_proc}[0];
+                $proc_data = ${$token->extract_proc}[1];
+            }
 
             if ($self->{filter} == 1 and $text =~ m{\A \s* \z}xms) {
                 redo;
             }
 
-            $self->{is_start}     = $token->extract_prv_SE eq 'S' ? 1 : 0;
-            $self->{is_end}       = $token->extract_nxt_SE eq 'E' ? 1 : 0;
-            $self->{is_init_attr} = $token->extract_ini_att;
+            $self->{is_decl}      = $prv_SPECD eq 'D' ? 1 : 0;
+            $self->{is_start}     = $prv_SPECD eq 'S' ? 1 : 0;
+            $self->{is_proc}      = $prv_SPECD eq 'P' ? 1 : 0;
+            $self->{is_comment}   = $prv_SPECD eq 'C' ? 1 : 0;
+            $self->{is_text}      = $prv_SPECD eq '-' ? 1 : 0;
+            $self->{is_attr}      = 0;
+
+            $self->{is_end}       = $nxt_SPECD eq 'E' ? 1 : 0;
+
             $self->{path}         = '/'.join('/', @{$self->{plist}});
             $self->{attr}         = '';
             $self->{value}        = $text;
             $self->{comment}      = $comment;
+            $self->{proc_tgt}     = $proc_tgt;
+            $self->{proc_data}    = $proc_data;
             $self->{level}        = @{$self->{plist}};
-            $self->{tag}          = ${$self->{plist}}[-1];
+            $self->{tag}          = @{$self->{plist}} ? ${$self->{plist}}[-1] : '';
             $self->{type}         = 'T';
             $self->{att_hash}     = {@{$token->extract_attr}};
+            $self->{dec_hash}     = {@{$token->extract_decl}};
         }
         elsif ($token->found_attr) {
             my $key = $token->extract_attkey;
             my $val = $token->extract_attval;
 
+            $self->{is_decl}      = 0;
             $self->{is_start}     = 0;
+            $self->{is_proc}      = 0;
+            $self->{is_comment}   = 0;
+            $self->{is_text}      = 0;
+            $self->{is_attr}      = 1;
+
             $self->{is_end}       = 0;
-            $self->{is_init_attr} = $token->extract_ini_att;
+
             $self->{path}         = '/'.join('/', @{$self->{plist}}).'/@'.$key;
             $self->{attr}         = $key;
             $self->{value}        = $val;
             $self->{comment}      = '';
+            $self->{proc_tgt}     = '';
+            $self->{proc_data}    = '';
             $self->{level}        = @{$self->{plist}} + 1;
             $self->{tag}          = '@'.$key;
             $self->{type}         = '@';
             $self->{att_hash}     = {};
+            $self->{dec_hash}     = {};
         }
         else {
-            die "Failed assertion #0040 in subroutine XML::Reader->iterate: Found data type '".$token->[0]."'";
-        }
-
-        # for {filter => 1}, override 'is_start', 'is_end', 'is_init_attr' and 'comment'
-        if ($self->{filter} == 1) {
-            $self->{is_start}     = undef;
-            $self->{is_end}       = undef;
-            $self->{is_init_attr} = undef;
-            $self->{comment}      = undef;
+            die "Failed assertion #0030 in subroutine XML::Reader->iterate: Found data type '".$token->[0]."'";
         }
 
         # for other than {filter => 3}, override 'att_hash'
         unless ($self->{filter} == 3) {
-            $self->{att_hash}     = {};
+            $self->{att_hash} = {};
+        }
+
+        # for {filter => 4} setup pyx
+        # (-- and promote $self->{type} from 'T'/'@' to any of the following codes: 'D', '?', 'S', 'E', '#', 'T', '@' --)
+        if ($self->{filter} == 4) {
+            if    ($self->{type} eq '@') { $self->{pyx} = 'A'.$self->{attr}.' '.$self->{value}; }
+            elsif ($self->{is_decl})     { my $dc = $self->{dec_hash};
+                                           $self->{type} = 'D'; $self->{pyx} = '?xml'.join('', map {" $_='$dc->{$_}'"} sort {$b cmp $a} keys %$dc); }
+            elsif ($self->{is_proc})     { $self->{type} = '?'; $self->{pyx} = '?'.$self->{proc_tgt}.' '.$self->{proc_data}; }
+            elsif ($self->{is_start})    { $self->{type} = 'S'; $self->{pyx} = '('.$self->{tag}; }
+            elsif ($self->{is_end})      { $self->{type} = 'E'; $self->{pyx} = ')'.$self->{tag}; }
+            elsif ($self->{is_comment})  { $self->{type} = '#'; $self->{pyx} = '#'.$self->{comment}; }
+            elsif ($self->{is_text})     { $self->{type} = 'T'; $self->{pyx} = '-'.$self->{value}; }
+            else {
+                die "Failed assertion #0040 in subroutine XML::Reader->iterate: Found invalid ".
+                  "prv_SPECD = '$prv_SPECD', ".
+                  "nxt_SPECD = '$nxt_SPECD', ".
+                  "type = '".$self->{type}."'";
+            }
+            $self->{pyx} =~ s{\n}'\\n'xmsg; # replace newlines by a literal "\\n"
+        }
+        else {
+            $self->{pyx}     = undef;
+            $self->{is_text} = undef;
         }
 
         # Here we check for the {using => ...} option
@@ -248,6 +322,24 @@ sub iterate {
         if (@{$self->{using}} and $self->{prefix} eq '') {
             redo;
         }
+
+        # for {filter => 1}, undefine the 'is_...' family of functions plus 'comment', 'proc_tgt',
+        # 'proc_data', 'dec_hash' and 'att_hash':
+        if ($self->{filter} == 1) {
+            $self->{is_start}     = undef;
+            $self->{is_end}       = undef;
+            $self->{is_decl}      = undef;
+            $self->{is_proc}      = undef;
+            $self->{is_comment}   = undef;
+            $self->{is_text}      = undef;
+            $self->{is_attr}      = undef;
+
+            $self->{comment}      = undef;
+            $self->{proc_tgt}     = undef;
+            $self->{proc_data}    = undef;
+            $self->{dec_hash}     = undef;
+            $self->{att_hash}     = undef;
+        }
     }
 
     return 1;
@@ -256,15 +348,13 @@ sub iterate {
 sub get_token {
     my $self = shift;
 
-    until ($self->NB_stat_not_ok or @{$self->NB_data}) {
+    until (@{$self->NB_data}) {
 
         # Here is the all important reading of a chunk of XML-data from the filehandle...
         read($self->NB_fh, my $buf, 4096);
 
-        if ($buf eq '') {
-            $self->NB_stat_set_eof;
-            last;
-        }
+        # We leave immediately as soon as there is no more data left (EOF)
+        last if $buf eq '';
 
         # ...and here is the all important parsing of that chunk:
         $self->{ExpatNB}->parse_more($buf);
@@ -278,29 +368,49 @@ sub get_token {
     my $token = shift @{$self->NB_data};
     bless $token, 'XML::Reader::Token';
 }
+sub handle_decl {
+    my ($ExpatNB, $version, $encoding, $standalone) = @_;
 
-sub handle_start {
-    my ($ExpatNB, $element, @attr) = @_;
+    return unless $ExpatNB->{XR_ParseInst};
 
-    process_handle($ExpatNB, 'S');
-    $ExpatNB->{XR_Att} = \@attr;
-    $ExpatNB->{XR_Prv_SE} = 'S';
-    push @{$ExpatNB->{XR_Data}}, ['S', $element];
+    convert_structure($ExpatNB, 'D');
+    $ExpatNB->{XR_Decl} = [(defined $version    ? (version    => $version)    : ()),
+                           (defined $encoding   ? (encoding   => $encoding)   : ()),
+                           (defined $standalone ? (standalone => $standalone) : ()),
+                          ];
 }
 
-sub handle_end {
-    my ($ExpatNB, $element) = @_;
+sub handle_procinst {
+    my ($ExpatNB, $target, $data) = @_;
 
-    process_handle($ExpatNB, 'E');
-    $ExpatNB->{XR_Att} = [];
-    $ExpatNB->{XR_Prv_SE} = 'E';
-    push @{$ExpatNB->{XR_Data}}, ['E', $element];
+    return unless $ExpatNB->{XR_ParseInst};
+
+    convert_structure($ExpatNB, 'P');
+    $ExpatNB->{XR_ProcInst} = [$target, $data];
 }
 
 sub handle_comment {
     my ($ExpatNB, $comment) = @_;
 
-    $ExpatNB->{XR_Comment} .= $comment;
+    return unless $ExpatNB->{XR_ParseComm};
+
+    convert_structure($ExpatNB, 'C');
+    $ExpatNB->{XR_Comment} = $comment;
+}
+
+sub handle_start {
+    my ($ExpatNB, $element, @attr) = @_;
+
+    convert_structure($ExpatNB, 'S');
+    $ExpatNB->{XR_Att} = \@attr;
+    push @{$ExpatNB->{XR_Data}}, ['<', $element];
+}
+
+sub handle_end {
+    my ($ExpatNB, $element) = @_;
+
+    convert_structure($ExpatNB, 'E');
+    push @{$ExpatNB->{XR_Data}}, ['>', $element];
 }
 
 sub handle_char {
@@ -309,66 +419,95 @@ sub handle_char {
     $ExpatNB->{XR_Text} .= $text;
 }
 
-sub process_handle {
-    my ($ExpatNB, $Param_SE) = @_; # $Param_SE can be either 'S' or 'E'
+sub convert_structure {
+    my ($ExpatNB, $Param_SPECD) = @_; # $Param_SPECD can be either 'S', 'P', 'E', 'C' or 'D' (or even '*')
 
-    # These are the text and comment that preceed the current start- or end-tag
+    # These are the text and comment that may be stripped
     my $text    = $ExpatNB->{XR_Text};
     my $comment = $ExpatNB->{XR_Comment};
 
-    $ExpatNB->{XR_Text}    = '';
-    $ExpatNB->{XR_Comment} = '';
-
     # strip spaces if requested...
     if ($ExpatNB->{XR_Strip}) {
-        for ($text, $comment) { 
-            s{\A \s+}''xms;
-            s{\s+ \z}''xms;
-            s{\s+}' 'xmsg;
+        for my $item ($text, $comment) {
+            $item =~ s{\A \s+}''xms;
+            $item =~ s{\s+ \z}''xms;
+            $item =~ s{\s+}' 'xmsg;
         }
     }
 
-    # Here we save the previous 'SE' and the current (i.e. next) 'SE' into lexicals
-    # so that we can manipulate them
-    my $prev_SE = $ExpatNB->{XR_Prv_SE};
-    my $next_SE = $Param_SE;
+    # Don't do anything for the first tag...
+    unless ($ExpatNB->{XR_Prv_SPECD} eq '') {
+        # Here we save the previous 'SPECD' and the current (i.e. next) 'SPECD' into lexicals
+        # so that we can manipulate them
+        my $prev_SPECD = $ExpatNB->{XR_Prv_SPECD};
+        my $next_SPECD = $Param_SPECD;
 
-    # Don't do anything for the first tag (which, by definition, must be a start-tag)
-    unless ($ExpatNB->{XR_Prv_SE} eq '') {
-
-        # In case that we have attributes: set up a lexical to designate the first,
-        # initial attribute $ini_tag == 1, the following attributes (plus the corresponding
-        # start-tag) will then be $ini_tag == 0...
-        my $ini_tag = 1;
-
-        # Do we really want to emit attributes on their proper lines ? -- or do we just
-        # want to publish the attributes on element ${$ExpatNB->{XR_Data}}[6] ?
-        if ($ExpatNB->{XR_Emit_attr}) {
-
-            my %at = @{$ExpatNB->{XR_Att}};
-
-            # This part is purely for backwards compatibility -- The question is: Do we
-            # want to emit a dummy text-line if there are attributes that follow ?
-            # (This is really obsolete and deprecated, but as I said, we need it for
-            # backward compatibility)
-            if ($ExpatNB->{XR_Extraline} and %at) {
+        # Do we want <start>, <end>, <!-- comment --> and <? pi ?> split up into separate lines ?
+        if ($ExpatNB->{XR_Split_up}) {
+            if ($prev_SPECD ne 'E') {
+                # emit the opening tag with empty text
                 push @{$ExpatNB->{XR_Data}},
-                  ['T', '', '', $ini_tag, $prev_SE, '*', []];
-                $prev_SE = '*';
+                  ['T', '', $comment, $prev_SPECD, '*', $ExpatNB->{XR_Att}, $ExpatNB->{XR_ProcInst}, $ExpatNB->{XR_Decl}];
             }
 
-            # Here we emit attributes on their proper lines...
-            my $i = 0;
-            for my $key (sort keys %at) { $i++;
-                my $ini_att = 0; if ($i == 1) { $ini_tag = 0; $ini_att = 1; }
-                push @{$ExpatNB->{XR_Data}}, ['A', $key, $at{$key}, $ini_att];
+            if ($ExpatNB->{XR_Emit_attr}) {
+                # Here we emit attributes on their proper lines -- *after* the start-line (see above) ...
+                my %at = @{$ExpatNB->{XR_Att}};
+                for my $key (sort keys %at) {
+                    push @{$ExpatNB->{XR_Data}}, ['A', $key, $at{$key}];
+                }
+            }
+
+            # emit text (only if it is not empty)
+            unless ($text eq '') {
+                push @{$ExpatNB->{XR_Data}},
+                  ['T', $text, '', '-', '*', [], [], []];
+            }
+
+            if ($next_SPECD eq 'E') {
+                # emit the closing tag with empty text
+                push @{$ExpatNB->{XR_Data}},
+                  ['T', '', '', '*', $next_SPECD, [], [], []];
             }
         }
+        # Here we don't want <start>, <end>, <!-- comment --> and <? pi ?> split up into separate lines !
+        else {
+            # Do we really want to emit attributes on their proper lines ? -- or do we just
+            # want to publish the attributes on element ${$ExpatNB->{XR_Data}}[5] ?
+            if ($ExpatNB->{XR_Emit_attr}) {
 
-        # And here we emit the start- or end-tag
-        push @{$ExpatNB->{XR_Data}},
-          ['T', $text, $comment, $ini_tag, $prev_SE, $next_SE, $ExpatNB->{XR_Att}];
+                my %at = @{$ExpatNB->{XR_Att}};
+
+                # This part is purely for backwards compatibility -- The question is: Do we
+                # want to emit a dummy text-line if there are attributes that follow ?
+                # (This is really obsolete and deprecated, but as I said, we need it for
+                # backward compatibility)
+                if ($ExpatNB->{XR_Extraline} and %at) {
+                    push @{$ExpatNB->{XR_Data}},
+                      ['T', '', '', $prev_SPECD, '*', [], [], []];
+                    $prev_SPECD = '*';
+                }
+
+                # Here we emit attributes on their proper lines -- *before* the start line (see below) ...
+                for my $key (sort keys %at) {
+                    push @{$ExpatNB->{XR_Data}}, ['A', $key, $at{$key}];
+                }
+            }
+
+            # And here we emit the text
+            push @{$ExpatNB->{XR_Data}},
+              ['T', $text, $comment, $prev_SPECD, $next_SPECD, $ExpatNB->{XR_Att}, $ExpatNB->{XR_ProcInst}, $ExpatNB->{XR_Decl}];
+        }
     }
+
+    # Initialise values:
+    $ExpatNB->{XR_Text}      = '';
+    $ExpatNB->{XR_Comment}   = '';
+    $ExpatNB->{XR_Att}       = [];
+    $ExpatNB->{XR_ProcInst}  = [];
+    $ExpatNB->{XR_Decl}      = [];
+
+    $ExpatNB->{XR_Prv_SPECD} = $Param_SPECD;
 }
 
 sub DESTROY {
@@ -409,23 +548,24 @@ sub DESTROY {
 
 package XML::Reader::Token;
 
-sub found_start_tag { $_[0][0] eq 'S'; }
-sub found_end_tag   { $_[0][0] eq 'E'; }
-sub found_attr      { $_[0][0] eq 'A'; }
-sub found_text      { $_[0][0] eq 'T'; }
+sub found_start_tag   { $_[0][0] eq '<'; }
+sub found_end_tag     { $_[0][0] eq '>'; }
+sub found_attr        { $_[0][0] eq 'A'; }
+sub found_text        { $_[0][0] eq 'T'; }
 
-sub extract_tag     { $_[0][1]; } # type eq 'S' or 'E'
+sub extract_tag       { $_[0][1]; } # type eq '<' or '>'
 
-sub extract_attkey  { $_[0][1]; } # type eq 'A'
-sub extract_attval  { $_[0][2]; } # type eq 'A'
+sub extract_attkey    { $_[0][1]; } # type eq 'A'
+sub extract_attval    { $_[0][2]; } # type eq 'A'
 
-sub extract_text    { $_[0][1]; } # type eq 'T'
-sub extract_comment { $_[0][2]; } # type eq 'T'
+sub extract_text      { $_[0][1]; } # type eq 'T'
+sub extract_comment   { $_[0][2]; } # type eq 'T'
 
-sub extract_ini_att { $_[0][3]; } # type eq 'T' or 'A'
-sub extract_prv_SE  { $_[0][4]; } # type eq 'T'
-sub extract_nxt_SE  { $_[0][5]; } # type eq 'T'
-sub extract_attr    { $_[0][6]; } # type eq 'T'
+sub extract_prv_SPECD { $_[0][3]; } # type eq 'T'
+sub extract_nxt_SPECD { $_[0][4]; } # type eq 'T'
+sub extract_attr      { $_[0][5]; } # type eq 'T'
+sub extract_proc      { $_[0][6]; } # type eq 'T'
+sub extract_decl      { $_[0][7]; } # type eq 'T'
 
 1;
 
@@ -439,7 +579,7 @@ XML::Reader - Reading XML and providing path information based on a pull-parser.
 
   use XML::Reader;
 
-  my $text = q{<init><page node="400">m <!-- remark --> r</page></init>};
+  my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
   my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
   while ($rdr->iterate) {
@@ -448,7 +588,7 @@ XML::Reader - Reading XML and providing path information based on a pull-parser.
 
 This program produces the following output:
 
-  Path: /init              , Value:
+  Path: /init              , Value: n t
   Path: /init/page/@node   , Value: 400
   Path: /init/page         , Value: m r
   Path: /init              , Value:
@@ -470,11 +610,14 @@ But still, with XML::TiePYX you need to account for start-tags, end-tags and tex
 provide the full XML-path.
 
 By contrast, XML::Reader translates start-tags, end-tags and text into XPath-like expressions. So
-you don't need to worry about tags, you just get a path and a value, and that's it.
+you don't need to worry about tags, you just get a path and a value, and that's it. (However, should
+you wish to operate XML::Reader in a PYX compatible mode, there is option {filter => 4}, as described
+below, which allows you to parse XML in that way).
 
-For example, the following XML in variable '$line1'...
+But going back to the normal mode of operation, here is an example XML in variable '$line1':
 
-  my $line1 = q{
+  my $line1 = 
+  q{<?xml version="1.0" encoding="ISO-8859-1"?>
     <data>
       <item>abc</item>
       <item><!-- c1 -->
@@ -487,18 +630,16 @@ For example, the following XML in variable '$line1'...
     </data>
   };
 
-...can be parsed with XML::Reader using the methods C<iterate> to iterate one-by-one through the
+This example can be parsed with XML::Reader using the methods C<iterate> to iterate one-by-one through the
 XML-data, C<path> and C<value> to extract the current XML-path and it's value.
 
 You can also keep track of the start- and end-tags: There is a method C<is_start>, which returns 1 or
 0, depending on whether the XML-file had a start tag at the current position. There is also the
-equivalent method C<is_end>. If you want to know whether you have encountered a fresh sequence of
-attributes, you can use the method C<is_init_attr>.
+equivalent method C<is_end>.
 
-There are also the methods C<comment>, C<tag>, C<attr>, C<type> and C<level>. C<comment> returns
-the comment, if any. C<tag> gives you the current tag-name, C<attr> returns the attribute-name,
-C<type> returns either 'T' for text or '@' for attributes and C<level> indicates the current
-nesting-level (a number >= 0).
+There are also the methods C<tag>, C<attr>, C<type> and C<level>. C<tag> gives you the current tag-name,
+C<attr> returns the attribute-name, C<type> returns either 'T' for text or '@' for attributes and
+C<level> indicates the current nesting-level (a number >= 0).
 
 Here is a sample program which parses the XML in '$line1' from above to demonstrate the principle...
 
@@ -507,24 +648,23 @@ Here is a sample program which parses the XML in '$line1' from above to demonstr
   my $rdr = XML::Reader->newhd(\$line1) or die "Error: $!";
   my $i = 0;
   while ($rdr->iterate) { $i++;
-      printf "%3d. pat=%-22s, val=%-9s, s=%-1s, i=%-1s, e=%-1s, tag=%-6s, atr=%-6s, t=%-1s, lvl=%2d, c=%s\n",
-       $i, $rdr->path, $rdr->value, $rdr->is_start, $rdr->is_init_attr,
-       $rdr->is_end, $rdr->tag, $rdr->attr, $rdr->type, $rdr->level, $rdr->comment;
+      printf "%3d. pat=%-22s, val=%-9s, s=%-1s, e=%-1s, tag=%-6s, atr=%-6s, t=%-1s, lvl=%2d\n", $i,
+        $rdr->path, $rdr->value, $rdr->is_start, $rdr->is_end, $rdr->tag, $rdr->attr, $rdr->type, $rdr->level;
   }
 
 ...and here is the output:
 
-   1. pat=/data                 , val=         , s=1, i=1, e=0, tag=data  , atr=      , t=T, lvl= 1, c=
-   2. pat=/data/item            , val=abc      , s=1, i=1, e=1, tag=item  , atr=      , t=T, lvl= 2, c=
-   3. pat=/data                 , val=         , s=0, i=1, e=0, tag=data  , atr=      , t=T, lvl= 1, c=
-   4. pat=/data/item            , val=         , s=1, i=1, e=0, tag=item  , atr=      , t=T, lvl= 2, c=c1
-   5. pat=/data/item/dummy      , val=         , s=1, i=1, e=1, tag=dummy , atr=      , t=T, lvl= 3, c=
-   6. pat=/data/item            , val=fgh      , s=0, i=1, e=0, tag=item  , atr=      , t=T, lvl= 2, c=
-   7. pat=/data/item/inner/@id  , val=fff      , s=0, i=1, e=0, tag=@id   , atr=id    , t=@, lvl= 4, c=
-   8. pat=/data/item/inner/@name, val=ttt      , s=0, i=0, e=0, tag=@name , atr=name  , t=@, lvl= 4, c=
-   9. pat=/data/item/inner      , val=ooo ppp  , s=1, i=0, e=1, tag=inner , atr=      , t=T, lvl= 3, c=c2
-  10. pat=/data/item            , val=         , s=0, i=1, e=1, tag=item  , atr=      , t=T, lvl= 2, c=
-  11. pat=/data                 , val=         , s=0, i=1, e=1, tag=data  , atr=      , t=T, lvl= 1, c=
+   1. pat=/data                 , val=         , s=1, e=0, tag=data  , atr=      , t=T, lvl= 1
+   2. pat=/data/item            , val=abc      , s=1, e=1, tag=item  , atr=      , t=T, lvl= 2
+   3. pat=/data                 , val=         , s=0, e=0, tag=data  , atr=      , t=T, lvl= 1
+   4. pat=/data/item            , val=         , s=1, e=0, tag=item  , atr=      , t=T, lvl= 2
+   5. pat=/data/item/dummy      , val=         , s=1, e=1, tag=dummy , atr=      , t=T, lvl= 3
+   6. pat=/data/item            , val=fgh      , s=0, e=0, tag=item  , atr=      , t=T, lvl= 2
+   7. pat=/data/item/inner/@id  , val=fff      , s=0, e=0, tag=@id   , atr=id    , t=@, lvl= 4
+   8. pat=/data/item/inner/@name, val=ttt      , s=0, e=0, tag=@name , atr=name  , t=@, lvl= 4
+   9. pat=/data/item/inner      , val=ooo ppp  , s=1, e=1, tag=inner , atr=      , t=T, lvl= 3
+  10. pat=/data/item            , val=         , s=0, e=1, tag=item  , atr=      , t=T, lvl= 2
+  11. pat=/data                 , val=         , s=0, e=1, tag=data  , atr=      , t=T, lvl= 1
 
 If you want, you can set option {filter => 1} to select only those lines that have a value.
 
@@ -537,9 +677,8 @@ If you want, you can set option {filter => 1} to select only those lines that ha
        $i, $rdr->path, $rdr->value, $rdr->tag, $rdr->attr, $rdr->type, $rdr->level;
   }
 
-In this case the output will be as follows (be careful not to interpret the methods $rdr->is_start,
-$rdr->is_init_attr, $rdr->is_end or $rdr->comment when option {filter => 1} is set (those methods
-will, in fact, be undefined).
+In this case the output will be as follows (You should not interpret the methods $rdr->is_start or
+$rdr->is_end when option {filter => 1} is set (those methods will, in fact, be undefined).
 
    1. pat=/data/item            , val=abc      , tag=item  , atr=      , t=T, lvl= 2
    2. pat=/data/item            , val=fgh      , tag=item  , atr=      , t=T, lvl= 2
@@ -557,9 +696,12 @@ To create an XML::Reader object, the following syntax is used:
     {strip => 1, filter => 2, using => ['/path1', '/path2']})
     or die "Error: $!";
 
-The element $data (which is mandatory) is either the name of the XML-file, or a
+The element $data (which is mandatory) is the name of the XML-file, or a
 reference to a string, in which case the content of that string is taken as the
 text of the XML.
+
+Alternatively, $data can also be a previously opened filehandle, such as *STDIN, in which case
+that filehandle is used to read the XML.
 
 Here is an example to create an XML::Reader object with a file-name:
 
@@ -569,9 +711,27 @@ Here is another example to create an XML::Reader object with a reference:
 
   my $rdr = XML::Reader->newhd(\'<data>abc</data>') or die "Error: $!";
 
+Here is an example to create an XML::Reader object with an open filehandle:
+
+  open my $fh, '<', 'input.xml' or die "Error: $!";
+  my $rdr = XML::Reader->newhd($fh);
+
+Here is an example to create an XML::Reader object with \*STDIN:
+
+  my $rdr = XML::Reader->newhd(\*STDIN);
+
 One or more of the following options can be added as a hash-reference:
 
 =over
+
+=item option {parse_ct => }
+
+Option {parse_ct => 1} allows for comments to be parsed, default is {parse_ct => 0}
+
+=item option {parse_pi => }
+
+Option {parse_pi => 1} allows for process-instructions and XML-Declarations to be parsed,
+default is {parse_pi => 0}
 
 =item option {using => }
 
@@ -583,14 +743,18 @@ The syntax is {using => ['/path1/path2/path3', '/path4/path5/path6']}
 
 Option {filter => 1} activates a filter to remove lines with an empty value.
 
-Option {filter => 2} desactivates the filter, so all lines are shown, even
+Option {filter => 2} deactivates the filter, so all lines are shown, even
 lines with an empty value.
 
-Option {filter => 3} also desactivates the filter, but removes attribute lines
+Option {filter => 3} also deactivates the filter, but removes attribute lines
 (i.e. it removes lines where $rdr->type = '@'). Instead, it returns the attributes
 in a hash $rdr->att_hash.
 
-The syntax is {filter => 1|2|3}, default is {filter => 2}
+Option {filter => 4} also deactivates the filter, but breaks down each line into its
+individual start-tags, end-tags, attributes, comments and processing-instructions.
+This allows the parsing of XML into pyx-formatted lines.
+
+The syntax is {filter => 1|2|3|4}, default is {filter => 2}
 
 =item option {strip => }
 
@@ -623,12 +787,16 @@ Provides the actual value (i.e. the value of the current text, attribute or comm
 
 =item comment
 
-Provides the comments of the XML. Be careful, this method only make sense for option
+Provides the comments of the XML. This method only make sense for option
 {filter => 2} (otherwise, in case of {filter => 1}, the method C<comment> returns undef).
 
 =item type
 
-Provides the type of the value: 'T' for text or '@' for attributes.
+Provides the type of the value: 'T' for text, '@' for attributes.
+
+If option {filter => 4} is in effect, then the type can be: 'T' for text, '@' for attributes,
+'S' for start tags, 'E' for end-tags, '#' for comments, 'D' for the XML Declaration, '?' for
+processing-instructions.
 
 =item tag
 
@@ -638,24 +806,6 @@ Provides the current tag-name.
 
 Provides the current attribute (returns the empty string for non-attribute lines).
 
-=item is_start
-
-Returns 1 or 0, depending on whether the XML-file had a start tag at the current position.
-Be careful, this method only make sense for option {filter => 2} (otherwise,
-in case of {filter => 1}, the method C<is_start> returns undef).
-
-=item is_init_attr
-
-Returns 1 or 0, depending on whether a new sequence of attributes is initiated.
-Be careful, this method only make sense for option {filter => 2} (otherwise,
-in case of {filter => 1}, the method C<is_init_attr> returns undef).
-
-=item is_end
-
-Returns 1 or 0, depending on whether the XML-file had an end tag at the current position.
-Be careful, this method only make sense for option {filter => 2} (otherwise,
-in case of {filter => 1}, the method C<is_end> returns undef).
-
 =item level
 
 Indicates the nesting level of the XPath expression (numeric value greater than zero).
@@ -664,6 +814,90 @@ Indicates the nesting level of the XPath expression (numeric value greater than 
 
 Shows the prefix which has been removed in option {using => ...}. Returns the empty string if
 option {using => ...} has not been specified.
+
+=item att_hash
+
+Returns a reference to a hash with the current attributes of a start-tag (or empty hash if
+it is not a start-tag).
+This method does not make sense for option {filter => 1}, in which case undef
+is returned.
+
+=item dec_hash
+
+Returns a reference to a hash with the current attributes of an XML-Declaration (or empty hash if
+it is not an XML-Declaration).
+This method does not make sense for option {filter => 1}, in which case undef
+is returned.
+
+=item proc_tgt
+
+Returns the target (i.e. the first part) of a processing-instruction (or an empty string if
+the current event is not a processing-instruction).
+This method does not make sense for option {filter => 1}, in which case undef
+is returned.
+
+=item proc_data
+
+Returns the data (i.e. the second part) of a processing-instruction (or an empty string if
+the current event is not a processing-instruction).
+This method does not make sense for option {filter => 1}, in which case undef
+is returned.
+
+=item pyx
+
+Returns the pyx representation of the current XML-event.
+
+The pyx representation is a string that starts with a specific first character. That first character
+of each line of PYX tells you what type of event you are dealing with: if the first character is '(',
+then you are dealing with a start event. If it's a ')', then you are dealing with and end event. If
+it's an 'A' then you are dealing with attributes. If it's '-', then you are dealing with text. If it's
+'?', then you are dealing with processing-instructions. (see L<http://www.xml.com/pub/a/2000/03/15/feature/index.html>
+for an introduction to PYX).
+
+The method pyx makes sense only if option {filter => 4} is selected, for any filter other
+than 4, undef is returned.
+
+=item is_start
+
+Returns 1 or 0, depending on whether the XML-file had a start tag at the current position.
+This method does not make sense for option {filter => 1}, in which case undef
+is returned.
+
+=item is_end
+
+Returns 1 or 0, depending on whether the XML-file had an end tag at the current position.
+This method does not make sense for option {filter => 1}, in which case undef
+is returned.
+
+=item is_decl
+
+Returns 1 or 0, depending on whether the XML-file had an XML-Declaration at the current position.
+This method does not make sense for option {filter => 1}, in which case undef
+is returned.
+
+=item is_proc
+
+Returns 1 or 0, depending on whether the XML-file had a processing-instruction at the current position.
+This method does not make sense for option {filter => 1}, in which case undef
+is returned.
+
+=item is_comment
+
+Returns 1 or 0, depending on whether the XML-file had a Comment at the current position.
+This method does not make sense for option {filter => 1}, in which case undef
+is returned.
+
+=item is_text
+
+Returns 1 or 0, depending on whether the XML-file has text data at the current position.
+The method is_text makes sense only if option {filter => 4} is selected, for any filter other
+than 4, undef is returned.
+
+=item is_attr
+
+Returns 1 or 0, depending on whether the XML-file has an attribute at the current position.
+This method does not make sense for option {filter => 1}, in which case undef
+is returned.
 
 =back
 
@@ -776,17 +1010,97 @@ is much longer than in the previous program:
   25. prf= , pat=/data/supplier                       , val=jjj   , tag=supplier   , t=T, lvl= 2
   26. prf= , pat=/data                                , val=      , tag=data       , t=T, lvl= 1
 
+=head1 OPTION PARSE_CT
+
+Option {parse_ct => 1} allows for comments to be parsed (usually, comments are ignored by XML::Reader,
+that is {parse_ct => 0} is the default.
+
+Here is an example where comments are ignored by default:
+
+  use XML::Reader;
+
+  my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
+
+  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
+                              print "Found decl     ",  join('', map{" $_='$h{$_}'"} sort keys %h), "\n"; }
+      if ($rdr->is_proc)    { print "Found proc      ", "t=", $rdr->proc_tgt, ", d=", $rdr->proc_data, "\n"; }
+      if ($rdr->is_comment) { print "Found comment   ", $rdr->comment, "\n"; }
+      print "Text '", $rdr->value, "'\n";
+  }
+
+Here is the output:
+
+  Text 'xyz stu test'
+
+Now, the very same XML data, and the same algorithm, except for the option {parse_ct => 1}, which is now
+activated:
+
+  use XML::Reader;
+
+  my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
+
+  my $rdr = XML::Reader->newhd(\$text, {parse_ct => 1}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
+                              print "Found decl     ",  join('', map{" $_='$h{$_}'"} sort keys %h), "\n"; }
+      if ($rdr->is_proc)    { print "Found proc      ", "t=", $rdr->proc_tgt, ", d=", $rdr->proc_data, "\n"; }
+      if ($rdr->is_comment) { print "Found comment   ", $rdr->comment, "\n"; }
+      print "Text '", $rdr->value, "'\n";
+  }
+
+Here is the output:
+
+  Text 'xyz'
+  Found comment   remark
+  Text 'stu test'
+
+=head1 OPTION PARSE_PI
+
+Option {parse_pi => 1} allows for processing-instructions and XML-Declarations to be parsed (usually,
+processing-instructions and XML-Declarations are ignored by XML::Reader, that is {parse_pi => 0} is the default.
+
+As an example, we use the very same XML data, and the same algorithm from the above paragraph, except for the
+option {parse_pi => 1}, which is now activated (together with option {parse_ct => 1}):
+
+  use XML::Reader;
+
+  my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
+
+  my $rdr = XML::Reader->newhd(\$text, {parse_ct => 1, parse_pi => 1}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
+                              print "Found decl     ",  join('', map{" $_='$h{$_}'"} sort keys %h), "\n"; }
+      if ($rdr->is_proc)    { print "Found proc      ", "t=", $rdr->proc_tgt, ", d=", $rdr->proc_data, "\n"; }
+      if ($rdr->is_comment) { print "Found comment   ", $rdr->comment, "\n"; }
+      print "Text '", $rdr->value, "'\n";
+  }
+
+Here is the output:
+
+  Found decl      version='1.0'
+  Text ''
+  Text 'xyz'
+  Found comment   remark
+  Text 'stu'
+  Found proc      t=ab, d=cde
+  Text 'test'
+
 =head1 OPTION FILTER
 
-Option Filter allows to switch on ({filter => 1}), or to switch off ({filter => 2}) a filter for
-empty lines.
+Option Filter allows to select different operation modes when processing the XML data.
 
 =head2 Option {filter => 2}
 
-With option {filter => 2}, that is the filter for empty lines is switched off, XML::Reader
-produces one line for each start-tag and one line for each end-tag. (consecutive start- and
-end-tags can be combined into one single line.) Also, attribute lines are added via the
-special '/@...' syntax.
+With option {filter => 2}, XML::Reader produces one line for each character event.
+A preceding start-tag results in method is_start to be set to 1, a trailing end-tag
+results in method is_end to be set to 1.
+
+Also, attribute lines are added via the special '/@...' syntax.
 
 Option {filter => 2} is the default.
 
@@ -815,8 +1129,8 @@ This program (with implicit option {filter => 2} as default) produces the follow
   Path: /root/test              , Value:
   Path: /root                   , Value: x yz
 
-{filter => 2} also allows to rebuild the structure of the XML with the help of the methods
-C<is_start>, C<is_init_attr> and C<is_end>. Please note that the first line ("Path: /root, Value:")
+The same {filter => 2} also allows to rebuild the structure of the XML with the help of the methods
+C<is_start> and C<is_end>. Please note that the first line ("Path: /root, Value:")
 is empty, but important for the structure of the XML. Therefore we can't ignore it.
 
 Let us now look at the same example (with option {filter => 2}), but with an
@@ -831,14 +1145,15 @@ additional algorithm to reconstruct the original XML:
   my %at;
 
   while ($rdr->iterate) {
-      my $indentation = '  ' x $rdr->level;
+      my $indentation = '  ' x ($rdr->level - 1);
 
-      if ($rdr->is_init_attr) { %at  = (); }
       if ($rdr->type eq '@')  { $at{$rdr->attr} = $rdr->value; }
 
       if ($rdr->is_start) {
           print $indentation, '<', $rdr->tag, join('', map{" $_='$at{$_}'"} sort keys %at), '>', "\n";
       }
+
+      unless ($rdr->type eq '@') { %at = (); }
 
       if ($rdr->type eq 'T' and $rdr->value ne '') {
           print $indentation, '  ', $rdr->value, "\n";
@@ -873,7 +1188,7 @@ additional algorithm to reconstruct the original XML:
 Option {filter = 3} works very much like {filter => 2}.
 
 The difference, though, is that with option {filter => 3} all attribute-lines are filtered
-out and instead, the attributes are presented for each start-line in a hash $rdr->att_hash().
+out and instead, the attributes are presented for each start-line in the hash $rdr->att_hash().
 
 This allows, in fact, to dispense with the global %at variable of the previous algorithm, and
 use a local %at variable instead:
@@ -890,7 +1205,7 @@ we don't need to check fot $rdr->type eq '@') and, as already mentioned, the %at
   my $rdr = XML::Reader->newhd(\$text, {filter => 3}) or die "Error: $!";
 
   while ($rdr->iterate) {
-      my $indentation = '  ' x $rdr->level;
+      my $indentation = '  ' x ($rdr->level - 1);
 
       if ($rdr->is_start) {
           my %at = %{$rdr->att_hash};
@@ -923,14 +1238,114 @@ we don't need to check fot $rdr->type eq '@') and, as already mentioned, the %at
     x yz
   </root>
 
+=head2 Option {filter => 4}
+
+Although this is not the main purpose of XML::Reader, option {filter => 4} can generate individual lines for
+start-tags, end-tags, comments, processing-instructions and XML-Declarations. Its aim is to generate
+a pyx string for further processing and analysis.
+
+Here is an example:
+
+  use XML::Reader;
+
+  my $text = q{<?xml version="1.0" encoding="ISO-8859-1"?>
+    <delta>
+      <dim alter="511">
+        <gamma />
+        <beta>
+          car <?tt dat?>
+        </beta>
+      </dim>
+      dskjfh <!-- remark --> uuu
+    </delta>};
+
+  my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_pi => 1}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      printf "Type = %1s, pyx = %s\n", $rdr->type, $rdr->pyx;
+  }
+
+And here is the output:
+
+  Type = D, pyx = ?xml version='1.0' encoding='ISO-8859-1'
+  Type = S, pyx = (delta
+  Type = S, pyx = (dim
+  Type = @, pyx = Aalter 511
+  Type = S, pyx = (gamma
+  Type = E, pyx = )gamma
+  Type = S, pyx = (beta
+  Type = T, pyx = -car
+  Type = ?, pyx = ?tt dat
+  Type = E, pyx = )beta
+  Type = E, pyx = )dim
+  Type = T, pyx = -dskjfh uuu
+  Type = E, pyx = )delta
+
+Be aware that comments can be produced by C<pyx> in a non-standard way if requested by {parse_ct => 1}. In fact,
+comments are produced with a leading hash symbol which is not part of the pyx specification,
+as can be seen by the following example:
+
+  use XML::Reader;
+
+  my $text = q{
+    <delta>
+      <!-- remark -->
+    </delta>};
+
+  my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_ct => 1}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      printf "Type = %1s, pyx = %s\n", $rdr->type, $rdr->pyx;
+  }
+
+Here is the output:
+
+  Type = S, pyx = (delta
+  Type = #, pyx = #remark
+  Type = E, pyx = )delta
+
+Finally, when operating with {filter => 4}, the usual methods (C<is_start>, C<is_end>, C<is_decl>, C<is_proc>,
+C<is_comment>, C<is_attr>, C<is_text>, C<comment>, C<proc_tgt>, C<proc_data>, C<dec_hash> or C<att_hash>)
+remain operational. Here is an example:
+
+  use XML::Reader;
+
+  my $text = q{<?xml version="1.0"?>
+    <parent abc="def"> <?pt hmf?>
+      dskjfh <!-- remark -->
+    </parent>};
+
+  my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_pi => 1, parse_ct => 1}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      if    ($rdr->is_start)   { print "Found start tag ", $rdr->tag, "\n"; }
+      elsif ($rdr->is_end)     { print "Found end tag   ", $rdr->tag, "\n"; }
+      elsif ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
+                                 print "Found decl     ",  join('', map{" $_='$h{$_}'"} sort keys %h), "\n"; }
+      elsif ($rdr->is_proc)    { print "Found proc      ", "t=",    $rdr->proc_tgt, ", d=", $rdr->proc_data, "\n"; }
+      elsif ($rdr->is_comment) { print "Found comment   ", $rdr->comment, "\n"; }
+      elsif ($rdr->is_attr)    { print "Found attribute ", $rdr->attr, "='", $rdr->value, "'\n"; }
+      elsif ($rdr->is_text)    { print "Found text      ", $rdr->value, "\n"; }
+  }
+
+Here is the output:
+
+  Found decl      version='1.0'
+  Found start tag parent
+  Found attribute abc='def'
+  Found proc      t=pt, d=hmf
+  Found text      dskjfh
+  Found comment   remark
+  Found end tag   parent
+
 =head2 Option {filter => 1}
 
-Option {filter => 1} reduces the number of output lines (i.e. it removes all
+Option {filter => 1} is similar to {filter => 2}, but reduces the number of output lines (i.e. it removes all
 lines that don't have a value).
 
-Be careful if you want to use one of the four methods C<is_start>, C<is_init_attr>,
-C<is_end> or C<comment>. In fact, if you have option {filter => 1}, then those four
-methods will return undef.
+In case you want to use one of the following methods C<is_start>, C<is_end>, C<is_decl>, C<is_proc>,
+C<is_comment>, C<is_attr>, C<is_text>, C<comment>, C<proc_tgt>, C<proc_data>, C<dec_hash> or C<att_hash> with
+{filter => 1}: any of the afore mentioned methods will return undef.
 
 With option {filter => 1} we lose the ability to reconstruct the XML, but simple data
 processing is easier.
@@ -939,7 +1354,7 @@ Here is a sample program:
 
   use XML::Reader;
 
-  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
+  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test></root>};
 
   my $rdr = XML::Reader->newhd(\$text, {filter => 1}) or die "Error: $!";
   while ($rdr->iterate) {
@@ -953,7 +1368,6 @@ Here is a sample program:
   Path: /root/test/a/b/data/@id , Value: z
   Path: /root/test/a/b/data     , Value: g
   Path: /root/test/a/b          , Value: f
-  Path: /root                   , Value: x yz
 
 =head1 AUTHOR
 
