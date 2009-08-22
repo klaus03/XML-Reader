@@ -2,6 +2,7 @@ package XML::Reader;
 
 use strict;
 use warnings;
+use Carp;
 
 use XML::Parser;
 
@@ -11,23 +12,25 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.18';
+our $VERSION     = '0.19';
 
 sub newhd {
     my $class = shift;
     my $self = {};
 
-    # Option {filter => 0} is obsolete and deprecated.
-    # Option {filter => 1} activates    the filter to remove empty lines, includes attribute lines.
-    # Option {filter => 2} desactivates the filter to remove empty lines, includes attribute lines.
-    # Option {filter => 3} desactivates the filter to remove empty lines, no       attribute lines.
-    # Option {filter => 4} desactivates the filter to remove empty lines, includes attribute lines after <start> and splits <start>, text and </end>.
+    # Option {filter => 2} includes attribute lines before <start>.
+    # Option {filter => 3} no       attribute lines.
+    # Option {filter => 4} includes attribute lines after <start> and splits <start>, text and </end>.
 
     my %opt = (strip => 1, filter => 2, parse_pi => 0, parse_ct => 0); # newhd defaults to filter=>2
     %opt    = (%opt, %{$_[1]}) if defined $_[1];
 
+    unless ($opt{filter} == 2 or $opt{filter} == 3 or $opt{filter} == 4) {
+        croak "Failed assertion #0005 in subroutine XML::Reader->newhd: filter is set to '$opt{filter}', but must be 2, 3 or 4";
+    }
+
     my $XmlParser = XML::Parser->new
-      or die "Failed assertion #0010 in subroutine XML::Reader->newhd: Can't create XML::Parser->new";
+      or croak "Failed assertion #0010 in subroutine XML::Reader->newhd: Can't create XML::Parser->new";
 
     # The following references to the handler-functions from the XML::Parser object will be 
     # copied into the ExpatNB object during the later call to XML::Parser->parse_start.
@@ -99,13 +102,12 @@ sub newhd {
         XR_ProcInst  => [],
         XR_Decl      => {},
         XR_Prv_SPECD => '',
-        XR_Extraline => ($opt{filter} == 0 ? 1 : 0),
         XR_Emit_attr => ($opt{filter} == 3 ? 0 : 1),
         XR_Split_up  => ($opt{filter} == 4 ? 1 : 0),
         XR_Strip     => $opt{strip},
         XR_ParseInst => $opt{parse_pi},
         XR_ParseComm => $opt{parse_ct},
-      ) or die "Failed assertion #0020 in subroutine XML::Reader->newhd: Can't create XML::Parser->parse_start";
+      ) or croak "Failed assertion #0020 in subroutine XML::Reader->newhd: Can't create XML::Parser->parse_start";
 
     # The instruction "XR_Data => []" (-- the 'XR_...' prefix stands for 'Xml::Reader...' --)
     # inside XML::Parser->parse_start() creates an empty array $ExpatNB{XR_Data} = []
@@ -147,15 +149,6 @@ sub newhd {
     $self->{item}         = '';
 
     return $self;
-}
-
-# subroutine new is deprecated (use newhd instead)
-sub new {
-    my $class = shift;
-
-    my %opt = (strip => 1, filter => 0, parse_pi => 0, parse_ct => 0); # new is depreceated, it defaults to filter=>0
-    %opt    = (%opt, %{$_[1]}) if defined $_[1];
-    return $class->newhd($_[0], \%opt);
 }
 
 sub path         { $_[0]{path};         }
@@ -215,10 +208,6 @@ sub iterate {
                 $proc_data = ${$token->extract_proc}[1];
             }
 
-            if ($self->{filter} == 1 and $text =~ m{\A \s* \z}xms) {
-                redo;
-            }
-
             $self->{is_decl}      = $prv_SPECD eq 'D' ? 1 : 0;
             $self->{is_start}     = $prv_SPECD eq 'S' ? 1 : 0;
             $self->{is_proc}      = $prv_SPECD eq 'P' ? 1 : 0;
@@ -266,12 +255,7 @@ sub iterate {
             $self->{dec_hash}     = {};
         }
         else {
-            die "Failed assertion #0030 in subroutine XML::Reader->iterate: Found data type '".$token->[0]."'";
-        }
-
-        # for other than {filter => 3}, override 'att_hash'
-        unless ($self->{filter} == 3) {
-            $self->{att_hash} = {};
+            croak "Failed assertion #0030 in subroutine XML::Reader->iterate: Found data type '".$token->[0]."'";
         }
 
         # for {filter => 4} setup pyx
@@ -286,7 +270,7 @@ sub iterate {
             elsif ($self->{is_comment})  { $self->{type} = '#'; $self->{pyx} = '#'.$self->{comment}; }
             elsif ($self->{is_text})     { $self->{type} = 'T'; $self->{pyx} = '-'.$self->{value}; }
             else {
-                die "Failed assertion #0040 in subroutine XML::Reader->iterate: Found invalid ".
+                croak "Failed assertion #0040 in subroutine XML::Reader->iterate: Found invalid ".
                   "prv_SPECD = '$prv_SPECD', ".
                   "nxt_SPECD = '$nxt_SPECD', ".
                   "type = '".$self->{type}."'";
@@ -321,24 +305,6 @@ sub iterate {
         # lines that don't have a prefix...
         if (@{$self->{using}} and $self->{prefix} eq '') {
             redo;
-        }
-
-        # for {filter => 1}, undefine the 'is_...' family of functions plus 'comment', 'proc_tgt',
-        # 'proc_data', 'dec_hash' and 'att_hash':
-        if ($self->{filter} == 1) {
-            $self->{is_start}     = undef;
-            $self->{is_end}       = undef;
-            $self->{is_decl}      = undef;
-            $self->{is_proc}      = undef;
-            $self->{is_comment}   = undef;
-            $self->{is_text}      = undef;
-            $self->{is_attr}      = undef;
-
-            $self->{comment}      = undef;
-            $self->{proc_tgt}     = undef;
-            $self->{proc_data}    = undef;
-            $self->{dec_hash}     = undef;
-            $self->{att_hash}     = undef;
         }
     }
 
@@ -478,16 +444,6 @@ sub convert_structure {
 
                 my %at = @{$ExpatNB->{XR_Att}};
 
-                # This part is purely for backwards compatibility -- The question is: Do we
-                # want to emit a dummy text-line if there are attributes that follow ?
-                # (This is really obsolete and deprecated, but as I said, we need it for
-                # backward compatibility)
-                if ($ExpatNB->{XR_Extraline} and %at) {
-                    push @{$ExpatNB->{XR_Data}},
-                      ['T', '', '', $prev_SPECD, '*', [], [], []];
-                    $prev_SPECD = '*';
-                }
-
                 # Here we emit attributes on their proper lines -- *before* the start line (see below) ...
                 for my $key (sort keys %at) {
                     push @{$ExpatNB->{XR_Data}}, ['A', $key, $at{$key}];
@@ -601,8 +557,9 @@ files (so called "pull-mode" parsing) and at the same time keeps track of the co
 It was developped as a wrapper on top of XML::Parser (while, at the same time, some basic functions
 have been copied from XML::TokeParser). Both XML::Parser and XML::TokeParser allow pull-mode
 parsing, but do not keep track of the complete XML-Path. Also, the interfaces to XML::Parser and
-XML::TokeParser require you to distinguish between start-tags, end-tags and text, which, in my view,
-complicates the interface.
+XML::TokeParser require you to distinguish between start-tags, end-tags and text on seperate lines,
+which, in my view, complicates the interface (although, XML::Reader allows option {filter => 4} which
+emulates start-tags, end-tags and text on separate lines, if that's what you want).
 
 There is also XML::TiePYX, which lets you pull-mode parse XML-Files (see
 L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> for an introduction to PYX).
@@ -611,8 +568,8 @@ provide the full XML-path.
 
 By contrast, XML::Reader translates start-tags, end-tags and text into XPath-like expressions. So
 you don't need to worry about tags, you just get a path and a value, and that's it. (However, should
-you wish to operate XML::Reader in a PYX compatible mode, there is option {filter => 4}, as described
-below, which allows you to parse XML in that way).
+you wish to operate XML::Reader in a PYX compatible mode, there is option {filter => 4}, as mentioned
+above, which allows you to parse XML in that way).
 
 But going back to the normal mode of operation, here is an example XML in variable '$line1':
 
@@ -665,26 +622,6 @@ Here is a sample program which parses the XML in '$line1' from above to demonstr
    9. pat=/data/item/inner      , val=ooo ppp  , s=1, e=1, tag=inner , atr=      , t=T, lvl= 3
   10. pat=/data/item            , val=         , s=0, e=1, tag=item  , atr=      , t=T, lvl= 2
   11. pat=/data                 , val=         , s=0, e=1, tag=data  , atr=      , t=T, lvl= 1
-
-If you want, you can set option {filter => 1} to select only those lines that have a value.
-
-  use XML::Reader;
-
-  my $rdr = XML::Reader->newhd(\$line1, {filter => 1}) or die "Error: $!";
-  my $i = 0;
-  while ($rdr->iterate) { $i++;
-      printf "%3d. pat=%-22s, val=%-9s, tag=%-6s, atr=%-6s, t=%-1s, lvl=%2d\n",
-       $i, $rdr->path, $rdr->value, $rdr->tag, $rdr->attr, $rdr->type, $rdr->level;
-  }
-
-In this case the output will be as follows (You should not interpret the methods $rdr->is_start or
-$rdr->is_end when option {filter => 1} is set (those methods will, in fact, be undefined).
-
-   1. pat=/data/item            , val=abc      , tag=item  , atr=      , t=T, lvl= 2
-   2. pat=/data/item            , val=fgh      , tag=item  , atr=      , t=T, lvl= 2
-   3. pat=/data/item/inner/@id  , val=fff      , tag=@id   , atr=id    , t=@, lvl= 4
-   4. pat=/data/item/inner/@name, val=ttt      , tag=@name , atr=name  , t=@, lvl= 4
-   5. pat=/data/item/inner      , val=ooo ppp  , tag=inner , atr=      , t=T, lvl= 3
 
 =head1 INTERFACE
 
@@ -741,8 +678,6 @@ The syntax is {using => ['/path1/path2/path3', '/path4/path5/path6']}
 
 =item option {filter => }
 
-Option {filter => 1} activates a filter to remove lines with an empty value.
-
 Option {filter => 2} deactivates the filter, so all lines are shown, even
 lines with an empty value.
 
@@ -754,7 +689,7 @@ Option {filter => 4} also deactivates the filter, but breaks down each line into
 individual start-tags, end-tags, attributes, comments and processing-instructions.
 This allows the parsing of XML into pyx-formatted lines.
 
-The syntax is {filter => 1|2|3|4}, default is {filter => 2}
+The syntax is {filter => 2|3|4}, default is {filter => 2}
 
 =item option {strip => }
 
@@ -783,12 +718,20 @@ by leading '@'-signs.
 
 =item value
 
-Provides the actual value (i.e. the value of the current text, attribute or comment).
+Provides the actual value (i.e. the value of the current text or attribute).
+
+Note that, when {filter => 2 or 3} and in case of an XML declaration (i.e. $rdr->is_decl == 1),
+you want to suppress any value (which would be empty anyway). A typical code fragment would be:
+
+  print $rdr->value, "\n" unless $rdr->is_decl;
+
+The above code does *not* apply for {filter => 4}, in which case a simple "print $rdr->value;" suffices:
+
+  print $rdr->value, "\n";
 
 =item comment
 
-Provides the comments of the XML. This method only make sense for option
-{filter => 2} (otherwise, in case of {filter => 1}, the method C<comment> returns undef).
+Provides the comment of the XML. You should check if $rdr->is_comment is true before accessing the comment.
 
 =item type
 
@@ -819,29 +762,21 @@ option {using => ...} has not been specified.
 
 Returns a reference to a hash with the current attributes of a start-tag (or empty hash if
 it is not a start-tag).
-This method does not make sense for option {filter => 1}, in which case undef
-is returned.
 
 =item dec_hash
 
 Returns a reference to a hash with the current attributes of an XML-Declaration (or empty hash if
 it is not an XML-Declaration).
-This method does not make sense for option {filter => 1}, in which case undef
-is returned.
 
 =item proc_tgt
 
 Returns the target (i.e. the first part) of a processing-instruction (or an empty string if
 the current event is not a processing-instruction).
-This method does not make sense for option {filter => 1}, in which case undef
-is returned.
 
 =item proc_data
 
 Returns the data (i.e. the second part) of a processing-instruction (or an empty string if
 the current event is not a processing-instruction).
-This method does not make sense for option {filter => 1}, in which case undef
-is returned.
 
 =item pyx
 
@@ -860,32 +795,22 @@ than 4, undef is returned.
 =item is_start
 
 Returns 1 or 0, depending on whether the XML-file had a start tag at the current position.
-This method does not make sense for option {filter => 1}, in which case undef
-is returned.
 
 =item is_end
 
 Returns 1 or 0, depending on whether the XML-file had an end tag at the current position.
-This method does not make sense for option {filter => 1}, in which case undef
-is returned.
 
 =item is_decl
 
 Returns 1 or 0, depending on whether the XML-file had an XML-Declaration at the current position.
-This method does not make sense for option {filter => 1}, in which case undef
-is returned.
 
 =item is_proc
 
 Returns 1 or 0, depending on whether the XML-file had a processing-instruction at the current position.
-This method does not make sense for option {filter => 1}, in which case undef
-is returned.
 
 =item is_comment
 
 Returns 1 or 0, depending on whether the XML-file had a Comment at the current position.
-This method does not make sense for option {filter => 1}, in which case undef
-is returned.
 
 =item is_text
 
@@ -896,8 +821,6 @@ than 4, undef is returned.
 =item is_attr
 
 Returns 1 or 0, depending on whether the XML-file has an attribute at the current position.
-This method does not make sense for option {filter => 1}, in which case undef
-is returned.
 
 =back
 
@@ -1028,7 +951,7 @@ Here is an example where comments are ignored by default:
                               print "Found decl     ",  join('', map{" $_='$h{$_}'"} sort keys %h), "\n"; }
       if ($rdr->is_proc)    { print "Found proc      ", "t=", $rdr->proc_tgt, ", d=", $rdr->proc_data, "\n"; }
       if ($rdr->is_comment) { print "Found comment   ", $rdr->comment, "\n"; }
-      print "Text '", $rdr->value, "'\n";
+      print "Text '", $rdr->value, "'\n" unless $rdr->is_decl;
   }
 
 Here is the output:
@@ -1049,7 +972,7 @@ activated:
                               print "Found decl     ",  join('', map{" $_='$h{$_}'"} sort keys %h), "\n"; }
       if ($rdr->is_proc)    { print "Found proc      ", "t=", $rdr->proc_tgt, ", d=", $rdr->proc_data, "\n"; }
       if ($rdr->is_comment) { print "Found comment   ", $rdr->comment, "\n"; }
-      print "Text '", $rdr->value, "'\n";
+      print "Text '", $rdr->value, "'\n" unless $rdr->is_decl;
   }
 
 Here is the output:
@@ -1077,13 +1000,15 @@ option {parse_pi => 1}, which is now activated (together with option {parse_ct =
                               print "Found decl     ",  join('', map{" $_='$h{$_}'"} sort keys %h), "\n"; }
       if ($rdr->is_proc)    { print "Found proc      ", "t=", $rdr->proc_tgt, ", d=", $rdr->proc_data, "\n"; }
       if ($rdr->is_comment) { print "Found comment   ", $rdr->comment, "\n"; }
-      print "Text '", $rdr->value, "'\n";
+      print "Text '", $rdr->value, "'\n" unless $rdr->is_decl;
   }
+
+Note the "unless $rdr->is_decl" in the above code. This is to avoid outputting any value after the XML declaration
+(which would be empty anyway).
 
 Here is the output:
 
   Found decl      version='1.0'
-  Text ''
   Text 'xyz'
   Found comment   remark
   Text 'stu'
@@ -1098,7 +1023,9 @@ Option Filter allows to select different operation modes when processing the XML
 
 With option {filter => 2}, XML::Reader produces one line for each character event.
 A preceding start-tag results in method is_start to be set to 1, a trailing end-tag
-results in method is_end to be set to 1.
+results in method is_end to be set to 1. Likewise, a preceding comment results in method
+is_comment to be set to 1, a preceding XML-declaration results in method is_decl to be set
+to 1, a preceding processing-instruction results in method is_proc to be set to 1.
 
 Also, attribute lines are added via the special '/@...' syntax.
 
@@ -1187,8 +1114,8 @@ additional algorithm to reconstruct the original XML:
 
 Option {filter = 3} works very much like {filter => 2}.
 
-The difference, though, is that with option {filter => 3} all attribute-lines are filtered
-out and instead, the attributes are presented for each start-line in the hash $rdr->att_hash().
+The difference, though, is that with option {filter => 3} all attribute-lines are suppressed
+and instead, the attributes are presented for each start-line in the hash $rdr->att_hash().
 
 This allows, in fact, to dispense with the global %at variable of the previous algorithm, and
 use a local %at variable instead:
@@ -1304,20 +1231,23 @@ Here is the output:
   Type = #, pyx = #remark
   Type = E, pyx = )delta
 
-Finally, when operating with {filter => 4}, the usual methods (C<is_start>, C<is_end>, C<is_decl>, C<is_proc>,
-C<is_comment>, C<is_attr>, C<is_text>, C<comment>, C<proc_tgt>, C<proc_data>, C<dec_hash> or C<att_hash>)
-remain operational. Here is an example:
+Finally, when operating with {filter => 4}, the usual methods (C<value>, C<attr>, C<path>, C<is_start>,
+C<is_end>, C<is_decl>, C<is_proc>, C<is_comment>, C<is_attr>, C<is_text>, C<comment>, C<proc_tgt>,
+C<proc_data>, C<dec_hash> or C<att_hash>) remain operational. Here is an example:
 
   use XML::Reader;
 
   my $text = q{<?xml version="1.0"?>
     <parent abc="def"> <?pt hmf?>
       dskjfh <!-- remark -->
+      <child>ghi</child>
     </parent>};
 
   my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_pi => 1, parse_ct => 1}) or die "Error: $!";
 
   while ($rdr->iterate) {
+      printf "Path %-15s ", $rdr->path;
+
       if    ($rdr->is_start)   { print "Found start tag ", $rdr->tag, "\n"; }
       elsif ($rdr->is_end)     { print "Found end tag   ", $rdr->tag, "\n"; }
       elsif ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
@@ -1330,44 +1260,16 @@ remain operational. Here is an example:
 
 Here is the output:
 
-  Found decl      version='1.0'
-  Found start tag parent
-  Found attribute abc='def'
-  Found proc      t=pt, d=hmf
-  Found text      dskjfh
-  Found comment   remark
-  Found end tag   parent
-
-=head2 Option {filter => 1}
-
-Option {filter => 1} is similar to {filter => 2}, but reduces the number of output lines (i.e. it removes all
-lines that don't have a value).
-
-In case you want to use one of the following methods C<is_start>, C<is_end>, C<is_decl>, C<is_proc>,
-C<is_comment>, C<is_attr>, C<is_text>, C<comment>, C<proc_tgt>, C<proc_data>, C<dec_hash> or C<att_hash> with
-{filter => 1}: any of the afore mentioned methods will return undef.
-
-With option {filter => 1} we lose the ability to reconstruct the XML, but simple data
-processing is easier.
-
-Here is a sample program:
-
-  use XML::Reader;
-
-  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test></root>};
-
-  my $rdr = XML::Reader->newhd(\$text, {filter => 1}) or die "Error: $!";
-  while ($rdr->iterate) {
-      printf "Path: %-24s, Value: %s\n", $rdr->path, $rdr->value;
-  }
-
-...and here is the output:
-
-  Path: /root/test/@param       , Value: v
-  Path: /root/test/a/b          , Value: e
-  Path: /root/test/a/b/data/@id , Value: z
-  Path: /root/test/a/b/data     , Value: g
-  Path: /root/test/a/b          , Value: f
+  Path /               Found decl      version='1.0'
+  Path /parent         Found start tag parent
+  Path /parent/@abc    Found attribute abc='def'
+  Path /parent         Found proc      t=pt, d=hmf
+  Path /parent         Found text      dskjfh
+  Path /parent         Found comment   remark
+  Path /parent/child   Found start tag child
+  Path /parent/child   Found text      ghi
+  Path /parent/child   Found end tag   child
+  Path /parent         Found end tag   parent
 
 =head1 AUTHOR
 

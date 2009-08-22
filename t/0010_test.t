@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 88;
+use Test::More tests => 66;
 
 use_ok('XML::Reader');
 
@@ -13,39 +13,10 @@ use_ok('XML::Reader');
 
     {
         my $count = 0;
-        my $rdr = XML::Reader->newhd(\$line, {filter => 1});
-        while ($rdr->iterate) { $count++; }
-        is($count, 3, 'counting values {filter => 1}');
-    }
-
-    {
-        my $count = 0;
-        my $rdr = XML::Reader->new(\$line);
-        while ($rdr->iterate) { $count++; }
-        is($count, 24, 'counting values (with new)');
-    }
-
-    {
-        my $count = 0;
         my $rdr = XML::Reader->newhd(\$line, {filter => 2});
         while ($rdr->iterate) { $count++; }
         is($count, 23, 'counting values {filter => 2}');
     }
-
-    {
-        my $info = '';
-        my $rdr = XML::Reader->newhd(\$line, {filter => 1, using => '/data/data/data/data'});
-        while ($rdr->iterate) { $info .= '['.$rdr->level.']'; }
-        is($info, '[8][8][7]', 'level information with using and filter');
-    }
-}
-
-{
-    my $line = q{<data c='3' a='1' b='2' />};
-    my $out = '';
-    my $rdr = XML::Reader->newhd(\$line, {filter => 1});
-    while ($rdr->iterate) { $out .= '['.$rdr->tag.'='.$rdr->value.']'; }
-    is($out, '[@a=1][@b=2][@c=3]', 'attributes in alphabetical order');
 }
 
 {
@@ -99,22 +70,6 @@ use_ok('XML::Reader');
         my $end_seq   = '';
         my $lvl_seq   = '';
 
-        my $rdr = XML::Reader->new(\$line);
-        while ($rdr->iterate) {
-            $start_seq .= $rdr->is_start;
-            $end_seq   .= $rdr->is_end;
-            $lvl_seq   .= '['.$rdr->level.']';
-        }
-        is($start_seq, '110110100000', 'sequence of start-tags (with new)');
-        is($end_seq,   '010010000111', 'sequence of end-tags (with new)');
-        is($lvl_seq,   '[1][2][1][2][3][2][3][4][4][3][2][1]', 'sequence of level information (with new)');
-    }
-
-    {
-        my $start_seq = '';
-        my $end_seq   = '';
-        my $lvl_seq   = '';
-
         my $rdr = XML::Reader->newhd(\$line);
         while ($rdr->iterate) {
             $start_seq .= $rdr->is_start;
@@ -130,16 +85,6 @@ use_ok('XML::Reader');
 
 {
     my $line = q{<a><b><c><d></d></c></b></a>};
-
-    {
-        my $info = '';
-
-        my $rdr = XML::Reader->new(\$line);
-        while ($rdr->iterate) {
-            $info .= '['.$rdr->path.'='.$rdr->value.']';
-        }
-        is($info, '[/a=][/a/b=][/a/b/c=][/a/b/c/d=][/a/b/c=][/a/b=][/a=]', 'an empty, 4-level deep, nested XML (with new)');
-    }
 
     {
         my $info = '';
@@ -177,7 +122,7 @@ use_ok('XML::Reader');
         my $data    = '';
         my $comment = '';
 
-        my $rdr = XML::Reader->new(\$line, {parse_ct => 1});
+        my $rdr = XML::Reader->newhd(\$line, {parse_ct => 1});
         my $i = 0;
         while ($rdr->iterate) { $i++;
             $comment .= $rdr->comment if $rdr->type eq 'T';
@@ -247,7 +192,7 @@ use_ok('XML::Reader');
     {
         my $att_seq = '';
 
-        my $rdr = XML::Reader->new(\$line, {filter => 3, using => ['/data/item/alpha', '/data/item/beta']});
+        my $rdr = XML::Reader->newhd(\$line, {filter => 3, using => ['/data/item/alpha', '/data/item/beta']});
         my $i = 0;
         while ($rdr->iterate) { $i++;
             my %at = %{$rdr->att_hash};
@@ -255,18 +200,6 @@ use_ok('XML::Reader');
         }
         is($att_seq, '[age="999" name="lll" type="qqq"][test="successful"][][number="undef"][][][][][][][][]',
           'check $rdr->att_hash {filter => 3}');
-    }
-
-    {
-        my $att_seq = '';
-
-        my $rdr = XML::Reader->new(\$line, {filter => 2, using => ['/data/item/alpha', '/data/item/beta']});
-        my $i = 0;
-        while ($rdr->iterate) { $i++;
-            my %at = %{$rdr->att_hash};
-            $att_seq .= '['.join(' ', map {qq($_="$at{$_}")} sort keys %at).']';
-        }
-        is($att_seq, '[][][][][][][][][][][][][][][][][]', 'check $rdr->att_hash {filter => 2}');
     }
 
     {
@@ -278,7 +211,7 @@ use_ok('XML::Reader');
         my $point_38 = '';
         my $point_48 = '';
 
-        my $rdr = XML::Reader->new(\$line, {using => ['/data/item', '/data/btem/user/level/agreement']});
+        my $rdr = XML::Reader->newhd(\$line, {using => ['/data/item', '/data/btem/user/level/agreement']});
         my $i = 0;
         while ($rdr->iterate) { $i++;
             my $point = '['.$rdr->prefix.']['.$rdr->path.']['.$rdr->is_start.']['.$rdr->is_end.']['.$rdr->level.']';
@@ -290,13 +223,13 @@ use_ok('XML::Reader');
             elsif ($i == 38) { $point_38 = $point; }
             elsif ($i == 48) { $point_48 = $point; }
         }
-        is($point_01, '[/data/item][/][1][1][0]',                         'check using at data point 01 {filter => 0}');
-        is($point_09, '[/data/item][/][0][1][0]',                         'check using at data point 09 {filter => 0}');
-        is($point_10, '[/data/btem/user/level/agreement][/][1][0][0]',    'check using at data point 10 {filter => 0}');
-        is($point_25, '[/data/btem/user/level/agreement][/][0][1][0]',    'check using at data point 25 {filter => 0}');
-        is($point_26, '[/data/item][/][1][0][0]',                         'check using at data point 26 {filter => 0}');
-        is($point_38, '[/data/item][/beta/gamma/delta/@number][0][0][4]', 'check using at data point 38 {filter => 0}');
-        is($point_48, '[/data/item][/][0][1][0]',                         'check using at data point 48 {filter => 0}');
+        is($point_01, '[/data/item][/][1][1][0]',                               'check using at data point 01 (using)');
+        is($point_09, '[/data/btem/user/level/agreement][/][1][0][0]',          'check using at data point 09 (using)');
+        is($point_10, '[/data/btem/user/level/agreement][/line/@ice][0][0][2]', 'check using at data point 10 (using)');
+        is($point_25, '[/data/item][/alpha/@type][0][0][2]',                    'check using at data point 25 (using)');
+        is($point_26, '[/data/item][/alpha][1][1][1]',                          'check using at data point 26 (using)');
+        is($point_38, '[/data/item][/beta][0][0][1]',                           'check using at data point 38 (using)');
+        is($point_48, '',                                                       'check using at data point 48 (using)');
     }
 
     {
@@ -484,60 +417,6 @@ use_ok('XML::Reader');
     is($point_22, '[/data/item][/@ts][vy][@][00][@ts][ts]',                           'check filter=>2 at data point 22');
     is($point_38, '[/data/item][/beta/test][t o][T][11][test][]',                     'check filter=>2 at data point 38');
     is($point_42, '[/data/item][/][][T][01][][]',                                     'check filter=>2 at data point 42');
-}
-
-{
-    my $line = q{<data>abc<?pi abc?><!-- ttt --></data>};
-
-    my $rdr = XML::Reader->newhd(\$line, {filter => 1});
-
-    my $is_start     = 'z';
-    my $is_end       = 'z';
-    my $is_decl      = 'z';
-    my $is_proc      = 'z';
-    my $is_comment   = 'z';
-    my $is_text      = 'z';
-    my $is_attr      = 'z';
-    my $proc_tgt     = 'z';
-    my $proc_data    = 'z';
-    my $comment      = 'z';
-    my $dec_hash     = 'z';
-    my $att_hash     = 'z';
-
-    my $path         = undef;
-
-    my $i = 0;
-    while ($rdr->iterate) { $i++;
-        if ($i ==  1) {
-            $is_start     = $rdr->is_start;
-            $is_end       = $rdr->is_end;
-            $is_decl      = $rdr->is_decl;
-            $is_proc      = $rdr->is_proc;
-            $is_comment   = $rdr->is_comment;
-            $is_text      = $rdr->is_text;
-            $is_attr      = $rdr->is_attr;
-            $proc_tgt     = $rdr->proc_tgt;
-            $proc_data    = $rdr->proc_data;
-            $comment      = $rdr->comment;
-            $dec_hash     = $rdr->dec_hash;
-            $att_hash     = $rdr->att_hash;
-            $path         = $rdr->path;
-        }
-    }
-    ok(!defined($is_start),     'method is_start is undef for {filter => 1}');
-    ok(!defined($is_end),       'method is_end is undef for {filter => 1}');
-    ok(!defined($is_decl),      'method is_decl is undef for {filter => 1}');
-    ok(!defined($is_proc),      'method is_proc is undef for {filter => 1}');
-    ok(!defined($is_comment),   'method is_comment is undef for {filter => 1}');
-    ok(!defined($is_text),      'method is_text is undef for {filter => 1}');
-    ok(!defined($is_attr),      'method is_attr is undef for {filter => 1}');
-    ok(!defined($proc_tgt),     'method proc_tgt is undef for {filter => 1}');
-    ok(!defined($proc_data),    'method proc_data is undef for {filter => 1}');
-    ok(!defined($comment),      'method comment is undef for {filter => 1}');
-    ok(!defined($dec_hash),     'method dec_hash is undef for {filter => 1}');
-    ok(!defined($att_hash),     'method att_hash is undef for {filter => 1}');
-
-    ok(defined($path),          'method path is defined for {filter => 1}');
 }
 
 # stress tests

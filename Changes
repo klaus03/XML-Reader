@@ -65,3 +65,9 @@ Revision history for XML-Reader
         add option {parse_ct} for comments
         add option {parse_pi} for processing-instructions
         add option {filter => 4} and method XML::Reader->pyx() for PYX compliant data
+
+0.19    22 Aug 2009
+        remove option {filter => 0} and {filter => 1}
+        remove method new()
+        introducing "use Carp" and "croak"
+        clean up documentation and test cases
