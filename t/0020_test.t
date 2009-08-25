@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 153;
+use Test::More tests => 168;
 
 use_ok('XML::Reader');
 
@@ -387,7 +387,7 @@ use_ok('XML::Reader');
     my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_pi => 1, parse_ct => 1}) or die "Error: $!";
     my @lines;
     while ($rdr->iterate) {
-        my $txt = sprintf "Path %-15s ", $rdr->path;
+        my $txt = sprintf "Path %-15s v=%s ", $rdr->path, $rdr->is_value;
 
         if    ($rdr->is_start)   { push @lines, $txt."Found start tag ".$rdr->tag; }
         elsif ($rdr->is_end)     { push @lines, $txt."Found end tag   ".$rdr->tag; }
@@ -400,14 +400,105 @@ use_ok('XML::Reader');
     }
 
     is(scalar(@lines),  10,                                                   'Pod-Test case no 15: number of output lines');
-    is($lines[ 0], "Path /               " ."Found decl      version='1.0'",  'Pod-Test case no 15: output line  0');
-    is($lines[ 1], "Path /parent         " ."Found start tag parent",         'Pod-Test case no 15: output line  1');
-    is($lines[ 2], "Path /parent/\@abc    "."Found attribute abc='def'",      'Pod-Test case no 15: output line  2');
-    is($lines[ 3], "Path /parent         " ."Found proc      t=pt, d=hmf",    'Pod-Test case no 15: output line  3');
-    is($lines[ 4], "Path /parent         " ."Found text      dskjfh",         'Pod-Test case no 15: output line  4');
-    is($lines[ 5], "Path /parent         " ."Found comment   remark",         'Pod-Test case no 15: output line  5');
-    is($lines[ 6], "Path /parent/child   " ."Found start tag child",          'Pod-Test case no 15: output line  6');
-    is($lines[ 7], "Path /parent/child   " ."Found text      ghi",            'Pod-Test case no 15: output line  7');
-    is($lines[ 8], "Path /parent/child   " ."Found end tag   child",          'Pod-Test case no 15: output line  8');
-    is($lines[ 9], "Path /parent         " ."Found end tag   parent",         'Pod-Test case no 15: output line  9');
+    is($lines[ 0], "Path /               " ."v=0 Found decl      version='1.0'",  'Pod-Test case no 15: output line  0');
+    is($lines[ 1], "Path /parent         " ."v=0 Found start tag parent",         'Pod-Test case no 15: output line  1');
+    is($lines[ 2], "Path /parent/\@abc    "."v=1 Found attribute abc='def'",      'Pod-Test case no 15: output line  2');
+    is($lines[ 3], "Path /parent         " ."v=0 Found proc      t=pt, d=hmf",    'Pod-Test case no 15: output line  3');
+    is($lines[ 4], "Path /parent         " ."v=1 Found text      dskjfh",         'Pod-Test case no 15: output line  4');
+    is($lines[ 5], "Path /parent         " ."v=0 Found comment   remark",         'Pod-Test case no 15: output line  5');
+    is($lines[ 6], "Path /parent/child   " ."v=0 Found start tag child",          'Pod-Test case no 15: output line  6');
+    is($lines[ 7], "Path /parent/child   " ."v=1 Found text      ghi",            'Pod-Test case no 15: output line  7');
+    is($lines[ 8], "Path /parent/child   " ."v=0 Found end tag   child",          'Pod-Test case no 15: output line  8');
+    is($lines[ 9], "Path /parent         " ."v=0 Found end tag   parent",         'Pod-Test case no 15: output line  9');
+}
+
+{
+    my $text = q{
+      <start>
+        <param>
+          <data>
+            <item p1="a" p2="b" p3="c">start1 <inner p1="p">i1</inner> end1</item>
+            <item p1="d" p2="e" p3="f">start2 <inner p1="q">i2</inner> end2</item>
+            <item p1="g" p2="h" p3="i">start3 <inner p1="r">i3</inner> end3</item>
+          </data>
+          <dataz>
+            <item p1="j" p2="k" p3="l">start9 <inner p1="s">i9</inner> end9</item>
+          </dataz>
+          <data>
+            <item p1="m" p2="n" p3="o">start4 <inner p1="t">i4</inner> end4</item>
+          </data>
+        </param>
+      </start>};
+
+    {
+        my $rdr = XML::Reader->newhd(\$text,
+          {filter => 2, using => '/start/param/data/item'}) or die "Error: $!";
+        my @lines;
+
+        my ($p1, $p3);
+
+        while ($rdr->iterate) {
+            if    ($rdr->path eq '/@p1') { $p1 = $rdr->value; }
+            elsif ($rdr->path eq '/@p3') { $p3 = $rdr->value; }
+            elsif ($rdr->path eq '/' and $rdr->is_start) {
+                push @lines, sprintf("item = '%s', p1 = '%s', p3 = '%s'",
+                  $rdr->value, $p1, $p3);
+            }
+            unless ($rdr->is_attr) { $p1 = undef; $p3 = undef; }
+        }
+
+        is(scalar(@lines),   4,                               'Pod-Test case no 16: number of output lines');
+        is($lines[ 0], "item = 'start1', p1 = 'a', p3 = 'c'", 'Pod-Test case no 16: output line  0');
+        is($lines[ 1], "item = 'start2', p1 = 'd', p3 = 'f'", 'Pod-Test case no 16: output line  1');
+        is($lines[ 2], "item = 'start3', p1 = 'g', p3 = 'i'", 'Pod-Test case no 16: output line  2');
+        is($lines[ 3], "item = 'start4', p1 = 'm', p3 = 'o'", 'Pod-Test case no 16: output line  3');
+    }
+
+    {
+        my $rdr = XML::Reader->newhd(\$text,
+          {filter => 3, using => '/start/param/data/item'}) or die "Error: $!";
+        my @lines;
+
+        while ($rdr->iterate) {
+            if ($rdr->path eq '/' and $rdr->is_start) {
+                push @lines, sprintf("item = '%s', p1 = '%s', p3 = '%s'",
+                  $rdr->value, $rdr->att_hash->{p1}, $rdr->att_hash->{p3});
+            }
+        }
+
+        is(scalar(@lines),   4,                               'Pod-Test case no 17: number of output lines');
+        is($lines[ 0], "item = 'start1', p1 = 'a', p3 = 'c'", 'Pod-Test case no 17: output line  0');
+        is($lines[ 1], "item = 'start2', p1 = 'd', p3 = 'f'", 'Pod-Test case no 17: output line  1');
+        is($lines[ 2], "item = 'start3', p1 = 'g', p3 = 'i'", 'Pod-Test case no 17: output line  2');
+        is($lines[ 3], "item = 'start4', p1 = 'm', p3 = 'o'", 'Pod-Test case no 17: output line  3');
+    }
+
+    {
+        my $rdr = XML::Reader->newhd(\$text,
+          {filter => 4, using => '/start/param/data/item'}) or die "Error: $!";
+        my @lines;
+
+        my ($count, $p1, $p3);
+
+        while ($rdr->iterate) {
+            if    ($rdr->path eq '/@p1') { $p1 = $rdr->value; }
+            elsif ($rdr->path eq '/@p3') { $p3 = $rdr->value; }
+            elsif ($rdr->path eq '/') {
+                if    ($rdr->is_start) { $count = 0; $p1 = undef; $p3 = undef; }
+                elsif ($rdr->is_text) {
+                    $count++;
+                    if ($count == 1) {
+                        push @lines, sprintf("item = '%s', p1 = '%s', p3 = '%s'",
+                          $rdr->value, $p1, $p3);
+                    }
+                }
+            }
+        }
+
+        is(scalar(@lines),   4,                               'Pod-Test case no 18: number of output lines');
+        is($lines[ 0], "item = 'start1', p1 = 'a', p3 = 'c'", 'Pod-Test case no 18: output line  0');
+        is($lines[ 1], "item = 'start2', p1 = 'd', p3 = 'f'", 'Pod-Test case no 18: output line  1');
+        is($lines[ 2], "item = 'start3', p1 = 'g', p3 = 'i'", 'Pod-Test case no 18: output line  2');
+        is($lines[ 3], "item = 'start4', p1 = 'm', p3 = 'o'", 'Pod-Test case no 18: output line  3');
+    }
 }

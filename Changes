@@ -71,3 +71,7 @@ Revision history for XML-Reader
         remove method new()
         introducing "use Carp" and "croak"
         clean up documentation and test cases
+
+0.20    25 Aug 2009
+        add method is_value()
+        add some example code to parse an XML file with XML::Reader

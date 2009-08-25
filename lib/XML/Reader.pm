@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.19';
+our $VERSION     = '0.20';
 
 sub newhd {
     my $class = shift;
@@ -145,6 +145,7 @@ sub newhd {
     $self->{is_comment}   = 0;
     $self->{is_text}      = 0;
     $self->{is_attr}      = 0;
+    $self->{is_value}     = 0;
     $self->{level}        = 0;
     $self->{item}         = '';
 
@@ -170,6 +171,7 @@ sub is_proc      { $_[0]{is_proc};      }
 sub is_comment   { $_[0]{is_comment};   }
 sub is_text      { $_[0]{is_text};      }
 sub is_attr      { $_[0]{is_attr};      }
+sub is_value     { $_[0]{is_value};     }
 sub is_end       { $_[0]{is_end};       }
 
 sub NB_data      { $_[0]{ExpatNB}{XR_Data}; }
@@ -208,14 +210,15 @@ sub iterate {
                 $proc_data = ${$token->extract_proc}[1];
             }
 
-            $self->{is_decl}      = $prv_SPECD eq 'D' ? 1 : 0;
-            $self->{is_start}     = $prv_SPECD eq 'S' ? 1 : 0;
-            $self->{is_proc}      = $prv_SPECD eq 'P' ? 1 : 0;
-            $self->{is_comment}   = $prv_SPECD eq 'C' ? 1 : 0;
-            $self->{is_text}      = $prv_SPECD eq '-' ? 1 : 0;
-            $self->{is_attr}      = 0;
+            $self->{is_decl}      =                          $prv_SPECD eq 'D'  ? 1 : 0;
+            $self->{is_start}     =                          $prv_SPECD eq 'S'  ? 1 : 0;
+            $self->{is_proc}      =                          $prv_SPECD eq 'P'  ? 1 : 0;
+            $self->{is_comment}   =                          $prv_SPECD eq 'C'  ? 1 : 0;
+            $self->{is_text}      = ($self->{filter} != 4 || $prv_SPECD eq '-') ? 1 : 0;
+            $self->{is_end}       =                          $nxt_SPECD eq 'E'  ? 1 : 0;
 
-            $self->{is_end}       = $nxt_SPECD eq 'E' ? 1 : 0;
+            $self->{is_attr}      = 0;
+            $self->{is_value}     = ($self->{is_text} || $self->{is_attr}) ? 1 : 0;
 
             $self->{path}         = '/'.join('/', @{$self->{plist}});
             $self->{attr}         = '';
@@ -238,9 +241,10 @@ sub iterate {
             $self->{is_proc}      = 0;
             $self->{is_comment}   = 0;
             $self->{is_text}      = 0;
-            $self->{is_attr}      = 1;
-
             $self->{is_end}       = 0;
+
+            $self->{is_attr}      = 1;
+            $self->{is_value}     = 1;
 
             $self->{path}         = '/'.join('/', @{$self->{plist}}).'/@'.$key;
             $self->{attr}         = $key;
@@ -278,8 +282,7 @@ sub iterate {
             $self->{pyx} =~ s{\n}'\\n'xmsg; # replace newlines by a literal "\\n"
         }
         else {
-            $self->{pyx}     = undef;
-            $self->{is_text} = undef;
+            $self->{pyx} = undef;
         }
 
         # Here we check for the {using => ...} option
@@ -814,13 +817,18 @@ Returns 1 or 0, depending on whether the XML-file had a Comment at the current p
 
 =item is_text
 
-Returns 1 or 0, depending on whether the XML-file has text data at the current position.
-The method is_text makes sense only if option {filter => 4} is selected, for any filter other
-than 4, undef is returned.
+If option {filter => 4} is selected, then is_text() returns 1 or 0, depending on whether the XML-file has
+text data at the current position. For any filter other than 4, is_text returns 1 for non-attribute lines
+and 0 for attribute lines.
 
 =item is_attr
 
 Returns 1 or 0, depending on whether the XML-file has an attribute at the current position.
+
+=item is_value
+
+Returns 1 or 0, depending on whether the XML-file has either a text or an attribute at the current position.
+This is useful to see whether the method value() can be used to extract either text or attributes.
 
 =back
 
@@ -1112,7 +1120,7 @@ additional algorithm to reconstruct the original XML:
 
 =head2 Option {filter => 3}
 
-Option {filter = 3} works very much like {filter => 2}.
+Option {filter => 3} works very much like {filter => 2}.
 
 The difference, though, is that with option {filter => 3} all attribute-lines are suppressed
 and instead, the attributes are presented for each start-line in the hash $rdr->att_hash().
@@ -1232,7 +1240,7 @@ Here is the output:
   Type = E, pyx = )delta
 
 Finally, when operating with {filter => 4}, the usual methods (C<value>, C<attr>, C<path>, C<is_start>,
-C<is_end>, C<is_decl>, C<is_proc>, C<is_comment>, C<is_attr>, C<is_text>, C<comment>, C<proc_tgt>,
+C<is_end>, C<is_decl>, C<is_proc>, C<is_comment>, C<is_attr>, C<is_text>, C<is_value>, C<comment>, C<proc_tgt>,
 C<proc_data>, C<dec_hash> or C<att_hash>) remain operational. Here is an example:
 
   use XML::Reader;
@@ -1246,7 +1254,7 @@ C<proc_data>, C<dec_hash> or C<att_hash>) remain operational. Here is an example
   my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_pi => 1, parse_ct => 1}) or die "Error: $!";
 
   while ($rdr->iterate) {
-      printf "Path %-15s ", $rdr->path;
+      printf "Path %-15s v=%s ", $rdr->path, $rdr->is_value;
 
       if    ($rdr->is_start)   { print "Found start tag ", $rdr->tag, "\n"; }
       elsif ($rdr->is_end)     { print "Found end tag   ", $rdr->tag, "\n"; }
@@ -1260,16 +1268,115 @@ C<proc_data>, C<dec_hash> or C<att_hash>) remain operational. Here is an example
 
 Here is the output:
 
-  Path /               Found decl      version='1.0'
-  Path /parent         Found start tag parent
-  Path /parent/@abc    Found attribute abc='def'
-  Path /parent         Found proc      t=pt, d=hmf
-  Path /parent         Found text      dskjfh
-  Path /parent         Found comment   remark
-  Path /parent/child   Found start tag child
-  Path /parent/child   Found text      ghi
-  Path /parent/child   Found end tag   child
-  Path /parent         Found end tag   parent
+  Path /               v=0 Found decl      version='1.0'
+  Path /parent         v=0 Found start tag parent
+  Path /parent/@abc    v=1 Found attribute abc='def'
+  Path /parent         v=0 Found proc      t=pt, d=hmf
+  Path /parent         v=1 Found text      dskjfh
+  Path /parent         v=0 Found comment   remark
+  Path /parent/child   v=0 Found start tag child
+  Path /parent/child   v=1 Found text      ghi
+  Path /parent/child   v=0 Found end tag   child
+  Path /parent         v=0 Found end tag   parent
+
+Note that v=1 (i.e. $rdr->is_value == 1) for all text and all attributes.
+
+=head1 EXAMPLES
+
+Let's look at the following piece of XML from which we want to extract the values in <item>
+(by that I mean only the first 'start...'-value, not the 'end...'-value), plus the attributes "p1"
+and "p3". The item-tag must be exactly in the start/param/data range (and *not* in the
+start/param/dataz range).
+
+  my $text = q{
+    <start>
+      <param>
+        <data>
+          <item p1="a" p2="b" p3="c">start1 <inner p1="p">i1</inner> end1</item>
+          <item p1="d" p2="e" p3="f">start2 <inner p1="q">i2</inner> end2</item>
+          <item p1="g" p2="h" p3="i">start3 <inner p1="r">i3</inner> end3</item>
+        </data>
+        <dataz>
+          <item p1="j" p2="k" p3="l">start9 <inner p1="s">i9</inner> end9</item>
+        </dataz>
+        <data>
+          <item p1="m" p2="n" p3="o">start4 <inner p1="t">i4</inner> end4</item>
+        </data>
+      </param>
+    </start>};
+
+We expect exactly 4 output-lines from our parse (i.e. we don't expect the 'dataz' part -
+'start9' - in the output):
+
+  item = 'start1', p1 = 'a', p3 = 'c'
+  item = 'start2', p1 = 'd', p3 = 'f'
+  item = 'start3', p1 = 'g', p3 = 'i'
+  item = 'start4', p1 = 'm', p3 = 'o'
+
+=head2 Parsing XML with {filter => 2}
+
+Here is a sample program to parse that XML with {filter => 2}. (Note how the prefix
+'/start/param/data/item' is located in the {using =>} option of newhd). We need two
+scalars ('$p1' and '$p3') to hold the parameters in '/@p1' and in '/@p3' and carry
+them over to the $rdr->is_start section, where they can be printed.
+
+  my $rdr = XML::Reader->newhd(\$text,
+    {filter => 2, using => '/start/param/data/item'}) or die "Error: $!";
+
+  my ($p1, $p3);
+
+  while ($rdr->iterate) {
+      if    ($rdr->path eq '/@p1') { $p1 = $rdr->value; }
+      elsif ($rdr->path eq '/@p3') { $p3 = $rdr->value; }
+      elsif ($rdr->path eq '/' and $rdr->is_start) {
+          printf "item = '%s', p1 = '%s', p3 = '%s'\n",
+            $rdr->value, $p1, $p3;
+      }
+      unless ($rdr->is_attr) { $p1 = undef; $p3 = undef; }
+  }
+
+=head2 Parsing XML with {filter => 3}
+
+With {filter => 3} we can dispense with the two scalars '$p1' and '$p3', the code
+becomes very simple:
+
+  my $rdr = XML::Reader->newhd(\$text,
+    {filter => 3, using => '/start/param/data/item'}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      if ($rdr->path eq '/' and $rdr->is_start) {
+          printf "item = '%s', p1 = '%s', p3 = '%s'\n",
+            $rdr->value, $rdr->att_hash->{p1}, $rdr->att_hash->{p3};
+      }
+  }
+
+=head2 Parsing XML with {filter => 4}
+
+With {filter => 4}, however, the code becomes slightly more complicated again: As already
+shown for {filter => 2}, we need again two scalars ('$p1' and '$p3') to hold the parameters in
+'/@p1' and in '/@p3' and carry them over. In addition to that, we also need a way to count
+text-values (see scalar '$count'), so that we can distinguish between the first value 'start...'
+(that we want to print) and the second value 'end...' (that we do not want to print).
+
+  my $rdr = XML::Reader->newhd(\$text,
+    {filter => 4, using => '/start/param/data/item'}) or die "Error: $!";
+
+  my ($count, $p1, $p3);
+
+  while ($rdr->iterate) {
+      if    ($rdr->path eq '/@p1') { $p1 = $rdr->value; }
+      elsif ($rdr->path eq '/@p3') { $p3 = $rdr->value; }
+      elsif ($rdr->path eq '/') {
+          if    ($rdr->is_start) { $count = 0; $p1 = undef; $p3 = undef; }
+          elsif ($rdr->is_text) {
+              $count++;
+              if ($count == 1) {
+                  printf "item = '%s', p1 = '%s', p3 = '%s'\n",
+                    $rdr->value, $p1, $p3;
+              }
+          }
+      }
+  }
 
 =head1 AUTHOR
 
