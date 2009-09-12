@@ -1,8 +1,12 @@
 Changes
 MANIFEST
+LICENCE
 Makefile.PL
 README
 lib/XML/Reader.pm
 t/0010_test.t
 t/0020_test.t
+t/0030_test.t
 META.yml
+pod/XML-Reader-fr.pod
+pod/XML-Reader-de.pod

@@ -1,0 +1,896 @@
+=encoding iso-8859-1
+
+=head1 NAME
+
+XML::Reader - Lesen von XML-Dateien und Bereitstellung der Pfad information basierend auf einem Pull-Parser.
+
+=head1 SYNOPSIS
+
+  use XML::Reader;
+
+  my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
+
+  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
+  while ($rdr->iterate) {
+      printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
+  }
+
+Dieses Programm erzeugt folgendes Resultat:
+
+  Path: /init              , Value: n t
+  Path: /init/page/@node   , Value: 400
+  Path: /init/page         , Value: m r
+  Path: /init              , Value:
+
+=head1 BESCHREIBUNG
+
+XML::Reader stellt ein einfach zu bedienendes Interface zur Verfügung mit dem man XML-Dateien
+sequentiell lesen kann (sogenanntes "pull-mode" parsing). Der aktuelle XML-Pfad wird ebenfalls aufgenommen.
+
+XML::Reader wurde als eine Hülle über dem bestehenden Modul XML::Parser entwickelt (ausserdem wurden
+einige Grundfunktionen des Moduls XML::TokeParser übernommen). Die bestehenden Module, XML::Parser und
+XML::TokeParser, ermöglichen beide das sequentielle Verarbeiten von XML-Dateien, jedoch wird in diesen
+Modulen der XML-Pfad nicht gepflegt. Ausserdem muss man mit den Modulen XML::Parser und XML::TokeParser
+die Unterscheidung zwischen Start-Tags, End-Tags und Text machen, was meiner Meinung nach die Sache
+verkompliziert (obwohl man auch dieselbe Situation in XML::Reader simulieren kann, und zwar durch die
+Option {filter => 4}, wenn es das ist was man will).
+
+Es existiert auch ein Modul namens XML::TiePYX, welches ebenfalls das sequentielle Verarbeiten von
+XML-Dateien erlaubt (siehe L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> für eine Einführung
+in PYX). Aber dennoch, auch mit XML::TiePYX ist man gezwungen eine Unterscheidung zwischen Start-Tags,
+End-Tags und Text machen und der XML-Pfad wird auch nicht gepflegt.
+
+Im Gegensatz dazu übersetzt XML::Reader die in der XML-Datei bestehenden Start-Tags, End-Tags und Text
+in XPath-ähnliche Ausdrücke, man erhält also einen Pfad und einen Wert, so einfach ist es. (Sollte man
+jedoch mit XML::Reader PYX-kompatible Ausdrücke erzeugen wollen, dann kann man das auch mit der Option
+{filter => 4}, wie zuvor erwähnt, erreichen).
+
+Aber kommen wir zurück zur normalen Benutzung, hier ist eine Beispiel XML Datei, kodiert in der Variablen
+'$line1':
+
+  my $line1 = 
+  q{<?xml version="1.0" encoding="iso-8859-1"?>
+    <data>
+      <item>abc</item>
+      <item><!-- c1 -->
+        <dummy/>
+        fgh
+        <inner name="ttt" id="fff">
+          ooo <!-- c2 --> ppp
+        </inner>
+      </item>
+    </data>
+  };
+
+Diese Beispiel XML Datei kann man mit XML::Reader lesen, und zwar indem man die Methode C<iterate>
+verwendet um das jeweils nächste XML-Element zu lesen, dann kann man mit den Methoden C<path> und
+C<value> den Pfad und den aktuellen Wert lesen.
+
+Man kann ausserdem, wenn man es denn so möchte, die jeweiligen Start- und End-Tags erkennen: Es existiert
+die Methode C<is_start>, die genau dann 1 zurückgibt, wenn an der aktuellen Positon in der XML-Datei
+ein Start-Tag existiert, ansonsten gibt die Methode 0 zurück. Es existiert ebenso die zugehörige Methode
+C<is_end>.
+
+Es existieren zusätzlich die Methoden C<tag>, C<attr>, C<type> und C<level>. C<tag> liefert den aktuellen
+Tag-Namen, C<attr> liefert den Attribut-Namen, C<type> liefert entweder 'T' für Text oder '@' für Attribute,
+C<level> liefert die im Moment aktive Verschachtelungstiefe (das ist ein numerischer Wert >= 0)
+
+Hier folgend wird, um das Prinzip zu erklären, ein Beispielprogramm aufgeführt, welches die vorangegangene
+XML-Datei in '$line1' einliest...
+
+  use XML::Reader;
+
+  my $rdr = XML::Reader->newhd(\$line1) or die "Error: $!";
+  my $i = 0;
+  while ($rdr->iterate) { $i++;
+      printf "%3d. pat=%-22s, val=%-9s, s=%-1s, e=%-1s, tag=%-6s, atr=%-6s, t=%-1s, lvl=%2d\n", $i,
+        $rdr->path, $rdr->value, $rdr->is_start, $rdr->is_end, $rdr->tag, $rdr->attr, $rdr->type, $rdr->level;
+  }
+
+...und das hier ist das Resultat:
+
+   1. pat=/data                 , val=         , s=1, e=0, tag=data  , atr=      , t=T, lvl= 1
+   2. pat=/data/item            , val=abc      , s=1, e=1, tag=item  , atr=      , t=T, lvl= 2
+   3. pat=/data                 , val=         , s=0, e=0, tag=data  , atr=      , t=T, lvl= 1
+   4. pat=/data/item            , val=         , s=1, e=0, tag=item  , atr=      , t=T, lvl= 2
+   5. pat=/data/item/dummy      , val=         , s=1, e=1, tag=dummy , atr=      , t=T, lvl= 3
+   6. pat=/data/item            , val=fgh      , s=0, e=0, tag=item  , atr=      , t=T, lvl= 2
+   7. pat=/data/item/inner/@id  , val=fff      , s=0, e=0, tag=@id   , atr=id    , t=@, lvl= 4
+   8. pat=/data/item/inner/@name, val=ttt      , s=0, e=0, tag=@name , atr=name  , t=@, lvl= 4
+   9. pat=/data/item/inner      , val=ooo ppp  , s=1, e=1, tag=inner , atr=      , t=T, lvl= 3
+  10. pat=/data/item            , val=         , s=0, e=1, tag=item  , atr=      , t=T, lvl= 2
+  11. pat=/data                 , val=         , s=0, e=1, tag=data  , atr=      , t=T, lvl= 1
+
+=head1 INTERFACE
+
+=head2 Objekt Erstellung
+
+Um ein Objekt vom Typ XML::Reader zu erstellen, wird folgende Syntax verwendet:
+
+  my $rdr = XML::Reader->newhd($data,
+    {strip => 1, filter => 2, using => ['/path1', '/path2']})
+    or die "Error: $!";
+
+Der Parameter $data (welcher immer mit angegeben werden muss) ist entweder der Name einer
+XML-Datei, oder eine Referenz auf eine Zeichenkette, sodass der Inhalt dieser Zeichenkette
+als XML verarbeitet werden kann.
+
+Alternativ kann $data auch ein zuvor geöffnetes Dateihandle enthalten, z.B. \*STDIN. In diesem
+Fall wird einfach das Filehandle benutzt um die XML-Daten zu lesen.
+
+Hier ist ein Beispiel um ein Objekt des Typs XML::Reader mit einem einfachen Datei-Namen zu
+erzeugen:
+
+  my $rdr = XML::Reader->newhd('input.xml') or die "Error: $!";
+
+Hier ist ein weiteres Beispiel um ein Objekt des Typs XML::Reader mit einer Referenz
+auf eine Zeichenkette zu erzeugen:
+
+  my $rdr = XML::Reader->newhd(\'<data>abc</data>') or die "Error: $!";
+
+Hier ist noch ein weiteres Beispiel um ein Objekt des Typs XML::Reader mit einem
+zuvor geöffneneten Dateihandle zu erzeugen:
+
+  open my $fh, '<', 'input.xml' or die "Error: $!";
+  my $rdr = XML::Reader->newhd($fh);
+
+Hier ist schliesslich ein Beispiel um ein Objekt des Typs XML::Reader mit \*STDIN zu erzeugen:
+
+  my $rdr = XML::Reader->newhd(\*STDIN);
+
+Eine, oder mehrere, Optionen können als eine Hash-Referenz hinzugefügt werden:
+
+=over
+
+=item Option {parse_ct => }
+
+Option {parse_ct => 1} ermöglicht es XML-Kommentare zu lesen, die Voreinstellung ist {parse_ct => 0}
+
+=item Option {parse_pi => }
+
+Option {parse_pi => 1} ermöglicht es processing-instructions and XML-Declarations zu lesen, die
+Voreinstellung ist {parse_pi => 0}
+
+=item Option {using => }
+
+Option {using => } ermöglicht es einen Teil-Baum der XML-Datei zu selektieren.
+
+Die Syntax hierfür lautet: {using => ['/pfad1/pfad2/pfad3', '/pfad4/pfad5/pfad6']}
+
+=item Option {filter => }
+
+Option {filter => 2} zeigt alle XML-Zeilen an, einschliesslich der Attribute.
+
+Option {filter => 3} entfernt die Attribut-Zeilen (d.h. alle Zeilen mit $rdr->type eq '@' werden
+entfernt). Anstelle dessen werden die Attribute in einer Hash-Referenz $rdr->att_hash zurückgeliefert.
+
+Option {filter => 4} bricht alle Zeilen in individuelle Start-Tags, End-Tags, Attribute, Kommentare und
+Processing-Instructions auf. Damit wird die Verarbeitung der XML-Datei im PYX-Format ermöglicht.
+
+Die Syntax lautet {filter => 2|3|4}, die Voreinstellung ist {filter => 2}
+
+=item Option {strip => }
+
+Option {strip => 1} entfernt Entfernt führende als auch am Ende befindliche Leerzeichen in Text und
+in Kommentaren. (Leerzeichen werden niemals in Attributen entfernt). {strip => 0} lässt Text und
+Kommentare unberührt.
+
+Die Syntax hierfür lautet {strip => 0|1}, die Voreinstellung ist {strip => 1}
+
+=back
+
+=head2 Methoden
+
+Ein erfolgreich erstelltes Objekt vom Typ XML::Reader stellt folgende Methoden zur Verfügung:
+
+=over
+
+=item iterate
+
+Liest das nächste XML-Element. Die Methode liefert den Wert 1 zurück wenn das Lesen erfolgreich war,
+oder undef falls das Ende des XML-Files erreicht wurde.
+
+=item path
+
+Liefert den gesamten Pfad des aktuellen XML-Elements zurück, Attribute werden mit einem führenden 
+'@'-Zeichen markiert.
+
+=item value
+
+Liefert den aktuellen Wert zurück (d.h. den Wert des aktuellen Textes oder den des aktuellen Attributes).
+
+Bitte beachten Sie dass wenn {filter => 2 oder 3} und das aktuelle Element eine XML-Deklaration ist
+(d.h. $rdr->is_decl == 1), dann ist es ratsam den aktuellen Wert nicht zu berücksichtigen (er ist sowieso
+leer). Ein typisches Beispiel wäre:
+
+  print $rdr->value, "\n" unless $rdr->is_decl;
+
+Dieses oben angegebe Beispiel trifft nicht zu wenn {filter => 4} aktiv ist. In diesem falle genügt ein
+einfaches "print $rdr->value;":
+
+  print $rdr->value, "\n";
+
+=item comment
+
+Liefert den aktuellen Kommentar zurück. Bevor man diesen Wert benutzt, sollte man mit $rdr->is_comment prüfen
+ob das aktuelle Element wirklich ein Kommentar ist.
+
+=item type
+
+Liefert den Typ des Wertes zurück: 'T' für Text, '@' für Attribute.
+
+Falls Option {filter => 4} aktiviert ist, dann kann der Typ folgende Werte annehmen: 'T' für Text, '@' für
+Attribute, 'S' für Start-Tags, 'E' für End-Tags, '#' für Kommentare, 'D' für XML-Declarationen, '?' für
+Processing-Instructions.
+
+=item tag
+
+Liefert den aktuellen Tag-Namen zurück.
+
+=item attr
+
+Liefert den aktuellen Attribut-Namen zurück (liefert eine leere Zeichenkette zurück falls das aktuelle Element
+kein Attribut ist).
+
+=item level
+
+Zeigt die aktuelle Verschachtelungstiefe des XPath-Ausdruckes an (das ist ein numerischer Wert > 0)
+
+=item prefix
+
+Liefert den Präfix zurück der durch die Option {using => ...} entfernt wurde. Falls die Option {using => ...}
+nicht benutzt wurde, wird eine leere Zeichenkette zurückgegeben
+
+=item att_hash
+
+Liefert eine Referenz zu einem Hash zurück der die aktuellen Attribute eines Start-Tags enthält (der Hash
+ist leer falls der aktuelle Tag kein Start-Tag ist)
+
+=item dec_hash
+
+Liefert eine Referenz zu einem Hash zurück der die aktuellen Attribute einer XML-Declaration enthält (der Hash
+ist leer falls der aktuelle Tag keine XML-Declaration ist)
+
+=item proc_tgt
+
+Liefert den Ziel Wert (d.h. den ersten Teil) einer Processing-Instruction zurück (eine leere Zeichenkette
+wird zurückgegeben falls der aktuelle Tag keine Processing-Instruction ist)
+
+=item proc_data
+
+Liefert den Daten Wert (d.h. den zweiten Teil) einer Processing-Instruction zurück (eine leere Zeichenkette
+wird zurückgegeben falls der aktuelle Tag keine Processing-Instruction ist)
+
+=item pyx
+
+Liefert eine Zeichenkette im PYX-Format des aktuellen Tags zurück.
+
+Das PYX-Format ist eine Zeichenkette deren erstes Zeichen eine spezielle Bedeutung hat. Dieses erste Zeichen
+einer jeweiligen PYX-Zeichenkette gibt den Typ des Ereignisses an mit dem man es zu tun hat: falls das erste
+Zeichen ein '(' ist, dann hat man es mit einem Start-Tag zu tun, wenn es ein ')' ist, dann hat man es mit
+einem End-Tag zu tun, wenn es ein 'A' ist, dann hat man es mit einem Attribut zu tun, wenn es ein '-' ist,
+dann hat man es mit einem Text zu tun, wenn es ein '?' ist, dann hat man es mit einer Processing-Instruction
+zu tun. (siehe L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> für eine Einführung in PYX)
+
+Die Methode C<pyx> macht nur Sinn falls die Option {filter => 4} aktiviert wurde, ansonsten wird undef
+zurückgeliefert.
+
+=item is_start
+
+Liefert 1 zurück falls die aktuelle Position ein Start-Tag ist, ansonsten wird 0 zurückgeliefert.
+
+=item is_end
+
+Liefert 1 zurück falls die aktuelle Position ein End-Tag ist, ansonsten wird 0 zurückgeliefert.
+
+=item is_decl
+
+Liefert 1 zurück falls die aktuelle Position eine XML-Declaration ist, ansonsten wird 0 zurückgeliefert.
+
+=item is_proc
+
+Liefert 1 zurück falls die aktuelle Position eine Processing-Instruction ist, ansonsten wird 0 zurückgeliefert.
+
+=item is_comment
+
+Liefert 1 zurück falls die aktuelle Position ein Kommentar ist, ansonsten wird 0 zurückgeliefert.
+
+=item is_text
+
+Liefert 1 zurück falls die aktuelle Position ein Text ist, ansonsten wird 0 zurückgeliefert.
+
+=item is_attr
+
+Liefert 1 zurück falls die aktuelle Position ein Attribut ist, ansonsten wird 0 zurückgeliefert.
+
+=item is_value
+
+Liefert 1 zurück falls die aktuelle Position ein Text oder ein Attribut ist, ansonsten wird 0 zurückgeliefert.
+Diese Methode ist insbesondere nützlich wenn {filter => 4} aktiv ist, in diesem Falle kann man damit testen
+ob es sinnvoll ist die Methode value() aufzurufen.
+
+=back
+
+=head1 OPTION USING
+
+Mit der Option {using => ...} kann man einen Teil-Baum der XML-Datei selektieren.
+
+So funktioniert das im Detail...
+
+Die Option {using => ['/pfad1/pfad2/pfad3', '/pfad4/pfad5/pfad6']} eliminiert alle Zeilen deren
+Pfad nicht mit '/pfad1/pfad2/pfad3' (oder nicht mit '/pfad4/pfad5/pfad6') beginnen. Das lässt
+dann nur noch Zeilen übrig, die dann mit '/pfad1/pfad2/pfad3' oder mit '/pfad4/pfad5/pfad6' beginnen.
+
+Diese Zeilen (die nicht eliminiert wurden) haben dann einen kürzeren Pfad, weil der Präfix
+'/pfad1/pfad2/pfad3' (oder '/pfad4/pfad5/pfad6') entfernt wurde. Der entfernte Präfix erscheint
+dann aber in der Methode prefix().
+
+Man kann sagen dass die Pfade '/pfad1/pfad2/pfad3' und '/pfad4/pfad5/pfad6' "absolut" und
+"komplett" sind. Der Begriff "absolut" bedeutet dass die Pfade mit einem '/' beginnen müssen,
+der Begriff "komplett" bedeutet dass der Pfad intern mit einem anghängten '/'-Zeichen
+abgeschlossen wird.
+
+=head2 Ein Beispiel mit Option 'using'
+
+Das folgende Programm liest eine XML-Datei und parst sie mit XML::Reader, die Option 'using'
+selektiert dabei nur einen Teil des XML-Baumes:
+
+  use XML::Reader;
+
+  my $line2 = q{
+  <data>
+    <order>
+      <database>
+        <customer name="aaa" />
+        <customer name="bbb" />
+        <customer name="ccc" />
+        <customer name="ddd" />
+      </database>
+    </order>
+    <dummy value="ttt">test</dummy>
+    <supplier>hhh</supplier>
+    <supplier>iii</supplier>
+    <supplier>jjj</supplier>
+  </data>
+  };
+
+  my $rdr = XML::Reader->newhd(\$line2,
+    {using => ['/data/order/database/customer', '/data/supplier']});
+
+  my $i = 0;
+  while ($rdr->iterate) { $i++;
+      printf "%3d. prf=%-29s, pat=%-7s, val=%-3s, tag=%-6s, t=%-1s, lvl=%2d\n",
+        $i, $rdr->prefix, $rdr->path, $rdr->value, $rdr->tag, $rdr->type, $rdr->level;
+  }
+
+Das ist das Ergebnis dieses Programms:
+
+   1. prf=/data/order/database/customer, pat=/@name , val=aaa, tag=@name , t=@, lvl= 1
+   2. prf=/data/order/database/customer, pat=/      , val=   , tag=      , t=T, lvl= 0
+   3. prf=/data/order/database/customer, pat=/@name , val=bbb, tag=@name , t=@, lvl= 1
+   4. prf=/data/order/database/customer, pat=/      , val=   , tag=      , t=T, lvl= 0
+   5. prf=/data/order/database/customer, pat=/@name , val=ccc, tag=@name , t=@, lvl= 1
+   6. prf=/data/order/database/customer, pat=/      , val=   , tag=      , t=T, lvl= 0
+   7. prf=/data/order/database/customer, pat=/@name , val=ddd, tag=@name , t=@, lvl= 1
+   8. prf=/data/order/database/customer, pat=/      , val=   , tag=      , t=T, lvl= 0
+   9. prf=/data/supplier               , pat=/      , val=hhh, tag=      , t=T, lvl= 0
+  10. prf=/data/supplier               , pat=/      , val=iii, tag=      , t=T, lvl= 0
+  11. prf=/data/supplier               , pat=/      , val=jjj, tag=      , t=T, lvl= 0
+
+=head2 Ein Beispiel ohne Option 'using'
+
+Das folgende Programm liest eine XML-Datei und parst sie mit XML::Reader, jedoch ohne Option 'using'.
+
+  use XML::Reader;
+
+  my $rdr = XML::Reader->newhd(\$line2);
+  my $i = 0;
+  while ($rdr->iterate) { $i++;
+      printf "%3d. prf=%-1s, pat=%-37s, val=%-6s, tag=%-11s, t=%-1s, lvl=%2d\n",
+       $i, $rdr->prefix, $rdr->path, $rdr->value, $rdr->tag, $rdr->type, $rdr->level;
+  }
+
+Wie man in dem folgenden Resultat sehen kann, werden mehr Ausgabezeilen geschrieben, der Präfix ist
+leer und der Pfad ist jetzt länger als zuvor.
+
+   1. prf= , pat=/data                                , val=      , tag=data       , t=T, lvl= 1
+   2. prf= , pat=/data/order                          , val=      , tag=order      , t=T, lvl= 2
+   3. prf= , pat=/data/order/database                 , val=      , tag=database   , t=T, lvl= 3
+   4. prf= , pat=/data/order/database/customer/@name  , val=aaa   , tag=@name      , t=@, lvl= 5
+   5. prf= , pat=/data/order/database/customer        , val=      , tag=customer   , t=T, lvl= 4
+   6. prf= , pat=/data/order/database                 , val=      , tag=database   , t=T, lvl= 3
+   7. prf= , pat=/data/order/database/customer/@name  , val=bbb   , tag=@name      , t=@, lvl= 5
+   8. prf= , pat=/data/order/database/customer        , val=      , tag=customer   , t=T, lvl= 4
+   9. prf= , pat=/data/order/database                 , val=      , tag=database   , t=T, lvl= 3
+  10. prf= , pat=/data/order/database/customer/@name  , val=ccc   , tag=@name      , t=@, lvl= 5
+  11. prf= , pat=/data/order/database/customer        , val=      , tag=customer   , t=T, lvl= 4
+  12. prf= , pat=/data/order/database                 , val=      , tag=database   , t=T, lvl= 3
+  13. prf= , pat=/data/order/database/customer/@name  , val=ddd   , tag=@name      , t=@, lvl= 5
+  14. prf= , pat=/data/order/database/customer        , val=      , tag=customer   , t=T, lvl= 4
+  15. prf= , pat=/data/order/database                 , val=      , tag=database   , t=T, lvl= 3
+  16. prf= , pat=/data/order                          , val=      , tag=order      , t=T, lvl= 2
+  17. prf= , pat=/data                                , val=      , tag=data       , t=T, lvl= 1
+  18. prf= , pat=/data/dummy/@value                   , val=ttt   , tag=@value     , t=@, lvl= 3
+  19. prf= , pat=/data/dummy                          , val=test  , tag=dummy      , t=T, lvl= 2
+  20. prf= , pat=/data                                , val=      , tag=data       , t=T, lvl= 1
+  21. prf= , pat=/data/supplier                       , val=hhh   , tag=supplier   , t=T, lvl= 2
+  22. prf= , pat=/data                                , val=      , tag=data       , t=T, lvl= 1
+  23. prf= , pat=/data/supplier                       , val=iii   , tag=supplier   , t=T, lvl= 2
+  24. prf= , pat=/data                                , val=      , tag=data       , t=T, lvl= 1
+  25. prf= , pat=/data/supplier                       , val=jjj   , tag=supplier   , t=T, lvl= 2
+  26. prf= , pat=/data                                , val=      , tag=data       , t=T, lvl= 1
+
+=head1 OPTION PARSE_CT
+
+Die Option {parse_ct => 1} erlaubt das Lesen von Kommentaren (normalerweise werden Kommentare von
+XML::Reader ignoriert, d.h. {parse_ct => 0} ist die Voreinstellung).
+
+Hier ist ein Beispiel wo Kommentare, wie voreingestellt, ignoriert werden:
+
+  use XML::Reader;
+
+  my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
+
+  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
+                              print "Found decl     ",  join('', map{" $_='$h{$_}'"} sort keys %h), "\n"; }
+      if ($rdr->is_proc)    { print "Found proc      ", "t=", $rdr->proc_tgt, ", d=", $rdr->proc_data, "\n"; }
+      if ($rdr->is_comment) { print "Found comment   ", $rdr->comment, "\n"; }
+      print "Text '", $rdr->value, "'\n" unless $rdr->is_decl;
+  }
+
+Hier ist das Ergebnis:
+
+  Text 'xyz stu test'
+
+Jetzt ein Beispiel mit den selben XML-Daten und dem selben Algorithmus, ausser dass die Option
+{parse_ct => 1} aktiviert ist:
+
+  use XML::Reader;
+
+  my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
+
+  my $rdr = XML::Reader->newhd(\$text, {parse_ct => 1}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
+                              print "Found decl     ",  join('', map{" $_='$h{$_}'"} sort keys %h), "\n"; }
+      if ($rdr->is_proc)    { print "Found proc      ", "t=", $rdr->proc_tgt, ", d=", $rdr->proc_data, "\n"; }
+      if ($rdr->is_comment) { print "Found comment   ", $rdr->comment, "\n"; }
+      print "Text '", $rdr->value, "'\n" unless $rdr->is_decl;
+  }
+
+Hier ist das Ergebnis:
+
+  Text 'xyz'
+  Found comment   remark
+  Text 'stu test'
+
+=head1 OPTION PARSE_PI
+
+Die Option {parse_pi => 1} erlaubt das Lesen von Processing-Instructions und XML-Declarations (normalerweise
+werden Processing-Instructions und XML-Declarations von XML::Reader ignoriert, d.h. {parse_pi => 0}  ist die
+Voreinstellung).
+
+Als Beispiel benutzen wir hier die selben XML-Daten und den selben Algorithmus wie zuvor, ausser dass die
+Option {parse_pi => 1} aktiviert ist (zusammen mit der schon aktivierten Option {parse_ct => 1}):
+
+  use XML::Reader;
+
+  my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
+
+  my $rdr = XML::Reader->newhd(\$text, {parse_ct => 1, parse_pi => 1}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
+                              print "Found decl     ",  join('', map{" $_='$h{$_}'"} sort keys %h), "\n"; }
+      if ($rdr->is_proc)    { print "Found proc      ", "t=", $rdr->proc_tgt, ", d=", $rdr->proc_data, "\n"; }
+      if ($rdr->is_comment) { print "Found comment   ", $rdr->comment, "\n"; }
+      print "Text '", $rdr->value, "'\n" unless $rdr->is_decl;
+  }
+
+Beachten sie im obigen Programm die Zeile "unless $rdr->is_decl". Diese Zeile existiert damit verhindert wird dass
+der Wert einer XML-Declaration ausgegeben wird (dieser Wert wäre dann sowieso leer).
+
+Hier ist das Resultat:
+
+  Found decl      version='1.0'
+  Text 'xyz'
+  Found comment   remark
+  Text 'stu'
+  Found proc      t=ab, d=cde
+  Text 'test'
+
+=head1 OPTION FILTER
+
+Die Option Filter erlaubt verschiedene Grundeinstellungen zum Verarbeiten von XML-Daten.
+
+=head2 Option {filter => 2}
+
+Mit der Option {filter => 2}, XML::Reader erzeugt eine Zeile für jedes Text-Event. Falls der vorangehende
+Tag ein Start-Tag ist, dann wird die Methode is_start auf 1 gesetzt. Falls der folgende Tag ein End-Tag
+ist, dann wird die Methode is_end auf 1 gesetzt. Falls der vorangehende Tag ein Kommentar ist, dann wird
+die Methode is_comment auf 1 gesetzt. Falls der vorangehende Tag eine XML-Declaration ist, dann wird die Methode
+is_decl auf 1 gesetzt. Falls der vorangehende Tag eine Processing-Instruction ist, dann wird die Methode is_proc
+auf 1 gesetzt.
+
+Zusätzlich, Attribute werden als spezielle Zeilen mit der '/@...' Syntax hinzugefügt.
+
+Option {filter => 2} ist die Voreinstellung.
+
+Hier ist ein Beispiel...
+
+  use XML::Reader;
+
+  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
+
+  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
+  while ($rdr->iterate) {
+      printf "Path: %-24s, Value: %s\n", $rdr->path, $rdr->value;
+  }
+
+Dieses Programm (mit der impliziten Option {filter => 2} als Voreinstellung) produziert folgendes Resultat:
+
+  Path: /root                   , Value:
+  Path: /root/test/@param       , Value: v
+  Path: /root/test              , Value:
+  Path: /root/test/a            , Value:
+  Path: /root/test/a/b          , Value: e
+  Path: /root/test/a/b/data/@id , Value: z
+  Path: /root/test/a/b/data     , Value: g
+  Path: /root/test/a/b          , Value: f
+  Path: /root/test/a            , Value:
+  Path: /root/test              , Value:
+  Path: /root                   , Value: x yz
+
+Dieselbe Option {filter => 2} erlaubt die Erkennung der XML-Struktur mithilfe der Methoden
+C<is_start> und C<is_end>. Bitte beachten Sie ebenso in dem obigen Resultat dass die erste Zeile
+("Path: /root, Value:") zwar leer ist, jedoch sehr wichtig für die XML-Struktur ist. Daher dürfen
+wir diese Zeile nicht vergessen.
+
+Schauen wir jetzt auf das selbe Beispiel (mit der Option {filter => 2}), jedoch mit einem zusätzlichen Algorithmus
+um die originale XML-Struktur wieder herzustellen:
+
+  use XML::Reader;
+
+  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
+
+  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
+
+  my %at;
+
+  while ($rdr->iterate) {
+      my $indentation = '  ' x ($rdr->level - 1);
+
+      if ($rdr->type eq '@')  { $at{$rdr->attr} = $rdr->value; }
+
+      if ($rdr->is_start) {
+          print $indentation, '<', $rdr->tag, join('', map{" $_='$at{$_}'"} sort keys %at), '>', "\n";
+      }
+
+      unless ($rdr->type eq '@') { %at = (); }
+
+      if ($rdr->type eq 'T' and $rdr->value ne '') {
+          print $indentation, '  ', $rdr->value, "\n";
+      }
+
+      if ($rdr->is_end) {
+          print $indentation, '</', $rdr->tag, '>', "\n";
+      }
+  }
+
+...hier ist das Resultat:
+
+  <root>
+    <test param='v'>
+      <a>
+        <b>
+          e
+          <data id='z'>
+            g
+          </data>
+          f
+        </b>
+      </a>
+    </test>
+    x yz
+  </root>
+
+...Dieses Resultat beweist dass die originale XML-Struktur nicht verloren gegangen ist.
+
+=head2 Option {filter => 3}
+
+Die Option {filter => 3} funktioniert ähnlich wie {filter => 2}.
+
+Der Unterschied jedoch ist dass mit Option {filter => 3} alle Attribut-Zeilen eliminiert werden
+und anstelle dessen die Attribute fuer ein Start-Tag im hash $rdr->att_hash() erscheinen.
+
+Damit wird die Benutzung einer globalen %at-Variable im oben angegebenen Algorithmus nicht mehr
+notwendig und kann daher durch die Konstruktion %{$rdr->att_hash} erstzt werden.
+
+Hier ist ein neuer Algorithmus für {filter => 3}, wir brauchen uns nicht mehr explizit um
+Attribut-Zeilen zu kümmern (d.h. wir brauchen nicht mehr abzufragen ob $rdr->type eq '@') und,
+wie schon bemerkt, die %at-Variable wird ersetzt durch %{$rdr->att_hash} :
+
+  use XML::Reader;
+
+  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
+
+  my $rdr = XML::Reader->newhd(\$text, {filter => 3}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      my $indentation = '  ' x ($rdr->level - 1);
+
+      if ($rdr->is_start) {
+          print $indentation, '<', $rdr->tag,
+            join('', map{" $_='".$rdr->att_hash->{$_}."'"} sort keys %{$rdr->att_hash}),
+            '>', "\n";
+      }
+
+      if ($rdr->type eq 'T' and $rdr->value ne '') {
+          print $indentation, '  ', $rdr->value, "\n";
+      }
+
+      if ($rdr->is_end) {
+          print $indentation, '</', $rdr->tag, '>', "\n";
+      }
+  }
+
+...das Resultat für {filter => 3} ist identisch mit dem Resultat für {filter => 2}:
+
+  <root>
+    <test param='v'>
+      <a>
+        <b>
+          e
+          <data id='z'>
+            g
+          </data>
+          f
+        </b>
+      </a>
+    </test>
+    x yz
+  </root>
+
+=head2 Option {filter => 4}
+
+Obwohl es nicht die Hauptfunktion von XML::Reader darstellt, die Option {filter => 4} erlaubt die Erzeugung von
+individuellen Zeilen für jeweils das Start-Tag, das End-Tag, Kommentare, Processing-Instructions und
+XML-Declarations. Der Sinn ist eine PYX-kompatible Ausgabe-Zeichenkette zur weiteren Verarbeitung zu erzeugen.
+
+Hier ist ein Beispiel:
+
+  use XML::Reader;
+
+  my $text = q{<?xml version="1.0" encoding="iso-8859-1"?>
+    <delta>
+      <dim alter="511">
+        <gamma />
+        <beta>
+          car <?tt dat?>
+        </beta>
+      </dim>
+      dskjfh <!-- remark --> uuu
+    </delta>};
+
+  my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_pi => 1}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      printf "Type = %1s, pyx = %s\n", $rdr->type, $rdr->pyx;
+  }
+
+und hier ist das Resultat:
+
+  Type = D, pyx = ?xml version='1.0' encoding='iso-8859-1'
+  Type = S, pyx = (delta
+  Type = S, pyx = (dim
+  Type = @, pyx = Aalter 511
+  Type = S, pyx = (gamma
+  Type = E, pyx = )gamma
+  Type = S, pyx = (beta
+  Type = T, pyx = -car
+  Type = ?, pyx = ?tt dat
+  Type = E, pyx = )beta
+  Type = E, pyx = )dim
+  Type = T, pyx = -dskjfh uuu
+  Type = E, pyx = )delta
+
+Bitte berücksichtigen Sie dass Kommentare in der Methode C<pyx> in einem nicht-standardisierten Format
+erzeugt werden, falls {parse_ct => 1} gesetzt ist. Die Kommentare werden dann mit einem führenden Doppelkreuz
+erzugt welches nicht in der PYX-Spezifikation existiert. Das folgende Beispiel demonstriert diesen Fall:
+
+  use XML::Reader;
+
+  my $text = q{
+    <delta>
+      <!-- remark -->
+    </delta>};
+
+  my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_ct => 1}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      printf "Type = %1s, pyx = %s\n", $rdr->type, $rdr->pyx;
+  }
+
+Hier ist das Ergebnis:
+
+  Type = S, pyx = (delta
+  Type = #, pyx = #remark
+  Type = E, pyx = )delta
+
+Ausserdem, falls {filter => 4} gesetzt ist, bleiben folgende Methoden gültig: (C<value>, C<attr>,
+C<path>, C<is_start>, C<is_end>, C<is_decl>, C<is_proc>, C<is_comment>, C<is_attr>, C<is_text>,
+C<is_value>, C<comment>, C<proc_tgt>, C<proc_data>, C<dec_hash> und C<att_hash>). Hier ist ein Beispiel:
+
+  use XML::Reader;
+
+  my $text = q{<?xml version="1.0"?>
+    <parent abc="def"> <?pt hmf?>
+      dskjfh <!-- remark -->
+      <child>ghi</child>
+    </parent>};
+
+  my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_pi => 1, parse_ct => 1}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      printf "Path %-15s v=%s ", $rdr->path, $rdr->is_value;
+
+      if    ($rdr->is_start)   { print "Found start tag ", $rdr->tag, "\n"; }
+      elsif ($rdr->is_end)     { print "Found end tag   ", $rdr->tag, "\n"; }
+      elsif ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
+                                 print "Found decl     ",  join('', map{" $_='$h{$_}'"} sort keys %h), "\n"; }
+      elsif ($rdr->is_proc)    { print "Found proc      ", "t=",    $rdr->proc_tgt, ", d=", $rdr->proc_data, "\n"; }
+      elsif ($rdr->is_comment) { print "Found comment   ", $rdr->comment, "\n"; }
+      elsif ($rdr->is_attr)    { print "Found attribute ", $rdr->attr, "='", $rdr->value, "'\n"; }
+      elsif ($rdr->is_text)    { print "Found text      ", $rdr->value, "\n"; }
+  }
+
+Hier ist das Ergebnis:
+
+  Path /               v=0 Found decl      version='1.0'
+  Path /parent         v=0 Found start tag parent
+  Path /parent/@abc    v=1 Found attribute abc='def'
+  Path /parent         v=0 Found proc      t=pt, d=hmf
+  Path /parent         v=1 Found text      dskjfh
+  Path /parent         v=0 Found comment   remark
+  Path /parent/child   v=0 Found start tag child
+  Path /parent/child   v=1 Found text      ghi
+  Path /parent/child   v=0 Found end tag   child
+  Path /parent         v=0 Found end tag   parent
+
+
+Bitte beachten Sie dass v=1 (d.h. $rdr->is_value == 1) für alle Texte und für alle Attribute.
+
+=head1 BEISPIELE
+
+Betrachten wir nun folgende XML-Datei, von der wir die Werte innerhalb der Tags <item> (dabei meine
+ich nur den ersten Teil 'start...', und nicht den zweiten Teil 'end...') plus die Attribute "p1" und
+"p3" extrahieren wollen. Der <item>-Tag muss exact im Pfad /start/param/data existieren (und *nicht*
+im Pfad /start/param/dataz).
+
+  my $text = q{
+    <start>
+      <param>
+        <data>
+          <item p1="a" p2="b" p3="c">start1 <inner p1="p">i1</inner> end1</item>
+          <item p1="d" p2="e" p3="f">start2 <inner p1="q">i2</inner> end2</item>
+          <item p1="g" p2="h" p3="i">start3 <inner p1="r">i3</inner> end3</item>
+        </data>
+        <dataz>
+          <item p1="j" p2="k" p3="l">start9 <inner p1="s">i9</inner> end9</item>
+        </dataz>
+        <data>
+          <item p1="m" p2="n" p3="o">start4 <inner p1="t">i4</inner> end4</item>
+        </data>
+      </param>
+    </start>};
+
+Wir erwarten genau 4 Ergebnis-Zeilen von unserem Parse-Lauf (d.h. wir erwarten keine
+'dataz' - 'start9' Werte):
+
+  item = 'start1', p1 = 'a', p3 = 'c'
+  item = 'start2', p1 = 'd', p3 = 'f'
+  item = 'start3', p1 = 'g', p3 = 'i'
+  item = 'start4', p1 = 'm', p3 = 'o'
+
+=head2 XML-Parsen mit {filter => 2}
+
+Hier ist ein Beispiel-Programm um die XML-Datei mit {filter => 2} zu parsen. (Bitte
+beachten Sie wie der Präfix '/start/param/data/item' in der {using => ...} Option
+von newhd verwendet wird). Wir brauchen ausserdem zwei scalar Variablen ('$p1' und '$p3')
+um die Parameter in '/@p1' und '/@p3' aufzunehmen und sie in den Programmteil
+$rdr->is_start zu übertragen, wo sie dann ausgegeben werden können.
+
+  my $rdr = XML::Reader->newhd(\$text,
+    {filter => 2, using => '/start/param/data/item'}) or die "Error: $!";
+
+  my ($p1, $p3);
+
+  while ($rdr->iterate) {
+      if    ($rdr->path eq '/@p1') { $p1 = $rdr->value; }
+      elsif ($rdr->path eq '/@p3') { $p3 = $rdr->value; }
+      elsif ($rdr->path eq '/' and $rdr->is_start) {
+          printf "item = '%s', p1 = '%s', p3 = '%s'\n",
+            $rdr->value, $p1, $p3;
+      }
+      unless ($rdr->is_attr) { $p1 = undef; $p3 = undef; }
+  }
+
+=head2 XML-Parsen mit {filter => 3}
+
+Mit {filter => 3} können wir auf die zwei scalar Variablen ('$p1' und '$p3') verzichten, das
+Programm vereinfacht sich wie folgt:
+
+  my $rdr = XML::Reader->newhd(\$text,
+    {filter => 3, using => '/start/param/data/item'}) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      if ($rdr->path eq '/' and $rdr->is_start) {
+          printf "item = '%s', p1 = '%s', p3 = '%s'\n",
+            $rdr->value, $rdr->att_hash->{p1}, $rdr->att_hash->{p3};
+      }
+  }
+
+=head2 XML-Parsen mit {filter => 4}
+
+Jedoch mit {filter => 4} wird das Programm wieder komplizierter: Wie schon im Beispiel
+für {filter => 2} gezeigt, benötigen wir hier wieder zwei scalar Variablen ('$p1' und '$p3')
+um die Parameter in '/@p1' und '/@p3' aufzunehmen und sie dann zu übertragen. Zusätzlich
+müssen wir hier jedoch auch noch Text-Werte zählen können (siehe scalar Variable '$count'),
+sodass wir zwischen dem ersten Wert 'start...' (welchen wir ausgeben wollen) und dem zweiten
+Wert 'end...' (welchen wir nicht ausgeben wollen) unterscheiden können.
+
+  my $rdr = XML::Reader->newhd(\$text,
+    {filter => 4, using => '/start/param/data/item'}) or die "Error: $!";
+
+  my ($count, $p1, $p3);
+
+  while ($rdr->iterate) {
+      if    ($rdr->path eq '/@p1') { $p1 = $rdr->value; }
+      elsif ($rdr->path eq '/@p3') { $p3 = $rdr->value; }
+      elsif ($rdr->path eq '/') {
+          if    ($rdr->is_start) { $count = 0; $p1 = undef; $p3 = undef; }
+          elsif ($rdr->is_text) {
+              $count++;
+              if ($count == 1) {
+                  printf "item = '%s', p1 = '%s', p3 = '%s'\n",
+                    $rdr->value, $p1, $p3;
+              }
+          }
+      }
+  }
+
+=head1 AUTOR
+
+Klaus Eichner, March 2009
+
+=head1 COPYRIGHT UND LIZENZ
+
+Dieses ist der original Text auf Englisch:
+
+Copyright (C) 2009 by Klaus Eichner.
+
+All rights reserved. This program is free software; you can redistribute
+it and/or modify it under the terms of the artistic license,
+see L<http://www.opensource.org/licenses/artistic-license-1.0.php>
+
+=head1 VERWANDTE MODULE
+
+Falls Sie vorhaben XML auch ausgeben zu wollen, dann schlage ich vor das Modul XML::Writer zu
+benutzen. Dieses Modul bietet ein einfach zu handhabendes Interface zur Ausgabe von XML-Dateien.
+(Falls sie non-mixed content XML ausgeben, würde ich empfehlen die Optionen DATA_MODE=>1 und
+DATA_INDENT=>2 zu setzen, das erlaubt die korrekte Formatierung und Einrückung in Ihrer XML
+Ausgabe-Datei).
+
+=head1 REFERENEZN
+
+L<XML::TokeParser>,
+L<XML::Parser>,
+L<XML::Parser::Expat>,
+L<XML::TiePYX>,
+L<XML::Writer>.
+
+=cut

@@ -294,8 +294,8 @@ use_ok('XML::Reader');
             my $indentation = '  ' x ($rdr->level - 1);
 
             if ($rdr->is_start) {
-                my %at = %{$rdr->att_hash};
-                push @lines, $indentation.'<'.$rdr->tag.join('', map{" $_='$at{$_}'"} sort keys %at).'>';
+                push @lines, $indentation.'<'.$rdr->tag.
+                  join('', map{" $_='".$rdr->att_hash->{$_}."'"} sort keys %{$rdr->att_hash}).'>';
             }
 
             if ($rdr->type eq 'T' and $rdr->value ne '') {

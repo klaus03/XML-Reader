@@ -75,3 +75,15 @@ Revision history for XML-Reader
 0.20    25 Aug 2009
         add method is_value()
         add some example code to parse an XML file with XML::Reader
+
+0.21    12 Sep 2009
+        in method XML::Reader::DESTROY()
+          replace $self->{ExpatNB}->parse_done;
+          by      $self->{ExpatNB}->release;
+        in XML::Reader->new(): inject an {XR_debug} into $self->{ExpatNB}, if so requested
+          by $opt{debug}
+        add t/0030_test.t to test that XML::Reader does not leak memory
+        explain documentation (=item is_value) in more detail
+        translate POD-documentation into French: pod/XML-Reader-fr.pod
+        translate POD-documentation into German: pod/XML-Reader-de.pod
+        re-licence under the Artistic licence

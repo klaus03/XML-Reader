@@ -1,4 +1,4 @@
-XML-Reader Version 0.20
+XML-Reader Version 0.21
 
 Reading XML and providing path information based on a pull-parser.
 
@@ -38,7 +38,8 @@ You can also look for information at:
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2009 Klaus Eichner
+Copyright (C) 2009 by Klaus Eichner
 
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+All rights reserved. This program is free software; you can redistribute
+it and/or modify it under the terms of the artistic licence,
+see http://www.opensource.org/licenses/artistic-license-1.0.php

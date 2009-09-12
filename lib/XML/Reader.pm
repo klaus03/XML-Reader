@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.20';
+our $VERSION     = '0.21';
 
 sub newhd {
     my $class = shift;
@@ -84,9 +84,7 @@ sub newhd {
     
     # This means that, in order to avoid a memory leak, we have to break this circular
     # reference when we are done with the processing. The breaking of the circular reference
-    # will be performed in XML::Reader->DESTROY, which calls XML::Parser::ExpatNB->parse_done.
-    # (-- which, in turn, calls XML::Parser::Expat->release to actually break the circular
-    # reference --)
+    # will be performed in XML::Reader->DESTROY, which calls XML::Parser::Expat->release.
 
     # This is an important moment (-- in terms of memory management, at least --).
     # XML::Parser->parse_start creates an XML::Parser::ExpatNB-object, which in turn generates
@@ -108,6 +106,11 @@ sub newhd {
         XR_ParseInst => $opt{parse_pi},
         XR_ParseComm => $opt{parse_ct},
       ) or croak "Failed assertion #0020 in subroutine XML::Reader->newhd: Can't create XML::Parser->parse_start";
+
+    # for XML::Reader, version 0.21 (12-Sep-2009):
+    # inject an {XR_debug} into $self->{ExpatNB}, if so requested by $opt{debug}
+
+    if (exists $opt{debug}) { $self->{ExpatNB}{XR_debug} = $opt{debug}; }
 
     # The instruction "XR_Data => []" (-- the 'XR_...' prefix stands for 'Xml::Reader...' --)
     # inside XML::Parser->parse_start() creates an empty array $ExpatNB{XR_Data} = []
@@ -490,15 +493,12 @@ sub DESTROY {
     # >> XML::Parser::Expat directly, then it's your responsibility to call it.
     # >> ------------------------------------------------------------------------
 
-    # We call XML::Parser::Expat->release by actually calling
-    # XML::Parser::ExpatNB->parse_done.
-
     # There is a possibility that the XML::Parser::ExpatNB-object did not get
     # created, while still blessing the XML::Reader object. Therefore we have to
-    # test for this case before calling XML::Parser::ExpatNB->parse_done.
+    # test for this case before calling XML::Parser::ExpatNB->release.
 
     if ($self->{ExpatNB}) {
-        $self->{ExpatNB}->parse_done;
+        $self->{ExpatNB}->release; # ...and not $self->{ExpatNB}->parse_done;
     }
 }
 
@@ -577,7 +577,7 @@ above, which allows you to parse XML in that way).
 But going back to the normal mode of operation, here is an example XML in variable '$line1':
 
   my $line1 = 
-  q{<?xml version="1.0" encoding="ISO-8859-1"?>
+  q{<?xml version="1.0" encoding="iso-8859-1"?>
     <data>
       <item>abc</item>
       <item><!-- c1 -->
@@ -591,7 +591,7 @@ But going back to the normal mode of operation, here is an example XML in variab
   };
 
 This example can be parsed with XML::Reader using the methods C<iterate> to iterate one-by-one through the
-XML-data, C<path> and C<value> to extract the current XML-path and it's value.
+XML-data, C<path> and C<value> to extract the current XML-path and its value.
 
 You can also keep track of the start- and end-tags: There is a method C<is_start>, which returns 1 or
 0, depending on whether the XML-file had a start tag at the current position. There is also the
@@ -640,7 +640,7 @@ The element $data (which is mandatory) is the name of the XML-file, or a
 reference to a string, in which case the content of that string is taken as the
 text of the XML.
 
-Alternatively, $data can also be a previously opened filehandle, such as *STDIN, in which case
+Alternatively, $data can also be a previously opened filehandle, such as \*STDIN, in which case
 that filehandle is used to read the XML.
 
 Here is an example to create an XML::Reader object with a file-name:
@@ -670,25 +670,23 @@ Option {parse_ct => 1} allows for comments to be parsed, default is {parse_ct =>
 
 =item option {parse_pi => }
 
-Option {parse_pi => 1} allows for process-instructions and XML-Declarations to be parsed,
+Option {parse_pi => 1} allows for processing-instructions and XML-Declarations to be parsed,
 default is {parse_pi => 0}
 
 =item option {using => }
 
-Option Using allows for selecting a sub-tree of the XML.
+Option {using => } allows for selecting a sub-tree of the XML.
 
 The syntax is {using => ['/path1/path2/path3', '/path4/path5/path6']}
 
 =item option {filter => }
 
-Option {filter => 2} deactivates the filter, so all lines are shown, even
-lines with an empty value.
+Option {filter => 2} shows all lines, including attributes.
 
-Option {filter => 3} also deactivates the filter, but removes attribute lines
-(i.e. it removes lines where $rdr->type = '@'). Instead, it returns the attributes
-in a hash $rdr->att_hash.
+Option {filter => 3} removes attribute lines (i.e. it removes lines where $rdr->type eq '@').
+Instead, it returns the attributes in a hash $rdr->att_hash.
 
-Option {filter => 4} also deactivates the filter, but breaks down each line into its
+Option {filter => 4} breaks down each line into its
 individual start-tags, end-tags, attributes, comments and processing-instructions.
 This allows the parsing of XML into pyx-formatted lines.
 
@@ -750,7 +748,7 @@ Provides the current tag-name.
 
 =item attr
 
-Provides the current attribute (returns the empty string for non-attribute lines).
+Provides the current attribute name (returns the empty string for non-attribute lines).
 
 =item level
 
@@ -783,66 +781,64 @@ the current event is not a processing-instruction).
 
 =item pyx
 
-Returns the pyx representation of the current XML-event.
+Returns the pyx string of the current XML-event.
 
-The pyx representation is a string that starts with a specific first character. That first character
+The pyx string is a string that starts with a specific first character. That first character
 of each line of PYX tells you what type of event you are dealing with: if the first character is '(',
 then you are dealing with a start event. If it's a ')', then you are dealing with and end event. If
 it's an 'A' then you are dealing with attributes. If it's '-', then you are dealing with text. If it's
 '?', then you are dealing with processing-instructions. (see L<http://www.xml.com/pub/a/2000/03/15/feature/index.html>
 for an introduction to PYX).
 
-The method pyx makes sense only if option {filter => 4} is selected, for any filter other
+The method C<pyx> makes sense only if option {filter => 4} is selected, for any filter other
 than 4, undef is returned.
 
 =item is_start
 
-Returns 1 or 0, depending on whether the XML-file had a start tag at the current position.
+Returns 1 if the XML-file had a start tag at the current position, otherwise 0 is returned.
 
 =item is_end
 
-Returns 1 or 0, depending on whether the XML-file had an end tag at the current position.
+Returns 1 if the XML-file had an end tag at the current position, otherwise 0 is returned.
 
 =item is_decl
 
-Returns 1 or 0, depending on whether the XML-file had an XML-Declaration at the current position.
+Returns 1 if the XML-file had an XML-Declaration at the current position, otherwise 0 is returned.
 
 =item is_proc
 
-Returns 1 or 0, depending on whether the XML-file had a processing-instruction at the current position.
+Returns 1 if the XML-file had a processing-instruction at the current position, otherwise 0 is returned.
 
 =item is_comment
 
-Returns 1 or 0, depending on whether the XML-file had a Comment at the current position.
+Returns 1 if the XML-file had a comment at the current position, otherwise 0 is returned.
 
 =item is_text
 
-If option {filter => 4} is selected, then is_text() returns 1 or 0, depending on whether the XML-file has
-text data at the current position. For any filter other than 4, is_text returns 1 for non-attribute lines
-and 0 for attribute lines.
+Returns 1 if the XML-file had text at the current position, otherwise 0 is returned.
 
 =item is_attr
 
-Returns 1 or 0, depending on whether the XML-file has an attribute at the current position.
+Returns 1 if the XML-file had an attribute at the current position, otherwise 0 is returned.
 
 =item is_value
 
-Returns 1 or 0, depending on whether the XML-file has either a text or an attribute at the current position.
-This is useful to see whether the method value() can be used to extract either text or attributes.
+Returns 1 if the XML-file has either a text or an attribute at the current position, otherwise 0 is
+returned. This is mostly useful in mode {filter => 4} to see whether the method value() can be used.
 
 =back
 
 =head1 OPTION USING
 
-Option Using allows for selecting a sub-tree of the XML.
+Option {using => ...} allows for selecting a sub-tree of the XML.
 
 Here is how it works in detail...
 
-option {using => ['/path1/path2/path3', '/path4/path5/path6']} removes all lines which do not
+option {using => ['/path1/path2/path3', '/path4/path5/path6']} eliminates all lines which do not
 start with '/path1/path2/path3' (or with '/path4/path5/path6', for that matter). This effectively
 leaves only lines starting with '/path1/path2/path3' or '/path4/path5/path6'.
 
-Those lines (which are not removed) will have a shorter path by effectively removing the prefix 
+Those lines (which are not eliminated) will have a shorter path by effectively removing the prefix 
 '/path1/path2/path3' (or '/path4/path5/path6') from the path. The removed prefix, however, shows
 up in the prefix-method.
 
@@ -1025,7 +1021,7 @@ Here is the output:
 
 =head1 OPTION FILTER
 
-Option Filter allows to select different operation modes when processing the XML data.
+Option {filter => } allows to select different operation modes when processing the XML data.
 
 =head2 Option {filter => 2}
 
@@ -1065,7 +1061,7 @@ This program (with implicit option {filter => 2} as default) produces the follow
   Path: /root                   , Value: x yz
 
 The same {filter => 2} also allows to rebuild the structure of the XML with the help of the methods
-C<is_start> and C<is_end>. Please note that the first line ("Path: /root, Value:")
+C<is_start> and C<is_end>. Please note that in the above output, the first line ("Path: /root, Value:")
 is empty, but important for the structure of the XML. Therefore we can't ignore it.
 
 Let us now look at the same example (with option {filter => 2}), but with an
@@ -1126,12 +1122,11 @@ The difference, though, is that with option {filter => 3} all attribute-lines ar
 and instead, the attributes are presented for each start-line in the hash $rdr->att_hash().
 
 This allows, in fact, to dispense with the global %at variable of the previous algorithm, and
-use a local %at variable instead:
-
-  my %at = %{$rdr->att_hash};
+use %{$rdr->att_hash} instead:
 
 Here is the new algorithm for {filter => 3}, we don't need to worry about attributes (that is,
-we don't need to check fot $rdr->type eq '@') and, as already mentioned, the %at variable is now local:
+we don't need to check fot $rdr->type eq '@') and, as already mentioned, the %at variable is
+replaced by %{$rdr->att_hash} :
 
   use XML::Reader;
 
@@ -1143,8 +1138,9 @@ we don't need to check fot $rdr->type eq '@') and, as already mentioned, the %at
       my $indentation = '  ' x ($rdr->level - 1);
 
       if ($rdr->is_start) {
-          my %at = %{$rdr->att_hash};
-          print $indentation, '<', $rdr->tag, join('', map{" $_='$at{$_}'"} sort keys %at), '>', "\n";
+          print $indentation, '<', $rdr->tag,
+            join('', map{" $_='".$rdr->att_hash->{$_}."'"} sort keys %{$rdr->att_hash}),
+            '>', "\n";
       }
 
       if ($rdr->type eq 'T' and $rdr->value ne '') {
@@ -1183,7 +1179,7 @@ Here is an example:
 
   use XML::Reader;
 
-  my $text = q{<?xml version="1.0" encoding="ISO-8859-1"?>
+  my $text = q{<?xml version="1.0" encoding="iso-8859-1"?>
     <delta>
       <dim alter="511">
         <gamma />
@@ -1202,7 +1198,7 @@ Here is an example:
 
 And here is the output:
 
-  Type = D, pyx = ?xml version='1.0' encoding='ISO-8859-1'
+  Type = D, pyx = ?xml version='1.0' encoding='iso-8859-1'
   Type = S, pyx = (delta
   Type = S, pyx = (dim
   Type = @, pyx = Aalter 511
@@ -1285,8 +1281,8 @@ Note that v=1 (i.e. $rdr->is_value == 1) for all text and all attributes.
 
 Let's look at the following piece of XML from which we want to extract the values in <item>
 (by that I mean only the first 'start...'-value, not the 'end...'-value), plus the attributes "p1"
-and "p3". The item-tag must be exactly in the start/param/data range (and *not* in the
-start/param/dataz range).
+and "p3". The item-tag must be exactly in the /start/param/data range (and *not* in the
+/start/param/dataz range).
 
   my $text = q{
     <start>
@@ -1386,8 +1382,9 @@ Klaus Eichner, March 2009
 
 Copyright (C) 2009 by Klaus Eichner
 
-All rights reserved. This program is free software; you can redistribute it
-and/or modify it under the same terms as Perl itself.
+All rights reserved. This program is free software; you can redistribute
+it and/or modify it under the terms of the artistic license,
+see http://www.opensource.org/licenses/artistic-license-1.0.php
 
 =head1 RELATED MODULES
 
