@@ -87,3 +87,10 @@ Revision history for XML-Reader
         translate POD-documentation into French: pod/XML-Reader-fr.pod
         translate POD-documentation into German: pod/XML-Reader-de.pod
         re-licence under the Artistic licence
+
+0.22    18 Sep 2009
+        Needed to bump up the version number due to wrong indexing of the
+        pod/XML-Reader-de/-fr.pod file in http://search.cpan.org/
+        Basically, I am renaming/relocating the two files
+        pod/XML-Reader-de.pod into lib/XML/Reader-de.pod
+        pod/XML-Reader-fr.pod into lib/XML/Reader-fr.pod

@@ -1,5 +1,3 @@
-=encoding iso-8859-1
-
 =head1 NAME
 
 XML::Reader - Lesen von XML-Dateien und Bereitstellung der Pfad information basierend auf einem Pull-Parser.
@@ -24,28 +22,28 @@ Dieses Programm erzeugt folgendes Resultat:
 
 =head1 BESCHREIBUNG
 
-XML::Reader stellt ein einfach zu bedienendes Interface zur Verfügung mit dem man XML-Dateien
+XML::Reader stellt ein einfach zu bedienendes Interface zur VerfE<uuml>gung mit dem man XML-Dateien
 sequentiell lesen kann (sogenanntes "pull-mode" parsing). Der aktuelle XML-Pfad wird ebenfalls aufgenommen.
 
-XML::Reader wurde als eine Hülle über dem bestehenden Modul XML::Parser entwickelt (ausserdem wurden
-einige Grundfunktionen des Moduls XML::TokeParser übernommen). Die bestehenden Module, XML::Parser und
-XML::TokeParser, ermöglichen beide das sequentielle Verarbeiten von XML-Dateien, jedoch wird in diesen
+XML::Reader wurde als eine HE<uuml>lle E<uuml>ber dem bestehenden Modul XML::Parser entwickelt (ausserdem wurden
+einige Grundfunktionen des Moduls XML::TokeParser E<uuml>bernommen). Die bestehenden Module, XML::Parser und
+XML::TokeParser, ermE<ouml>glichen beide das sequentielle Verarbeiten von XML-Dateien, jedoch wird in diesen
 Modulen der XML-Pfad nicht gepflegt. Ausserdem muss man mit den Modulen XML::Parser und XML::TokeParser
 die Unterscheidung zwischen Start-Tags, End-Tags und Text machen, was meiner Meinung nach die Sache
 verkompliziert (obwohl man auch dieselbe Situation in XML::Reader simulieren kann, und zwar durch die
 Option {filter => 4}, wenn es das ist was man will).
 
 Es existiert auch ein Modul namens XML::TiePYX, welches ebenfalls das sequentielle Verarbeiten von
-XML-Dateien erlaubt (siehe L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> für eine Einführung
+XML-Dateien erlaubt (siehe L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> fE<uuml>r eine EinfE<uuml>hrung
 in PYX). Aber dennoch, auch mit XML::TiePYX ist man gezwungen eine Unterscheidung zwischen Start-Tags,
 End-Tags und Text machen und der XML-Pfad wird auch nicht gepflegt.
 
-Im Gegensatz dazu übersetzt XML::Reader die in der XML-Datei bestehenden Start-Tags, End-Tags und Text
-in XPath-ähnliche Ausdrücke, man erhält also einen Pfad und einen Wert, so einfach ist es. (Sollte man
-jedoch mit XML::Reader PYX-kompatible Ausdrücke erzeugen wollen, dann kann man das auch mit der Option
-{filter => 4}, wie zuvor erwähnt, erreichen).
+Im Gegensatz dazu E<uuml>bersetzt XML::Reader die in der XML-Datei bestehenden Start-Tags, End-Tags und Text
+in XPath-E<auml>hnliche AusdrE<uuml>cke, man erhE<auml>lt also einen Pfad und einen Wert, so einfach ist es. (Sollte man
+jedoch mit XML::Reader PYX-kompatible AusdrE<uuml>cke erzeugen wollen, dann kann man das auch mit der Option
+{filter => 4}, wie zuvor erwE<auml>hnt, erreichen).
 
-Aber kommen wir zurück zur normalen Benutzung, hier ist eine Beispiel XML Datei, kodiert in der Variablen
+Aber kommen wir zurE<uuml>ck zur normalen Benutzung, hier ist eine Beispiel XML Datei, kodiert in der Variablen
 '$line1':
 
   my $line1 = 
@@ -63,19 +61,19 @@ Aber kommen wir zurück zur normalen Benutzung, hier ist eine Beispiel XML Datei,
   };
 
 Diese Beispiel XML Datei kann man mit XML::Reader lesen, und zwar indem man die Methode C<iterate>
-verwendet um das jeweils nächste XML-Element zu lesen, dann kann man mit den Methoden C<path> und
+verwendet um das jeweils nE<auml>chste XML-Element zu lesen, dann kann man mit den Methoden C<path> und
 C<value> den Pfad und den aktuellen Wert lesen.
 
-Man kann ausserdem, wenn man es denn so möchte, die jeweiligen Start- und End-Tags erkennen: Es existiert
-die Methode C<is_start>, die genau dann 1 zurückgibt, wenn an der aktuellen Positon in der XML-Datei
-ein Start-Tag existiert, ansonsten gibt die Methode 0 zurück. Es existiert ebenso die zugehörige Methode
+Man kann ausserdem, wenn man es denn so mE<ouml>chte, die jeweiligen Start- und End-Tags erkennen: Es existiert
+die Methode C<is_start>, die genau dann 1 zurE<uuml>ckgibt, wenn an der aktuellen Positon in der XML-Datei
+ein Start-Tag existiert, ansonsten gibt die Methode 0 zurE<uuml>ck. Es existiert ebenso die zugehE<ouml>rige Methode
 C<is_end>.
 
-Es existieren zusätzlich die Methoden C<tag>, C<attr>, C<type> und C<level>. C<tag> liefert den aktuellen
-Tag-Namen, C<attr> liefert den Attribut-Namen, C<type> liefert entweder 'T' für Text oder '@' für Attribute,
+Es existieren zusE<auml>tzlich die Methoden C<tag>, C<attr>, C<type> und C<level>. C<tag> liefert den aktuellen
+Tag-Namen, C<attr> liefert den Attribut-Namen, C<type> liefert entweder 'T' fE<uuml>r Text oder '@' fE<uuml>r Attribute,
 C<level> liefert die im Moment aktive Verschachtelungstiefe (das ist ein numerischer Wert >= 0)
 
-Hier folgend wird, um das Prinzip zu erklären, ein Beispielprogramm aufgeführt, welches die vorangegangene
+Hier folgend wird, um das Prinzip zu erklE<auml>ren, ein Beispielprogramm aufgefE<uuml>hrt, welches die vorangegangene
 XML-Datei in '$line1' einliest...
 
   use XML::Reader;
@@ -115,7 +113,7 @@ Der Parameter $data (welcher immer mit angegeben werden muss) ist entweder der N
 XML-Datei, oder eine Referenz auf eine Zeichenkette, sodass der Inhalt dieser Zeichenkette
 als XML verarbeitet werden kann.
 
-Alternativ kann $data auch ein zuvor geöffnetes Dateihandle enthalten, z.B. \*STDIN. In diesem
+Alternativ kann $data auch ein zuvor geE<ouml>ffnetes Dateihandle enthalten, z.B. \*STDIN. In diesem
 Fall wird einfach das Filehandle benutzt um die XML-Daten zu lesen.
 
 Hier ist ein Beispiel um ein Objekt des Typs XML::Reader mit einem einfachen Datei-Namen zu
@@ -129,7 +127,7 @@ auf eine Zeichenkette zu erzeugen:
   my $rdr = XML::Reader->newhd(\'<data>abc</data>') or die "Error: $!";
 
 Hier ist noch ein weiteres Beispiel um ein Objekt des Typs XML::Reader mit einem
-zuvor geöffneneten Dateihandle zu erzeugen:
+zuvor geE<ouml>ffneneten Dateihandle zu erzeugen:
 
   open my $fh, '<', 'input.xml' or die "Error: $!";
   my $rdr = XML::Reader->newhd($fh);
@@ -138,98 +136,98 @@ Hier ist schliesslich ein Beispiel um ein Objekt des Typs XML::Reader mit \*STDI
 
   my $rdr = XML::Reader->newhd(\*STDIN);
 
-Eine, oder mehrere, Optionen können als eine Hash-Referenz hinzugefügt werden:
+Eine, oder mehrere, Optionen kE<ouml>nnen als eine Hash-Referenz hinzugefE<uuml>gt werden:
 
 =over
 
 =item Option {parse_ct => }
 
-Option {parse_ct => 1} ermöglicht es XML-Kommentare zu lesen, die Voreinstellung ist {parse_ct => 0}
+Option {parse_ct => 1} ermE<ouml>glicht es XML-Kommentare zu lesen, die Voreinstellung ist {parse_ct => 0}
 
 =item Option {parse_pi => }
 
-Option {parse_pi => 1} ermöglicht es processing-instructions and XML-Declarations zu lesen, die
+Option {parse_pi => 1} ermE<ouml>glicht es processing-instructions and XML-Declarations zu lesen, die
 Voreinstellung ist {parse_pi => 0}
 
 =item Option {using => }
 
-Option {using => } ermöglicht es einen Teil-Baum der XML-Datei zu selektieren.
+Option {using => } ermE<ouml>glicht es einen Teil-Baum der XML-Datei zu selektieren.
 
-Die Syntax hierfür lautet: {using => ['/pfad1/pfad2/pfad3', '/pfad4/pfad5/pfad6']}
+Die Syntax hierfE<uuml>r lautet: {using => ['/pfad1/pfad2/pfad3', '/pfad4/pfad5/pfad6']}
 
 =item Option {filter => }
 
 Option {filter => 2} zeigt alle XML-Zeilen an, einschliesslich der Attribute.
 
 Option {filter => 3} entfernt die Attribut-Zeilen (d.h. alle Zeilen mit $rdr->type eq '@' werden
-entfernt). Anstelle dessen werden die Attribute in einer Hash-Referenz $rdr->att_hash zurückgeliefert.
+entfernt). Anstelle dessen werden die Attribute in einer Hash-Referenz $rdr->att_hash zurE<uuml>ckgeliefert.
 
 Option {filter => 4} bricht alle Zeilen in individuelle Start-Tags, End-Tags, Attribute, Kommentare und
-Processing-Instructions auf. Damit wird die Verarbeitung der XML-Datei im PYX-Format ermöglicht.
+Processing-Instructions auf. Damit wird die Verarbeitung der XML-Datei im PYX-Format ermE<ouml>glicht.
 
 Die Syntax lautet {filter => 2|3|4}, die Voreinstellung ist {filter => 2}
 
 =item Option {strip => }
 
-Option {strip => 1} entfernt Entfernt führende als auch am Ende befindliche Leerzeichen in Text und
-in Kommentaren. (Leerzeichen werden niemals in Attributen entfernt). {strip => 0} lässt Text und
-Kommentare unberührt.
+Option {strip => 1} entfernt Entfernt fE<uuml>hrende als auch am Ende befindliche Leerzeichen in Text und
+in Kommentaren. (Leerzeichen werden niemals in Attributen entfernt). {strip => 0} lE<auml>sst Text und
+Kommentare unberE<uuml>hrt.
 
-Die Syntax hierfür lautet {strip => 0|1}, die Voreinstellung ist {strip => 1}
+Die Syntax hierfE<uuml>r lautet {strip => 0|1}, die Voreinstellung ist {strip => 1}
 
 =back
 
 =head2 Methoden
 
-Ein erfolgreich erstelltes Objekt vom Typ XML::Reader stellt folgende Methoden zur Verfügung:
+Ein erfolgreich erstelltes Objekt vom Typ XML::Reader stellt folgende Methoden zur VerfE<uuml>gung:
 
 =over
 
 =item iterate
 
-Liest das nächste XML-Element. Die Methode liefert den Wert 1 zurück wenn das Lesen erfolgreich war,
+Liest das nE<auml>chste XML-Element. Die Methode liefert den Wert 1 zurE<uuml>ck wenn das Lesen erfolgreich war,
 oder undef falls das Ende des XML-Files erreicht wurde.
 
 =item path
 
-Liefert den gesamten Pfad des aktuellen XML-Elements zurück, Attribute werden mit einem führenden 
+Liefert den gesamten Pfad des aktuellen XML-Elements zurE<uuml>ck, Attribute werden mit einem fE<uuml>hrenden 
 '@'-Zeichen markiert.
 
 =item value
 
-Liefert den aktuellen Wert zurück (d.h. den Wert des aktuellen Textes oder den des aktuellen Attributes).
+Liefert den aktuellen Wert zurE<uuml>ck (d.h. den Wert des aktuellen Textes oder den des aktuellen Attributes).
 
 Bitte beachten Sie dass wenn {filter => 2 oder 3} und das aktuelle Element eine XML-Deklaration ist
-(d.h. $rdr->is_decl == 1), dann ist es ratsam den aktuellen Wert nicht zu berücksichtigen (er ist sowieso
-leer). Ein typisches Beispiel wäre:
+(d.h. $rdr->is_decl == 1), dann ist es ratsam den aktuellen Wert nicht zu berE<uuml>cksichtigen (er ist sowieso
+leer). Ein typisches Beispiel wE<auml>re:
 
   print $rdr->value, "\n" unless $rdr->is_decl;
 
-Dieses oben angegebe Beispiel trifft nicht zu wenn {filter => 4} aktiv ist. In diesem falle genügt ein
+Dieses oben angegebe Beispiel trifft nicht zu wenn {filter => 4} aktiv ist. In diesem falle genE<uuml>gt ein
 einfaches "print $rdr->value;":
 
   print $rdr->value, "\n";
 
 =item comment
 
-Liefert den aktuellen Kommentar zurück. Bevor man diesen Wert benutzt, sollte man mit $rdr->is_comment prüfen
+Liefert den aktuellen Kommentar zurE<uuml>ck. Bevor man diesen Wert benutzt, sollte man mit $rdr->is_comment prE<uuml>fen
 ob das aktuelle Element wirklich ein Kommentar ist.
 
 =item type
 
-Liefert den Typ des Wertes zurück: 'T' für Text, '@' für Attribute.
+Liefert den Typ des Wertes zurE<uuml>ck: 'T' fE<uuml>r Text, '@' fE<uuml>r Attribute.
 
-Falls Option {filter => 4} aktiviert ist, dann kann der Typ folgende Werte annehmen: 'T' für Text, '@' für
-Attribute, 'S' für Start-Tags, 'E' für End-Tags, '#' für Kommentare, 'D' für XML-Declarationen, '?' für
+Falls Option {filter => 4} aktiviert ist, dann kann der Typ folgende Werte annehmen: 'T' fE<uuml>r Text, '@' fE<uuml>r
+Attribute, 'S' fE<uuml>r Start-Tags, 'E' fE<uuml>r End-Tags, '#' fE<uuml>r Kommentare, 'D' fE<uuml>r XML-Declarationen, '?' fE<uuml>r
 Processing-Instructions.
 
 =item tag
 
-Liefert den aktuellen Tag-Namen zurück.
+Liefert den aktuellen Tag-Namen zurE<uuml>ck.
 
 =item attr
 
-Liefert den aktuellen Attribut-Namen zurück (liefert eine leere Zeichenkette zurück falls das aktuelle Element
+Liefert den aktuellen Attribut-Namen zurE<uuml>ck (liefert eine leere Zeichenkette zurE<uuml>ck falls das aktuelle Element
 kein Attribut ist).
 
 =item level
@@ -238,75 +236,75 @@ Zeigt die aktuelle Verschachtelungstiefe des XPath-Ausdruckes an (das ist ein nu
 
 =item prefix
 
-Liefert den Präfix zurück der durch die Option {using => ...} entfernt wurde. Falls die Option {using => ...}
-nicht benutzt wurde, wird eine leere Zeichenkette zurückgegeben
+Liefert den PrE<auml>fix zurE<uuml>ck der durch die Option {using => ...} entfernt wurde. Falls die Option {using => ...}
+nicht benutzt wurde, wird eine leere Zeichenkette zurE<uuml>ckgegeben
 
 =item att_hash
 
-Liefert eine Referenz zu einem Hash zurück der die aktuellen Attribute eines Start-Tags enthält (der Hash
+Liefert eine Referenz zu einem Hash zurE<uuml>ck der die aktuellen Attribute eines Start-Tags enthE<auml>lt (der Hash
 ist leer falls der aktuelle Tag kein Start-Tag ist)
 
 =item dec_hash
 
-Liefert eine Referenz zu einem Hash zurück der die aktuellen Attribute einer XML-Declaration enthält (der Hash
+Liefert eine Referenz zu einem Hash zurE<uuml>ck der die aktuellen Attribute einer XML-Declaration enthE<auml>lt (der Hash
 ist leer falls der aktuelle Tag keine XML-Declaration ist)
 
 =item proc_tgt
 
-Liefert den Ziel Wert (d.h. den ersten Teil) einer Processing-Instruction zurück (eine leere Zeichenkette
-wird zurückgegeben falls der aktuelle Tag keine Processing-Instruction ist)
+Liefert den Ziel Wert (d.h. den ersten Teil) einer Processing-Instruction zurE<uuml>ck (eine leere Zeichenkette
+wird zurE<uuml>ckgegeben falls der aktuelle Tag keine Processing-Instruction ist)
 
 =item proc_data
 
-Liefert den Daten Wert (d.h. den zweiten Teil) einer Processing-Instruction zurück (eine leere Zeichenkette
-wird zurückgegeben falls der aktuelle Tag keine Processing-Instruction ist)
+Liefert den Daten Wert (d.h. den zweiten Teil) einer Processing-Instruction zurE<uuml>ck (eine leere Zeichenkette
+wird zurE<uuml>ckgegeben falls der aktuelle Tag keine Processing-Instruction ist)
 
 =item pyx
 
-Liefert eine Zeichenkette im PYX-Format des aktuellen Tags zurück.
+Liefert eine Zeichenkette im PYX-Format des aktuellen Tags zurE<uuml>ck.
 
 Das PYX-Format ist eine Zeichenkette deren erstes Zeichen eine spezielle Bedeutung hat. Dieses erste Zeichen
 einer jeweiligen PYX-Zeichenkette gibt den Typ des Ereignisses an mit dem man es zu tun hat: falls das erste
 Zeichen ein '(' ist, dann hat man es mit einem Start-Tag zu tun, wenn es ein ')' ist, dann hat man es mit
 einem End-Tag zu tun, wenn es ein 'A' ist, dann hat man es mit einem Attribut zu tun, wenn es ein '-' ist,
 dann hat man es mit einem Text zu tun, wenn es ein '?' ist, dann hat man es mit einer Processing-Instruction
-zu tun. (siehe L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> für eine Einführung in PYX)
+zu tun. (siehe L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> fE<uuml>r eine EinfE<uuml>hrung in PYX)
 
 Die Methode C<pyx> macht nur Sinn falls die Option {filter => 4} aktiviert wurde, ansonsten wird undef
-zurückgeliefert.
+zurE<uuml>ckgeliefert.
 
 =item is_start
 
-Liefert 1 zurück falls die aktuelle Position ein Start-Tag ist, ansonsten wird 0 zurückgeliefert.
+Liefert 1 zurE<uuml>ck falls die aktuelle Position ein Start-Tag ist, ansonsten wird 0 zurE<uuml>ckgeliefert.
 
 =item is_end
 
-Liefert 1 zurück falls die aktuelle Position ein End-Tag ist, ansonsten wird 0 zurückgeliefert.
+Liefert 1 zurE<uuml>ck falls die aktuelle Position ein End-Tag ist, ansonsten wird 0 zurE<uuml>ckgeliefert.
 
 =item is_decl
 
-Liefert 1 zurück falls die aktuelle Position eine XML-Declaration ist, ansonsten wird 0 zurückgeliefert.
+Liefert 1 zurE<uuml>ck falls die aktuelle Position eine XML-Declaration ist, ansonsten wird 0 zurE<uuml>ckgeliefert.
 
 =item is_proc
 
-Liefert 1 zurück falls die aktuelle Position eine Processing-Instruction ist, ansonsten wird 0 zurückgeliefert.
+Liefert 1 zurE<uuml>ck falls die aktuelle Position eine Processing-Instruction ist, ansonsten wird 0 zurE<uuml>ckgeliefert.
 
 =item is_comment
 
-Liefert 1 zurück falls die aktuelle Position ein Kommentar ist, ansonsten wird 0 zurückgeliefert.
+Liefert 1 zurE<uuml>ck falls die aktuelle Position ein Kommentar ist, ansonsten wird 0 zurE<uuml>ckgeliefert.
 
 =item is_text
 
-Liefert 1 zurück falls die aktuelle Position ein Text ist, ansonsten wird 0 zurückgeliefert.
+Liefert 1 zurE<uuml>ck falls die aktuelle Position ein Text ist, ansonsten wird 0 zurE<uuml>ckgeliefert.
 
 =item is_attr
 
-Liefert 1 zurück falls die aktuelle Position ein Attribut ist, ansonsten wird 0 zurückgeliefert.
+Liefert 1 zurE<uuml>ck falls die aktuelle Position ein Attribut ist, ansonsten wird 0 zurE<uuml>ckgeliefert.
 
 =item is_value
 
-Liefert 1 zurück falls die aktuelle Position ein Text oder ein Attribut ist, ansonsten wird 0 zurückgeliefert.
-Diese Methode ist insbesondere nützlich wenn {filter => 4} aktiv ist, in diesem Falle kann man damit testen
+Liefert 1 zurE<uuml>ck falls die aktuelle Position ein Text oder ein Attribut ist, ansonsten wird 0 zurE<uuml>ckgeliefert.
+Diese Methode ist insbesondere nE<uuml>tzlich wenn {filter => 4} aktiv ist, in diesem Falle kann man damit testen
 ob es sinnvoll ist die Methode value() aufzurufen.
 
 =back
@@ -318,16 +316,16 @@ Mit der Option {using => ...} kann man einen Teil-Baum der XML-Datei selektieren
 So funktioniert das im Detail...
 
 Die Option {using => ['/pfad1/pfad2/pfad3', '/pfad4/pfad5/pfad6']} eliminiert alle Zeilen deren
-Pfad nicht mit '/pfad1/pfad2/pfad3' (oder nicht mit '/pfad4/pfad5/pfad6') beginnen. Das lässt
-dann nur noch Zeilen übrig, die dann mit '/pfad1/pfad2/pfad3' oder mit '/pfad4/pfad5/pfad6' beginnen.
+Pfad nicht mit '/pfad1/pfad2/pfad3' (oder nicht mit '/pfad4/pfad5/pfad6') beginnen. Das lE<auml>sst
+dann nur noch Zeilen E<uuml>brig, die dann mit '/pfad1/pfad2/pfad3' oder mit '/pfad4/pfad5/pfad6' beginnen.
 
-Diese Zeilen (die nicht eliminiert wurden) haben dann einen kürzeren Pfad, weil der Präfix
-'/pfad1/pfad2/pfad3' (oder '/pfad4/pfad5/pfad6') entfernt wurde. Der entfernte Präfix erscheint
+Diese Zeilen (die nicht eliminiert wurden) haben dann einen kE<uuml>rzeren Pfad, weil der PrE<auml>fix
+'/pfad1/pfad2/pfad3' (oder '/pfad4/pfad5/pfad6') entfernt wurde. Der entfernte PrE<auml>fix erscheint
 dann aber in der Methode prefix().
 
 Man kann sagen dass die Pfade '/pfad1/pfad2/pfad3' und '/pfad4/pfad5/pfad6' "absolut" und
-"komplett" sind. Der Begriff "absolut" bedeutet dass die Pfade mit einem '/' beginnen müssen,
-der Begriff "komplett" bedeutet dass der Pfad intern mit einem anghängten '/'-Zeichen
+"komplett" sind. Der Begriff "absolut" bedeutet dass die Pfade mit einem '/' beginnen mE<uuml>ssen,
+der Begriff "komplett" bedeutet dass der Pfad intern mit einem anghE<auml>ngten '/'-Zeichen
 abgeschlossen wird.
 
 =head2 Ein Beispiel mit Option 'using'
@@ -390,8 +388,8 @@ Das folgende Programm liest eine XML-Datei und parst sie mit XML::Reader, jedoch
        $i, $rdr->prefix, $rdr->path, $rdr->value, $rdr->tag, $rdr->type, $rdr->level;
   }
 
-Wie man in dem folgenden Resultat sehen kann, werden mehr Ausgabezeilen geschrieben, der Präfix ist
-leer und der Pfad ist jetzt länger als zuvor.
+Wie man in dem folgenden Resultat sehen kann, werden mehr Ausgabezeilen geschrieben, der PrE<auml>fix ist
+leer und der Pfad ist jetzt lE<auml>nger als zuvor.
 
    1. prf= , pat=/data                                , val=      , tag=data       , t=T, lvl= 1
    2. prf= , pat=/data/order                          , val=      , tag=order      , t=T, lvl= 2
@@ -492,7 +490,7 @@ Option {parse_pi => 1} aktiviert ist (zusammen mit der schon aktivierten Option 
   }
 
 Beachten sie im obigen Programm die Zeile "unless $rdr->is_decl". Diese Zeile existiert damit verhindert wird dass
-der Wert einer XML-Declaration ausgegeben wird (dieser Wert wäre dann sowieso leer).
+der Wert einer XML-Declaration ausgegeben wird (dieser Wert wE<auml>re dann sowieso leer).
 
 Hier ist das Resultat:
 
@@ -509,14 +507,14 @@ Die Option Filter erlaubt verschiedene Grundeinstellungen zum Verarbeiten von XM
 
 =head2 Option {filter => 2}
 
-Mit der Option {filter => 2}, XML::Reader erzeugt eine Zeile für jedes Text-Event. Falls der vorangehende
+Mit der Option {filter => 2}, XML::Reader erzeugt eine Zeile fE<uuml>r jedes Text-Event. Falls der vorangehende
 Tag ein Start-Tag ist, dann wird die Methode is_start auf 1 gesetzt. Falls der folgende Tag ein End-Tag
 ist, dann wird die Methode is_end auf 1 gesetzt. Falls der vorangehende Tag ein Kommentar ist, dann wird
 die Methode is_comment auf 1 gesetzt. Falls der vorangehende Tag eine XML-Declaration ist, dann wird die Methode
 is_decl auf 1 gesetzt. Falls der vorangehende Tag eine Processing-Instruction ist, dann wird die Methode is_proc
 auf 1 gesetzt.
 
-Zusätzlich, Attribute werden als spezielle Zeilen mit der '/@...' Syntax hinzugefügt.
+ZusE<auml>tzlich, Attribute werden als spezielle Zeilen mit der '/@...' Syntax hinzugefE<uuml>gt.
 
 Option {filter => 2} ist die Voreinstellung.
 
@@ -547,10 +545,10 @@ Dieses Programm (mit der impliziten Option {filter => 2} als Voreinstellung) pro
 
 Dieselbe Option {filter => 2} erlaubt die Erkennung der XML-Struktur mithilfe der Methoden
 C<is_start> und C<is_end>. Bitte beachten Sie ebenso in dem obigen Resultat dass die erste Zeile
-("Path: /root, Value:") zwar leer ist, jedoch sehr wichtig für die XML-Struktur ist. Daher dürfen
+("Path: /root, Value:") zwar leer ist, jedoch sehr wichtig fE<uuml>r die XML-Struktur ist. Daher dE<uuml>rfen
 wir diese Zeile nicht vergessen.
 
-Schauen wir jetzt auf das selbe Beispiel (mit der Option {filter => 2}), jedoch mit einem zusätzlichen Algorithmus
+Schauen wir jetzt auf das selbe Beispiel (mit der Option {filter => 2}), jedoch mit einem zusE<auml>tzlichen Algorithmus
 um die originale XML-Struktur wieder herzustellen:
 
   use XML::Reader;
@@ -602,7 +600,7 @@ um die originale XML-Struktur wieder herzustellen:
 
 =head2 Option {filter => 3}
 
-Die Option {filter => 3} funktioniert ähnlich wie {filter => 2}.
+Die Option {filter => 3} funktioniert E<auml>hnlich wie {filter => 2}.
 
 Der Unterschied jedoch ist dass mit Option {filter => 3} alle Attribut-Zeilen eliminiert werden
 und anstelle dessen die Attribute fuer ein Start-Tag im hash $rdr->att_hash() erscheinen.
@@ -610,8 +608,8 @@ und anstelle dessen die Attribute fuer ein Start-Tag im hash $rdr->att_hash() er
 Damit wird die Benutzung einer globalen %at-Variable im oben angegebenen Algorithmus nicht mehr
 notwendig und kann daher durch die Konstruktion %{$rdr->att_hash} erstzt werden.
 
-Hier ist ein neuer Algorithmus für {filter => 3}, wir brauchen uns nicht mehr explizit um
-Attribut-Zeilen zu kümmern (d.h. wir brauchen nicht mehr abzufragen ob $rdr->type eq '@') und,
+Hier ist ein neuer Algorithmus fE<uuml>r {filter => 3}, wir brauchen uns nicht mehr explizit um
+Attribut-Zeilen zu kE<uuml>mmern (d.h. wir brauchen nicht mehr abzufragen ob $rdr->type eq '@') und,
 wie schon bemerkt, die %at-Variable wird ersetzt durch %{$rdr->att_hash} :
 
   use XML::Reader;
@@ -638,7 +636,7 @@ wie schon bemerkt, die %at-Variable wird ersetzt durch %{$rdr->att_hash} :
       }
   }
 
-...das Resultat für {filter => 3} ist identisch mit dem Resultat für {filter => 2}:
+...das Resultat fE<uuml>r {filter => 3} ist identisch mit dem Resultat fE<uuml>r {filter => 2}:
 
   <root>
     <test param='v'>
@@ -658,7 +656,7 @@ wie schon bemerkt, die %at-Variable wird ersetzt durch %{$rdr->att_hash} :
 =head2 Option {filter => 4}
 
 Obwohl es nicht die Hauptfunktion von XML::Reader darstellt, die Option {filter => 4} erlaubt die Erzeugung von
-individuellen Zeilen für jeweils das Start-Tag, das End-Tag, Kommentare, Processing-Instructions und
+individuellen Zeilen fE<uuml>r jeweils das Start-Tag, das End-Tag, Kommentare, Processing-Instructions und
 XML-Declarations. Der Sinn ist eine PYX-kompatible Ausgabe-Zeichenkette zur weiteren Verarbeitung zu erzeugen.
 
 Hier ist ein Beispiel:
@@ -698,8 +696,8 @@ und hier ist das Resultat:
   Type = T, pyx = -dskjfh uuu
   Type = E, pyx = )delta
 
-Bitte berücksichtigen Sie dass Kommentare in der Methode C<pyx> in einem nicht-standardisierten Format
-erzeugt werden, falls {parse_ct => 1} gesetzt ist. Die Kommentare werden dann mit einem führenden Doppelkreuz
+Bitte berE<uuml>cksichtigen Sie dass Kommentare in der Methode C<pyx> in einem nicht-standardisierten Format
+erzeugt werden, falls {parse_ct => 1} gesetzt ist. Die Kommentare werden dann mit einem fE<uuml>hrenden Doppelkreuz
 erzugt welches nicht in der PYX-Spezifikation existiert. Das folgende Beispiel demonstriert diesen Fall:
 
   use XML::Reader;
@@ -721,7 +719,7 @@ Hier ist das Ergebnis:
   Type = #, pyx = #remark
   Type = E, pyx = )delta
 
-Ausserdem, falls {filter => 4} gesetzt ist, bleiben folgende Methoden gültig: (C<value>, C<attr>,
+Ausserdem, falls {filter => 4} gesetzt ist, bleiben folgende Methoden gE<uuml>ltig: (C<value>, C<attr>,
 C<path>, C<is_start>, C<is_end>, C<is_decl>, C<is_proc>, C<is_comment>, C<is_attr>, C<is_text>,
 C<is_value>, C<comment>, C<proc_tgt>, C<proc_data>, C<dec_hash> und C<att_hash>). Hier ist ein Beispiel:
 
@@ -762,7 +760,7 @@ Hier ist das Ergebnis:
   Path /parent         v=0 Found end tag   parent
 
 
-Bitte beachten Sie dass v=1 (d.h. $rdr->is_value == 1) für alle Texte und für alle Attribute.
+Bitte beachten Sie dass v=1 (d.h. $rdr->is_value == 1) fE<uuml>r alle Texte und fE<uuml>r alle Attribute.
 
 =head1 BEISPIELE
 
@@ -799,10 +797,10 @@ Wir erwarten genau 4 Ergebnis-Zeilen von unserem Parse-Lauf (d.h. wir erwarten k
 =head2 XML-Parsen mit {filter => 2}
 
 Hier ist ein Beispiel-Programm um die XML-Datei mit {filter => 2} zu parsen. (Bitte
-beachten Sie wie der Präfix '/start/param/data/item' in der {using => ...} Option
+beachten Sie wie der PrE<auml>fix '/start/param/data/item' in der {using => ...} Option
 von newhd verwendet wird). Wir brauchen ausserdem zwei scalar Variablen ('$p1' und '$p3')
 um die Parameter in '/@p1' und '/@p3' aufzunehmen und sie in den Programmteil
-$rdr->is_start zu übertragen, wo sie dann ausgegeben werden können.
+$rdr->is_start zu E<uuml>bertragen, wo sie dann ausgegeben werden kE<ouml>nnen.
 
   my $rdr = XML::Reader->newhd(\$text,
     {filter => 2, using => '/start/param/data/item'}) or die "Error: $!";
@@ -821,7 +819,7 @@ $rdr->is_start zu übertragen, wo sie dann ausgegeben werden können.
 
 =head2 XML-Parsen mit {filter => 3}
 
-Mit {filter => 3} können wir auf die zwei scalar Variablen ('$p1' und '$p3') verzichten, das
+Mit {filter => 3} kE<ouml>nnen wir auf die zwei scalar Variablen ('$p1' und '$p3') verzichten, das
 Programm vereinfacht sich wie folgt:
 
   my $rdr = XML::Reader->newhd(\$text,
@@ -837,11 +835,11 @@ Programm vereinfacht sich wie folgt:
 =head2 XML-Parsen mit {filter => 4}
 
 Jedoch mit {filter => 4} wird das Programm wieder komplizierter: Wie schon im Beispiel
-für {filter => 2} gezeigt, benötigen wir hier wieder zwei scalar Variablen ('$p1' und '$p3')
-um die Parameter in '/@p1' und '/@p3' aufzunehmen und sie dann zu übertragen. Zusätzlich
-müssen wir hier jedoch auch noch Text-Werte zählen können (siehe scalar Variable '$count'),
+fE<uuml>r {filter => 2} gezeigt, benE<ouml>tigen wir hier wieder zwei scalar Variablen ('$p1' und '$p3')
+um die Parameter in '/@p1' und '/@p3' aufzunehmen und sie dann zu E<uuml>bertragen. ZusE<auml>tzlich
+mE<uuml>ssen wir hier jedoch auch noch Text-Werte zE<auml>hlen kE<ouml>nnen (siehe scalar Variable '$count'),
 sodass wir zwischen dem ersten Wert 'start...' (welchen wir ausgeben wollen) und dem zweiten
-Wert 'end...' (welchen wir nicht ausgeben wollen) unterscheiden können.
+Wert 'end...' (welchen wir nicht ausgeben wollen) unterscheiden kE<ouml>nnen.
 
   my $rdr = XML::Reader->newhd(\$text,
     {filter => 4, using => '/start/param/data/item'}) or die "Error: $!";
@@ -881,8 +879,8 @@ see L<http://www.opensource.org/licenses/artistic-license-1.0.php>
 
 Falls Sie vorhaben XML auch ausgeben zu wollen, dann schlage ich vor das Modul XML::Writer zu
 benutzen. Dieses Modul bietet ein einfach zu handhabendes Interface zur Ausgabe von XML-Dateien.
-(Falls sie non-mixed content XML ausgeben, würde ich empfehlen die Optionen DATA_MODE=>1 und
-DATA_INDENT=>2 zu setzen, das erlaubt die korrekte Formatierung und Einrückung in Ihrer XML
+(Falls sie non-mixed content XML ausgeben, wE<uuml>rde ich empfehlen die Optionen DATA_MODE=>1 und
+DATA_INDENT=>2 zu setzen, das erlaubt die korrekte Formatierung und EinrE<uuml>ckung in Ihrer XML
 Ausgabe-Datei).
 
 =head1 REFERENEZN

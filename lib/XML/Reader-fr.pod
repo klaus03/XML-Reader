@@ -1,8 +1,6 @@
-=encoding iso-8859-1
+=head1 NAME
 
-=head1 NOM
-
-XML::Reader - Lire du XML avec des informations du chemin, basé sur un parseur d'extraction.
+XML::Reader - Lire du XML avec des informations du chemin, basE<eacute> sur un parseur d'extraction.
 
 =head1 SYNOPSIS
 
@@ -15,7 +13,7 @@ XML::Reader - Lire du XML avec des informations du chemin, basé sur un parseur d
       printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
   }
 
-Ce programme crée le résultat suivant:
+Ce programme crE<eacute>e le rE<eacute>sultat suivant:
 
   Path: /init              , Value: n t
   Path: /init/page/@node   , Value: 400
@@ -24,27 +22,27 @@ Ce programme crée le résultat suivant:
 
 =head1 DESCRIPTION
 
-XML::Reader est un module simple et facile à utiliser pour parser des fichiers XML de manière séquentielle
-(aussi appellé parseur guidé par l'extraction) et, en même temps, il enregistre le chemin complet du XML.
+XML::Reader est un module simple et facile E<agrave> utiliser pour parser des fichiers XML de maniE<egrave>re sE<eacute>quentielle
+(aussi appellE<eacute> parseur guidE<eacute> par l'extraction) et, en mE<ecirc>me temps, il enregistre le chemin complet du XML.
 
-Il a été développé comme une couche sur XML::Parser (quelques fonctionalités basiques ont été copié de
-XML::TokeParser). XML::Parser et XML::TokeParser utilisent chacun une méthode d'extraction séquentielle,
+Il a E<eacute>tE<eacute> dE<eacute>veloppE<eacute> comme une couche sur XML::Parser (quelques fonctionalitE<eacute>s basiques ont E<eacute>tE<eacute> copiE<eacute> de
+XML::TokeParser). XML::Parser et XML::TokeParser utilisent chacun une mE<eacute>thode d'extraction sE<eacute>quentielle,
 mais ils n'enregistrent pas le chemin du XML.
 
-De plus, avec les interfaces de XML::Parser et XML::TokeParser, on est obligé de séparer les balises de début,
-les balises de fin et du texte, ce qui, à mon avis, rend l'utilisation assez compliqué. (par contre, si on le
-souhaite, XML::Reader peut agir d'une manière à ce que les balises de début, les balises de fin et du texte
-sont séparés, par l'option {filter => 4}).
+De plus, avec les interfaces de XML::Parser et XML::TokeParser, on est obligE<eacute> de sE<eacute>parer les balises de dE<eacute>but,
+les balises de fin et du texte, ce qui, E<agrave> mon avis, rend l'utilisation assez compliquE<eacute>. (par contre, si on le
+souhaite, XML::Reader peut agir d'une maniE<egrave>re E<agrave> ce que les balises de dE<eacute>but, les balises de fin et du texte
+sont sE<eacute>parE<eacute>s, par l'option {filter => 4}).
 
-Il y a aussi XML::TiePYX, qui permet de parser des fichiers XML de manière séquentielle (voir
-L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> pour consulter une introduction à PYX).
-Mais même avec XML::TiePYX, il faut séparer les balises de début, les balises de fin et le texte, et il n'y a
+Il y a aussi XML::TiePYX, qui permet de parser des fichiers XML de maniE<egrave>re sE<eacute>quentielle (voir
+L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> pour consulter une introduction E<agrave> PYX).
+Mais mE<ecirc>me avec XML::TiePYX, il faut sE<eacute>parer les balises de dE<eacute>but, les balises de fin et le texte, et il n'y a
 pas de chemin disponible.
 
-Par contre, avec XML::Reader, les les balises de début, les balises de fin et le texte sont traduits en
-expressions similaires à XPath. En conséquence, il est inutile de compter des balises individuelles, on a
-un chemin et une valeur, et ça suffit. (par contre, au cas où on veut opérer XML::Reader en fonctionnement
-compatible à PYX, il y a toujours option {filter => 4}, comme déjà mentionné ci-dessus).
+Par contre, avec XML::Reader, les les balises de dE<eacute>but, les balises de fin et le texte sont traduits en
+expressions similaires E<agrave> XPath. En consE<eacute>quence, il est inutile de compter des balises individuelles, on a
+un chemin et une valeur, et E<ccedil>a suffit. (par contre, au cas oE<ugrave> on veut opE<eacute>rer XML::Reader en fonctionnement
+compatible E<agrave> PYX, il y a toujours option {filter => 4}, comme dE<eacute>jE<agrave> mentionnE<eacute> ci-dessus).
 
 Mais revenons-nous au fonctionnement normal de XML::Reader, voici un exemple XML dans la variable '$line1':
 
@@ -62,15 +60,15 @@ Mais revenons-nous au fonctionnement normal de XML::Reader, voici un exemple XML
     </data>
   };
 
-Cet exemple peut être parsé avec XML::Reader en utilisant les méthodes C<iterate> pour lire séquentiellement
-les données XML, et en utilisant les méthodes C<path> et C<value> pour extraire le chemin et la valeur à un
-endroit précis dans le fichier XML.
+Cet exemple peut E<ecirc>tre parsE<eacute> avec XML::Reader en utilisant les mE<eacute>thodes C<iterate> pour lire sE<eacute>quentiellement
+les donnE<eacute>es XML, et en utilisant les mE<eacute>thodes C<path> et C<value> pour extraire le chemin et la valeur E<agrave> un
+endroit prE<eacute>cis dans le fichier XML.
 
-Si nécessaire, on peut également identifier les balises individuelles de début et de fin: Il y a une méthode
-C<is_start>, qui donne 1 ou 0 (c'est à dire: 1, s'il y a une balise de début à la position actuelle, sinon 0).
-Il y a également la méthode équivalente C<is_end>.
+Si nE<eacute>cessaire, on peut E<eacute>galement identifier les balises individuelles de dE<eacute>but et de fin: Il y a une mE<eacute>thode
+C<is_start>, qui donne 1 ou 0 (c'est E<agrave> dire: 1, s'il y a une balise de dE<eacute>but E<agrave> la position actuelle, sinon 0).
+Il y a E<eacute>galement la mE<eacute>thode E<eacute>quivalente C<is_end>.
 
-En plus, il y a les méthodes C<tag>, C<attr>, C<type> and C<level>. C<tag> retourne le nom de la balise
+En plus, il y a les mE<eacute>thodes C<tag>, C<attr>, C<type> and C<level>. C<tag> retourne le nom de la balise
 en cours, C<attr> retourne l'identifiant d'un attribut, C<type> retourne 'T' s'il y a du texte, ou '@' s'il y
 a des attributs et C<level> indique le niveau de cascadage (un nombre >= 0)
 
@@ -85,7 +83,7 @@ Voici un programme qui lit le XML dans la variable '$line1' (voir ci-dessus) pou
         $rdr->path, $rdr->value, $rdr->is_start, $rdr->is_end, $rdr->tag, $rdr->attr, $rdr->type, $rdr->level;
   }
 
-...et voici le résultat:
+...et voici le rE<eacute>sultat:
 
    1. pat=/data                 , val=         , s=1, e=0, tag=data  , atr=      , t=T, lvl= 1
    2. pat=/data/item            , val=abc      , s=1, e=1, tag=item  , atr=      , t=T, lvl= 2
@@ -101,38 +99,38 @@ Voici un programme qui lit le XML dans la variable '$line1' (voir ci-dessus) pou
 
 =head1 INTERFACE
 
-=head2 Création d'un objet
+=head2 CrE<eacute>ation d'un objet
 
-Pour créer un objet, on utilise la syntaxe suivante:
+Pour crE<eacute>er un objet, on utilise la syntaxe suivante:
 
   my $rdr = XML::Reader->newhd($data,
     {strip => 1, filter => 2, using => ['/path1', '/path2']})
     or die "Error: $!";
 
-L'élément $data est obligatoire, il est le nom d'un fichier XML, ou la référence à une chaîne de
-caractères, dans ce cas le contenu de cette chaîne de caractères est accepté comme XML.
+L'E<eacute>lE<eacute>ment $data est obligatoire, il est le nom d'un fichier XML, ou la rE<eacute>fE<eacute>rence E<agrave> une chaE<icirc>ne de
+caractE<egrave>res, dans ce cas le contenu de cette chaE<icirc>ne de caractE<egrave>res est acceptE<eacute> comme XML.
 
-Sinon, $data peut également être une référence à un fichier, comme par exemple \*STDIN. Dans ce cas,
-la référence de fichier est utiliser pour lire le XML.
+Sinon, $data peut E<eacute>galement E<ecirc>tre une rE<eacute>fE<eacute>rence E<agrave> un fichier, comme par exemple \*STDIN. Dans ce cas,
+la rE<eacute>fE<eacute>rence de fichier est utiliser pour lire le XML.
 
-Voici un exemple pour créer un objet XML::Reader avec un fichier:
+Voici un exemple pour crE<eacute>er un objet XML::Reader avec un fichier:
 
   my $rdr = XML::Reader->newhd('input.xml') or die "Error: $!";
 
-Voici un autre exemple pour créer un objet XML::Reader avec une référence à une chaîne de caractères:
+Voici un autre exemple pour crE<eacute>er un objet XML::Reader avec une rE<eacute>fE<eacute>rence E<agrave> une chaE<icirc>ne de caractE<egrave>res:
 
   my $rdr = XML::Reader->newhd(\'<data>abc</data>') or die "Error: $!";
 
-Voici un exemple pour créer un objet XML::Reader avec une référence à un fichier:
+Voici un exemple pour crE<eacute>er un objet XML::Reader avec une rE<eacute>fE<eacute>rence E<agrave> un fichier:
 
   open my $fh, '<', 'input.xml' or die "Error: $!";
   my $rdr = XML::Reader->newhd($fh);
 
-Voici un exemple pour créer un objet XML::Reader avec \*STDIN:
+Voici un exemple pour crE<eacute>er un objet XML::Reader avec \*STDIN:
 
   my $rdr = XML::Reader->newhd(\*STDIN);
 
-On peut ajouter un ou plusieurs options dans une référence à un hashage:
+On peut ajouter un ou plusieurs options dans une rE<eacute>fE<eacute>rence E<agrave> un hashage:
 
 =over
 
@@ -143,190 +141,190 @@ Option {parse_ct => 1} permet de lire les commentaires, le defaut est {parse_ct 
 =item option {parse_pi => }
 
 Option {parse_pi => 1} permet de lire les processing-instructions et les XML-declarations,
-le défaut est {parse_pi => 0}
+le dE<eacute>faut est {parse_pi => 0}
 
 =item option {using => }
 
-Option {using => } permet de sélectionner un arbre précis dans le XML.
+Option {using => } permet de sE<eacute>lectionner un arbre prE<eacute>cis dans le XML.
 
 La syntaxe est {using => ['/path1/path2/path3', '/path4/path5/path6']}
 
 =item option {filter => }
 
-Option {filter => 2} affiche tous les éléments, y compris les attributs.
+Option {filter => 2} affiche tous les E<eacute>lE<eacute>ments, y compris les attributs.
 
-Option {filter => 3} supprime les attributs (c'est à dire il supprime toutes les lignes qui
-sont $rdr->type eq '@'). En revanche, le contenu des attributs sont retourné dans le hashage
+Option {filter => 3} supprime les attributs (c'est E<agrave> dire il supprime toutes les lignes qui
+sont $rdr->type eq '@'). En revanche, le contenu des attributs sont retournE<eacute> dans le hashage
 $rdr->att_hash.
 
-Option {filter => 4} crée une ligne individuel pour chaque balise de début, de fin, pour chaque
+Option {filter => 4} crE<eacute>e une ligne individuel pour chaque balise de dE<eacute>but, de fin, pour chaque
 attribut, pour chaque commentaire et pour chaque processing-instruction. Ce fonctionnement
-permet, en effet, de générer un format PYX.
+permet, en effet, de gE<eacute>nE<eacute>rer un format PYX.
 
-La syntaxe est {filter => 2|3|4}, le défaut est {filter => 2}
+La syntaxe est {filter => 2|3|4}, le dE<eacute>faut est {filter => 2}
 
 =item option {strip => }
 
-Option {strip => 1} supprime les caractères blancs au début et à la fin d'un texte ou d'un commentaire.
-(les caractères blancs d'un attribut ne sont jamais supprimé). L'option {strip => 0} laisse le texte ou
+Option {strip => 1} supprime les caractE<egrave>res blancs au dE<eacute>but et E<agrave> la fin d'un texte ou d'un commentaire.
+(les caractE<egrave>res blancs d'un attribut ne sont jamais supprimE<eacute>). L'option {strip => 0} laisse le texte ou
 commentaire intacte.
 
-La syntaxe est {strip => 0|1}, le défaut est {strip => 1}
+La syntaxe est {strip => 0|1}, le dE<eacute>faut est {strip => 1}
 
 =back
 
-=head2 Méthodes
+=head2 ME<eacute>thodes
 
-Un objet du type XML::Reader a des méthodes suivantes:
+Un objet du type XML::Reader a des mE<eacute>thodes suivantes:
 
 =over
 
 =item iterate
 
-La méthode C<iterate> lit un élément XML. Elle retourne 1, si la lecture a été un succès, ou undef à la fin
+La mE<eacute>thode C<iterate> lit un E<eacute>lE<eacute>ment XML. Elle retourne 1, si la lecture a E<eacute>tE<eacute> un succE<egrave>s, ou undef E<agrave> la fin
 du fichier XML.
 
 =item path
 
-La méthode C<path> retourne le chemin complet de la ligne en cours, les attributs sont réprésentés avec des
-caractères '@'.
+La mE<eacute>thode C<path> retourne le chemin complet de la ligne en cours, les attributs sont rE<eacute>prE<eacute>sentE<eacute>s avec des
+caractE<egrave>res '@'.
 
 =item value
 
-La méthode C<value> retourne la valeur de la ligne en cours (c'est à dire le texte ou l'attribut).
+La mE<eacute>thode C<value> retourne la valeur de la ligne en cours (c'est E<agrave> dire le texte ou l'attribut).
 
-Conseil: en cas de {filter => 2 ou 3} avec une déclaration-XML (c'est à dire $rdr->is_decl == 1),
-il vaut mieux ne pas prendre compte de la valeur (elle sera vide, de toute façon). Un bout de programme:
+Conseil: en cas de {filter => 2 ou 3} avec une dE<eacute>claration-XML (c'est E<agrave> dire $rdr->is_decl == 1),
+il vaut mieux ne pas prendre compte de la valeur (elle sera vide, de toute faE<ccedil>on). Un bout de programme:
 
   print $rdr->value, "\n" unless $rdr->is_decl;
 
-Le programme ci-dessus ne s'applique *pas* à {filter => 4}, dans ce cas un simple "print $rdr->value;"
+Le programme ci-dessus ne s'applique *pas* E<agrave> {filter => 4}, dans ce cas un simple "print $rdr->value;"
 est suffisant:
 
   print $rdr->value, "\n";
 
 =item comment
 
-La méthode C<comment> retourne le commentaire d'un fichier XML. Il est conseillé de tester $rdr->is_comment
-avant d'accéder à la méthode C<comment>.
+La mE<eacute>thode C<comment> retourne le commentaire d'un fichier XML. Il est conseillE<eacute> de tester $rdr->is_comment
+avant d'accE<eacute>der E<agrave> la mE<eacute>thode C<comment>.
 
 =item type
 
-La méthode C<type> retourne 'T' quand il y a du texte dans le XML, et '@' quand il y a un attribut.
+La mE<eacute>thode C<type> retourne 'T' quand il y a du texte dans le XML, et '@' quand il y a un attribut.
 
-Si l'option {filter => 4} est active, les possibilités sont: 'T' pour du texte, '@' poir un attribut,
-'S' pour une balise de début, 'E' pour une balise de fin, '#' pour un commentaire, 'D' pour une
-déclaration-XML, '?' pour une processing-instruction.
+Si l'option {filter => 4} est active, les possibilitE<eacute>s sont: 'T' pour du texte, '@' poir un attribut,
+'S' pour une balise de dE<eacute>but, 'E' pour une balise de fin, '#' pour un commentaire, 'D' pour une
+dE<eacute>claration-XML, '?' pour une processing-instruction.
 
 =item tag
 
-La méthode C<tag> retourne le nom de la balise en cours.
+La mE<eacute>thode C<tag> retourne le nom de la balise en cours.
 
 =item attr
 
-La méthode C<attr> retourne le nom de l'attribut en cours (elle retourne une chaîne de caractères
-vide si l'élément en cours n'est pas un attribut)
+La mE<eacute>thode C<attr> retourne le nom de l'attribut en cours (elle retourne une chaE<icirc>ne de caractE<egrave>res
+vide si l'E<eacute>lE<eacute>ment en cours n'est pas un attribut)
 
 =item level
 
-La méthode C<level> retourne le niveau de cascadage (un nombre > 0)
+La mE<eacute>thode C<level> retourne le niveau de cascadage (un nombre > 0)
 
 =item prefix
 
-La méthode C<prefix> retourne le préfixe du chemin (c'est la partie du chemin qui a été supprimé dans
-l'option {using => ...}). Elle retourne une chaîne de caractères vide au cas où l'option {using => ...}
-n'a pas été specifiée.
+La mE<eacute>thode C<prefix> retourne le prE<eacute>fixe du chemin (c'est la partie du chemin qui a E<eacute>tE<eacute> supprimE<eacute> dans
+l'option {using => ...}). Elle retourne une chaE<icirc>ne de caractE<egrave>res vide au cas oE<ugrave> l'option {using => ...}
+n'a pas E<eacute>tE<eacute> specifiE<eacute>e.
 
 =item att_hash
 
-La méthode C<att_hash> retourne une référence à l'hachage des attributs de la balise de début en cours
-(au cas où l'élément en cours n'est pas une balise de début, un hachage vide est retourné)
+La mE<eacute>thode C<att_hash> retourne une rE<eacute>fE<eacute>rence E<agrave> l'hachage des attributs de la balise de dE<eacute>but en cours
+(au cas oE<ugrave> l'E<eacute>lE<eacute>ment en cours n'est pas une balise de dE<eacute>but, un hachage vide est retournE<eacute>)
 
 =item dec_hash
 
-La méthode C<dec_hash> retourne une référence à l'hachage des attributs de la XML-declaration en cours
-(au cas où l'élément en cours n'est pas une XML-declaration, un hachage vide est retourné)
+La mE<eacute>thode C<dec_hash> retourne une rE<eacute>fE<eacute>rence E<agrave> l'hachage des attributs de la XML-declaration en cours
+(au cas oE<ugrave> l'E<eacute>lE<eacute>ment en cours n'est pas une XML-declaration, un hachage vide est retournE<eacute>)
 
 =item proc_tgt
 
-La méthode C<proc_tgt> retourne la partie cible (c'est à dire la première partie) de la processing-instruction
-(au cas où l'élément en cours n'est pas une processing-instruction, une chaîne de caractères vide est retourné)
+La mE<eacute>thode C<proc_tgt> retourne la partie cible (c'est E<agrave> dire la premiE<egrave>re partie) de la processing-instruction
+(au cas oE<ugrave> l'E<eacute>lE<eacute>ment en cours n'est pas une processing-instruction, une chaE<icirc>ne de caractE<egrave>res vide est retournE<eacute>)
 
 =item proc_data
 
-La méthode C<proc_data> retourne la partie donnée (c'est à dire la deuxième partie) de la processing-instruction
-(au cas où l'élément en cours n'est pas une processing-instruction, une chaîne de caractères vide est retourné)
+La mE<eacute>thode C<proc_data> retourne la partie donnE<eacute>e (c'est E<agrave> dire la deuxiE<egrave>me partie) de la processing-instruction
+(au cas oE<ugrave> l'E<eacute>lE<eacute>ment en cours n'est pas une processing-instruction, une chaE<icirc>ne de caractE<egrave>res vide est retournE<eacute>)
 
 =item pyx
 
-La méthode C<pyx> retourne la chaîne de caractères format "PYX" de l'élément XML en cours.
+La mE<eacute>thode C<pyx> retourne la chaE<icirc>ne de caractE<egrave>res format "PYX" de l'E<eacute>lE<eacute>ment XML en cours.
 
-La chaîne de caractères format "PYX" est une chaîne de caractères avec un premier caractère spécifique. Ce
-premier caractère de chaque ligne "PYX" détermine le type: si le premier caractère est un '(', alors ça signifie
-une balise de début. Si le premier caractère est un ')', alors ça signifie une balise de fin. Si le premier
-caractère est un 'A', alors ça signifie un attribut. Si le premier caractère est un '-', alors ça signifie un
-texte. Si le premier caractère est un '?', alors ça signifie une processing-instruction. (voir
-L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> pour une introduction à PYX)
+La chaE<icirc>ne de caractE<egrave>res format "PYX" est une chaE<icirc>ne de caractE<egrave>res avec un premier caractE<egrave>re spE<eacute>cifique. Ce
+premier caractE<egrave>re de chaque ligne "PYX" dE<eacute>termine le type: si le premier caractE<egrave>re est un '(', alors E<ccedil>a signifie
+une balise de dE<eacute>but. Si le premier caractE<egrave>re est un ')', alors E<ccedil>a signifie une balise de fin. Si le premier
+caractE<egrave>re est un 'A', alors E<ccedil>a signifie un attribut. Si le premier caractE<egrave>re est un '-', alors E<ccedil>a signifie un
+texte. Si le premier caractE<egrave>re est un '?', alors E<ccedil>a signifie une processing-instruction. (voir
+L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> pour une introduction E<agrave> PYX)
 
-La méthode C<pyx> n'est utile que pour l'option {filter => 4}, sinon, pour un {filter => } différent de 4, on
+La mE<eacute>thode C<pyx> n'est utile que pour l'option {filter => 4}, sinon, pour un {filter => } diffE<eacute>rent de 4, on
 retourne undef.
 
 =item is_start
 
-La méthode C<is_start> retourne 1, si l'élément en cours est une balise de début, sinon 0 est retourné.
+La mE<eacute>thode C<is_start> retourne 1, si l'E<eacute>lE<eacute>ment en cours est une balise de dE<eacute>but, sinon 0 est retournE<eacute>.
 
 =item is_end
 
-La méthode C<is_end> retourne 1, si l'élément en cours est une balise de fin, sinon 0 est retourné.
+La mE<eacute>thode C<is_end> retourne 1, si l'E<eacute>lE<eacute>ment en cours est une balise de fin, sinon 0 est retournE<eacute>.
 
 =item is_decl
 
-La méthode C<is_decl> retourne 1, si l'élément en cours est une XML-declaration, sinon 0 est retourné.
+La mE<eacute>thode C<is_decl> retourne 1, si l'E<eacute>lE<eacute>ment en cours est une XML-declaration, sinon 0 est retournE<eacute>.
 
 =item is_proc
 
-La méthode C<is_proc> retourne 1, si l'élément en cours est une processing-instruction, sinon 0 est retourné.
+La mE<eacute>thode C<is_proc> retourne 1, si l'E<eacute>lE<eacute>ment en cours est une processing-instruction, sinon 0 est retournE<eacute>.
 
 =item is_comment
 
-La méthode C<is_comment> retourne 1, si l'élément en cours est un commentaire, sinon 0 est retourné.
+La mE<eacute>thode C<is_comment> retourne 1, si l'E<eacute>lE<eacute>ment en cours est un commentaire, sinon 0 est retournE<eacute>.
 
 =item is_text
 
-La méthode C<is_text> retourne 1, si l'élément en cours est un texte, sinon 0 est retourné.
+La mE<eacute>thode C<is_text> retourne 1, si l'E<eacute>lE<eacute>ment en cours est un texte, sinon 0 est retournE<eacute>.
 
 =item is_attr
 
-La méthode C<is_attr> retourne 1, si l'élément en cours est un attribut, sinon 0 est retourné.
+La mE<eacute>thode C<is_attr> retourne 1, si l'E<eacute>lE<eacute>ment en cours est un attribut, sinon 0 est retournE<eacute>.
 
 =item is_value
 
-La méthode C<is_attr> retourne 1, si l'élément en cours est un texte ou un attribut, sinon 0 est retourné. Cette
-méthode est plutôt utile pour l'option {filter => 4}, où on peut tester l'utilité de la méthode C<value>.
+La mE<eacute>thode C<is_attr> retourne 1, si l'E<eacute>lE<eacute>ment en cours est un texte ou un attribut, sinon 0 est retournE<eacute>. Cette
+mE<eacute>thode est plutE<ocirc>t utile pour l'option {filter => 4}, oE<ugrave> on peut tester l'utilitE<eacute> de la mE<eacute>thode C<value>.
 
 =back
 
 =head1 OPTION USING
 
-L'option {using => ...} permet de sélectionner un sous-arbre du XML.
+L'option {using => ...} permet de sE<eacute>lectionner un sous-arbre du XML.
 
-Voici comment ça fonctionne en détail...
+Voici comment E<ccedil>a fonctionne en dE<eacute>tail...
 
 L'option {using => ['/chemin1/chemin2/chemin3', '/chemin4/chemin5/chemin6']} d'abord elimine toutes les lignes
-où le chemin ne commence pas avec '/chemin1/chemin2/chemin3' ou '/chemin4/chemin5/chemin6'.
+oE<ugrave> le chemin ne commence pas avec '/chemin1/chemin2/chemin3' ou '/chemin4/chemin5/chemin6'.
 
-Les lignes restantes (ceux qui n'ont pas été eliminé) ont un chemin plus court. En fait le préfixe
-'/chemin1/chemin2/chemin3' (ou '/chemin4/chemin5/chemin6') a été supprimé. En revanche, ce préfixe supprimé
-apparaît dans la méthode C<prefix>.
+Les lignes restantes (ceux qui n'ont pas E<eacute>tE<eacute> eliminE<eacute>) ont un chemin plus court. En fait le prE<eacute>fixe
+'/chemin1/chemin2/chemin3' (ou '/chemin4/chemin5/chemin6') a E<eacute>tE<eacute> supprimE<eacute>. En revanche, ce prE<eacute>fixe supprimE<eacute>
+apparaE<icirc>t dans la mE<eacute>thode C<prefix>.
 
-On dit que '/chemin1/chemin2/chemin3' (ou '/chemin4/chemin5/chemin6') sont "absolu" et "complèt". Le mot "absolu"
-signifie que chaque chemin commence forcement par un caractère '/', et le mot "complèt" signifie que
-la dernière partie 'chemin3' (ou 'chemin6') sera suivi implicitement par un caractère '/'.
+On dit que '/chemin1/chemin2/chemin3' (ou '/chemin4/chemin5/chemin6') sont "absolu" et "complE<egrave>t". Le mot "absolu"
+signifie que chaque chemin commence forcement par un caractE<egrave>re '/', et le mot "complE<egrave>t" signifie que
+la derniE<egrave>re partie 'chemin3' (ou 'chemin6') sera suivi implicitement par un caractE<egrave>re '/'.
 
 =head2 Un exemple avec option 'using'
 
 Le programme suivant prend un fichier XML et le parse avec XML::Reader, y compris l'option 'using' pour
-cibler des éléments spécifiques:
+cibler des E<eacute>lE<eacute>ments spE<eacute>cifiques:
 
   use XML::Reader;
 
@@ -356,7 +354,7 @@ cibler des éléments spécifiques:
         $i, $rdr->prefix, $rdr->path, $rdr->value, $rdr->tag, $rdr->type, $rdr->level;
   }
 
-Voici le résultat de ce programme:
+Voici le rE<eacute>sultat de ce programme:
 
    1. prf=/data/order/database/customer, pat=/@name , val=aaa, tag=@name , t=@, lvl= 1
    2. prf=/data/order/database/customer, pat=/      , val=   , tag=      , t=T, lvl= 0
@@ -383,8 +381,8 @@ Le programme suivant prend un fichier XML et le parse avec XML::Reader, mais san
        $i, $rdr->prefix, $rdr->path, $rdr->value, $rdr->tag, $rdr->type, $rdr->level;
   }
 
-Comme on peut constater dans le résultat suivant, il y a beaucoup plus de lignes, le préfixe est vide et
-le chemin est beaucoup plus longue par rapport au programme précédent:
+Comme on peut constater dans le rE<eacute>sultat suivant, il y a beaucoup plus de lignes, le prE<eacute>fixe est vide et
+le chemin est beaucoup plus longue par rapport au programme prE<eacute>cE<eacute>dent:
 
    1. prf= , pat=/data                                , val=      , tag=data       , t=T, lvl= 1
    2. prf= , pat=/data/order                          , val=      , tag=order      , t=T, lvl= 2
@@ -416,9 +414,9 @@ le chemin est beaucoup plus longue par rapport au programme précédent:
 =head1 OPTION PARSE_CT
 
 L'option {parse_ct => 1} permet de parser les commentaires (normalement, les commentaires ne sont
-pas pris en compte par XML::Reader, le défaut est {parse_ct => 0}.
+pas pris en compte par XML::Reader, le dE<eacute>faut est {parse_ct => 0}.
 
-Voici un exemple où les commentaires ne sont pas pris en compte par défaut:
+Voici un exemple oE<ugrave> les commentaires ne sont pas pris en compte par dE<eacute>faut:
 
   use XML::Reader;
 
@@ -434,11 +432,11 @@ Voici un exemple où les commentaires ne sont pas pris en compte par défaut:
       print "Text '", $rdr->value, "'\n" unless $rdr->is_decl;
   }
 
-Voici le résultat:
+Voici le rE<eacute>sultat:
 
   Text 'xyz stu test'
 
-Ensuite, les mêmes données XML et le même algorithme, sauf l'option {parse_ct => 1}, qui est maintenant active:
+Ensuite, les mE<ecirc>mes donnE<eacute>es XML et le mE<ecirc>me algorithme, sauf l'option {parse_ct => 1}, qui est maintenant active:
 
   use XML::Reader;
 
@@ -454,7 +452,7 @@ Ensuite, les mêmes données XML et le même algorithme, sauf l'option {parse_ct =>
       print "Text '", $rdr->value, "'\n" unless $rdr->is_decl;
   }
 
-Voici le résultat:
+Voici le rE<eacute>sultat:
 
   Text 'xyz'
   Found comment   remark
@@ -463,10 +461,10 @@ Voici le résultat:
 =head1 OPTION PARSE_PI
 
 L'option {parse_pi => 1} permet de parser les processing-instructions et les XML-Declarations (normalement,
-ni les processing-instructions, ni les XML-Declarations ne sont pris en compte par XML::Reader, le défaut
+ni les processing-instructions, ni les XML-Declarations ne sont pris en compte par XML::Reader, le dE<eacute>faut
 est {parse_pi => 0}.
 
-Comme exemple, on prend exactement les mêmes données XML et le même algorithme du paragraphe précédent, sauf
+Comme exemple, on prend exactement les mE<ecirc>mes donnE<eacute>es XML et le mE<ecirc>me algorithme du paragraphe prE<eacute>cE<eacute>dent, sauf
 l'option {parse_pi => 1}, qui est maintenant active (avec l'option {parse_ct => 1}):
 
   use XML::Reader;
@@ -483,9 +481,9 @@ l'option {parse_pi => 1}, qui est maintenant active (avec l'option {parse_ct => 
       print "Text '", $rdr->value, "'\n" unless $rdr->is_decl;
   }
 
-Notez le "unless $rdr->is_decl" dans le programme ci-dessus. C'est pour éviter le texte vide après la XML-déclaration.
+Notez le "unless $rdr->is_decl" dans le programme ci-dessus. C'est pour E<eacute>viter le texte vide aprE<egrave>s la XML-dE<eacute>claration.
 
-Voici le résultat:
+Voici le rE<eacute>sultat:
 
   Found decl      version='1.0'
   Text 'xyz'
@@ -496,20 +494,20 @@ Voici le résultat:
 
 =head1 OPTION FILTER
 
-L'option {filter => } permet de sélectionner des différents modes d'opératoires pour le traitement du XML.
+L'option {filter => } permet de sE<eacute>lectionner des diffE<eacute>rents modes d'opE<eacute>ratoires pour le traitement du XML.
 
 =head2 Option {filter => 2}
 
-Avec option {filter => 2}, XML::Reader génère une ligne pour chaque morceau de texte. Si la balise précédente
-est une balise de début, alors la métode C<is_start> retourne 1. Si la balise suivante est une balise de fin,
-alors la métode C<is_end> retourne 1. Si la balise précédente est une balise de commentaire, alors la méthode
-C<is_comment> retourne 1. Si la balise précédente est une balise de XML-declaration, alors la méthode C<is_decl>
-retourne 1. Si la balise précédente est une balise de processing-instruction, alors la
-méthode C<is_decl> retourne 1.
+Avec option {filter => 2}, XML::Reader gE<eacute>nE<egrave>re une ligne pour chaque morceau de texte. Si la balise prE<eacute>cE<eacute>dente
+est une balise de dE<eacute>but, alors la mE<eacute>tode C<is_start> retourne 1. Si la balise suivante est une balise de fin,
+alors la mE<eacute>tode C<is_end> retourne 1. Si la balise prE<eacute>cE<eacute>dente est une balise de commentaire, alors la mE<eacute>thode
+C<is_comment> retourne 1. Si la balise prE<eacute>cE<eacute>dente est une balise de XML-declaration, alors la mE<eacute>thode C<is_decl>
+retourne 1. Si la balise prE<eacute>cE<eacute>dente est une balise de processing-instruction, alors la
+mE<eacute>thode C<is_decl> retourne 1.
 
-De plus, les attributs sont représentés par des lignes supplémentaires avec la syntaxe '/@...'.
+De plus, les attributs sont reprE<eacute>sentE<eacute>s par des lignes supplE<eacute>mentaires avec la syntaxe '/@...'.
 
-Option {filter => 2} est le défaut.
+Option {filter => 2} est le dE<eacute>faut.
 
 Voici un exemple...
 
@@ -522,7 +520,7 @@ Voici un exemple...
       printf "Path: %-24s, Value: %s\n", $rdr->path, $rdr->value;
   }
 
-Le programme (avec l'option {filter => 2} implicitement par défaut) génère le résultat suivant:
+Le programme (avec l'option {filter => 2} implicitement par dE<eacute>faut) gE<eacute>nE<egrave>re le rE<eacute>sultat suivant:
 
   Path: /root                   , Value:
   Path: /root/test/@param       , Value: v
@@ -537,11 +535,11 @@ Le programme (avec l'option {filter => 2} implicitement par défaut) génère le ré
   Path: /root                   , Value: x yz
 
 
-L'option (implicite) {filter => 2} permet également de reconstruire la structure du XML avec l'assistance
-des méthodes C<is_start> and C<is_end>. Notez que dans le résultat ci-dessus, la première ligne
+L'option (implicite) {filter => 2} permet E<eacute>galement de reconstruire la structure du XML avec l'assistance
+des mE<eacute>thodes C<is_start> and C<is_end>. Notez que dans le rE<eacute>sultat ci-dessus, la premiE<egrave>re ligne
 ("Path: /root, Value:") est vide, mais elle est importante pour la structure du XML.
 
-Prenons-nous le même exemple {filter => 2} avec un algorithme pour reconstruire la structure originale
+Prenons-nous le mE<ecirc>me exemple {filter => 2} avec un algorithme pour reconstruire la structure originale
 du XML:
 
   use XML::Reader;
@@ -572,7 +570,7 @@ du XML:
       }
   }
 
-...voici le résultat:
+...voici le rE<eacute>sultat:
 
   <root>
     <test param='v'>
@@ -595,10 +593,10 @@ du XML:
 
 Pour la plupart, l'option {filter => 3} fonctionne comme l'option {filter => 2}.
 
-Mais il y a une différence: avec l'option {filter => 3}, les attributs sont supprimées et à la place,
-les attributs sont présentés dans un hashage "$rdr->att_hash()" pour chaque balise de début.
+Mais il y a une diffE<eacute>rence: avec l'option {filter => 3}, les attributs sont supprimE<eacute>es et E<agrave> la place,
+les attributs sont prE<eacute>sentE<eacute>s dans un hashage "$rdr->att_hash()" pour chaque balise de dE<eacute>but.
 
-Ainsi, dans l'algorithme précédent, on peut supprimer la variable globale "%at" et la remplacer par
+Ainsi, dans l'algorithme prE<eacute>cE<eacute>dent, on peut supprimer la variable globale "%at" et la remplacer par
 %{$rdr->att_hash}:
 
   use XML::Reader;
@@ -625,7 +623,7 @@ Ainsi, dans l'algorithme précédent, on peut supprimer la variable globale "%at" 
       }
   }
 
-...le résultat de {filter => 3} est identique au résultat de {filter => 2}:
+...le rE<eacute>sultat de {filter => 3} est identique au rE<eacute>sultat de {filter => 2}:
 
   <root>
     <test param='v'>
@@ -644,9 +642,9 @@ Ainsi, dans l'algorithme précédent, on peut supprimer la variable globale "%at" 
 
 =head2 Option {filter => 4}
 
-Même si ce n'est pas la raison principale de XML::Reader, l'option {filter => 4} permet de générer des
-lignes individuelles pour chaque balise de début, de fin, commentaires, processing-instruction et XML-Declaration.
-Le but est de générer une chaîne de caractères du modèle "PYX" pour l'analyse par la suite.
+ME<ecirc>me si ce n'est pas la raison principale de XML::Reader, l'option {filter => 4} permet de gE<eacute>nE<eacute>rer des
+lignes individuelles pour chaque balise de dE<eacute>but, de fin, commentaires, processing-instruction et XML-Declaration.
+Le but est de gE<eacute>nE<eacute>rer une chaE<icirc>ne de caractE<egrave>res du modE<egrave>le "PYX" pour l'analyse par la suite.
 
 Voici un exemple:
 
@@ -669,7 +667,7 @@ Voici un exemple:
       printf "Type = %1s, pyx = %s\n", $rdr->type, $rdr->pyx;
   }
 
-et voici le résultat:
+et voici le rE<eacute>sultat:
 
   Type = D, pyx = ?xml version='1.0' encoding='iso-8859-1'
   Type = S, pyx = (delta
@@ -685,8 +683,8 @@ et voici le résultat:
   Type = T, pyx = -dskjfh uuu
   Type = E, pyx = )delta
 
-Il faut dire que les commentaires, qui sont générés avec l'option {parse_ct => 1}, ne font pas partie du standard "PYX".
-En fait, les commentaires sont générés avec un caractère '#' qui n'existe pas dans le standard. Voici un exemple:
+Il faut dire que les commentaires, qui sont gE<eacute>nE<eacute>rE<eacute>s avec l'option {parse_ct => 1}, ne font pas partie du standard "PYX".
+En fait, les commentaires sont gE<eacute>nE<eacute>rE<eacute>s avec un caractE<egrave>re '#' qui n'existe pas dans le standard. Voici un exemple:
 
   use XML::Reader;
 
@@ -701,13 +699,13 @@ En fait, les commentaires sont générés avec un caractère '#' qui n'existe pas da
       printf "Type = %1s, pyx = %s\n", $rdr->type, $rdr->pyx;
   }
 
-Voici le résultat:
+Voici le rE<eacute>sultat:
 
   Type = S, pyx = (delta
   Type = #, pyx = #remark
   Type = E, pyx = )delta
 
-Avec l'option {filter => 4}, les méthodes habituelles restent accessibles: C<value>, C<attr>, C<path>, C<is_start>,
+Avec l'option {filter => 4}, les mE<eacute>thodes habituelles restent accessibles: C<value>, C<attr>, C<path>, C<is_start>,
 C<is_end>, C<is_decl>, C<is_proc>, C<is_comment>, C<is_attr>, C<is_text>, C<is_value>, C<comment>, C<proc_tgt>,
 C<proc_data>, C<dec_hash> or C<att_hash>. Voici un exemple:
 
@@ -734,7 +732,7 @@ C<proc_data>, C<dec_hash> or C<att_hash>. Voici un exemple:
       elsif ($rdr->is_text)    { print "Found text      ", $rdr->value, "\n"; }
   }
 
-Voici le résultat:
+Voici le rE<eacute>sultat:
 
   Path /               v=0 Found decl      version='1.0'
   Path /parent         v=0 Found start tag parent
@@ -747,13 +745,13 @@ Voici le résultat:
   Path /parent/child   v=0 Found end tag   child
   Path /parent         v=0 Found end tag   parent
 
-Notez que "v=1" (c'est à dire $rdr->is_value == 1) pour tous les textes et pour tous les attributs.
+Notez que "v=1" (c'est E<agrave> dire $rdr->is_value == 1) pour tous les textes et pour tous les attributs.
 
 =head1 EXEMPLES
 
-Examinons-nous le XML suivant, où nous souhaitons extraire les valeurs dans la balise <item>
-(c'est la première partie 'start...', et non pas la partie 'end...' qui nous intéresse), ensuite
-les attributs "p1" et "p3". La balise <item> doit être dans le chemin '/start/param/data (et
+Examinons-nous le XML suivant, oE<ugrave> nous souhaitons extraire les valeurs dans la balise <item>
+(c'est la premiE<egrave>re partie 'start...', et non pas la partie 'end...' qui nous intE<eacute>resse), ensuite
+les attributs "p1" et "p3". La balise <item> doit E<ecirc>tre dans le chemin '/start/param/data (et
 non pas dans le chemin /start/param/dataz).
 
   my $text = q{
@@ -773,8 +771,8 @@ non pas dans le chemin /start/param/dataz).
       </param>
     </start>};
 
-Nous expectons exactement 4 lignes de sortie dans le résultat (c'est à dire la ligne 'dataz' / 'start9'
-ne fait pas partie du résultat):
+Nous expectons exactement 4 lignes de sortie dans le rE<eacute>sultat (c'est E<agrave> dire la ligne 'dataz' / 'start9'
+ne fait pas partie du rE<eacute>sultat):
 
   item = 'start1', p1 = 'a', p3 = 'c'
   item = 'start2', p1 = 'd', p3 = 'f'
@@ -783,10 +781,10 @@ ne fait pas partie du résultat):
 
 =head2 Parser l'exemple XML avec l'option {filter => 2}
 
-Ci-dessous un programme pour parser le XML avec l'option {filter => 2}. (Notez que le préfixe
-'/start/param/data/item' est renseigné dans l'option {using =>} de la fonction newhd). En plus,
-nous avons besoins de 2 variables scalaires '$p1' et '$p3' pour enregistrer les paramètres '/@p1'
-et '/@p3' et les transférer dans la partie '$rdr->is_start' du programme, où on peut les afficher.
+Ci-dessous un programme pour parser le XML avec l'option {filter => 2}. (Notez que le prE<eacute>fixe
+'/start/param/data/item' est renseignE<eacute> dans l'option {using =>} de la fonction newhd). En plus,
+nous avons besoins de 2 variables scalaires '$p1' et '$p3' pour enregistrer les paramE<egrave>tres '/@p1'
+et '/@p3' et les transfE<eacute>rer dans la partie '$rdr->is_start' du programme, oE<ugrave> on peut les afficher.
 
   my $rdr = XML::Reader->newhd(\$text,
     {filter => 2, using => '/start/param/data/item'}) or die "Error: $!";
@@ -820,12 +818,12 @@ programme devient assez simple:
 
 =head2 Parser l'exemple XML avec l'option {filter => 4}
 
-Avec l'option {filter => 4}, par contre, le programme devient plus compliqué: Comme déjà
-montré dans l'exemple {filter => 2}, nous avons besoin de deux variables scalaires ('$p1' et
-'$p3') pour enregistrer les paramètres '/@p1' et '/@p3' et les transférer à l'endoit où on peut
+Avec l'option {filter => 4}, par contre, le programme devient plus compliquE<eacute>: Comme dE<eacute>jE<agrave>
+montrE<eacute> dans l'exemple {filter => 2}, nous avons besoin de deux variables scalaires ('$p1' et
+'$p3') pour enregistrer les paramE<egrave>tres '/@p1' et '/@p3' et les transfE<eacute>rer E<agrave> l'endoit oE<ugrave> on peut
 les afficher. En plus, nous avons besoin de compter les valeurs de texte (voir variable '$count'
-ci-dessous), afin d'identifier la première partie du texte 'start...' (ce que nous voulons afficher)
-et supprimer la deuxième partie du texte 'end...' (ce que nous ne voulons pas afficher).
+ci-dessous), afin d'identifier la premiE<egrave>re partie du texte 'start...' (ce que nous voulons afficher)
+et supprimer la deuxiE<egrave>me partie du texte 'end...' (ce que nous ne voulons pas afficher).
 
   my $rdr = XML::Reader->newhd(\$text,
     {filter => 4, using => '/start/param/data/item'}) or die "Error: $!";
@@ -863,10 +861,10 @@ see L<http://www.opensource.org/licenses/artistic-license-1.0.php>
 
 =head1 MODULES ASSOCIES
 
-Si vous souhaitez écrire du XML, je propose d'utiliser une autre module "XML::Writer". Ce module
-se présente avec une interface simple pour écrire un fichier XML. Si vous ne mélangez pas le texte et les
+Si vous souhaitez E<eacute>crire du XML, je propose d'utiliser une autre module "XML::Writer". Ce module
+se prE<eacute>sente avec une interface simple pour E<eacute>crire un fichier XML. Si vous ne mE<eacute>langez pas le texte et les
 balises (ce qu'on appelle en Anglais "non-mixed content XML"), je propose de mettre les options DATA_MODE=>1
-et DATA_INDENT=>2, ainsi votre résultat sera proprement formaté selon les règles XML.
+et DATA_INDENT=>2, ainsi votre rE<eacute>sultat sera proprement formatE<eacute> selon les rE<egrave>gles XML.
 
 =head1 REFERENCES
 
