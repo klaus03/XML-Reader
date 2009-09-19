@@ -1,6 +1,24 @@
+package XML::Reader::French;
+
+print "\n";
+print "This document is the French translation from English of the module XML::Reader.\n";
+print "In order to get the Perl source code of the module, please see file XML/Reader.pm\n";
+print "\n";
+print "Ce document est une traduction Francaise de l'Anglais du module XML::Reader.\n";
+print "Pour obtenir la source Perl du module, consultez le fichier XML/Reader.pm\n";
+print "\n";
+
 =head1 NAME
 
-XML::Reader - Lire du XML avec des informations du chemin, basE<eacute> sur un parseur d'extraction.
+XML::Reader - Lire du XML avec des informations du chemin, conduit par un parseur d'extraction.
+
+=head1 TRADUCTION
+
+This document is the French translation from English of the module XML::Reader. In order to
+get the Perl source code of the module, please see file XML/Reader.pm
+
+Ce document est une traduction FranE<ccedil>aise de l'Anglais du module XML::Reader. Pour
+obtenir la source Perl du module, consultez le fichier XML/Reader.pm
 
 =head1 SYNOPSIS
 

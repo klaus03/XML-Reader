@@ -94,3 +94,9 @@ Revision history for XML-Reader
         Basically, I am renaming/relocating the two files
         pod/XML-Reader-de.pod into lib/XML/Reader-de.pod
         pod/XML-Reader-fr.pod into lib/XML/Reader-fr.pod
+
+0.23    19 Sep 2009
+        Needed to bump up the version number again due to wrong indexing.
+        Now I am introducing two new dummy *.pm files with their proper Packages
+        rename pod/XML-Reader-de.pod into lib/XML/Reader/German.pm
+        rename pod/XML-Reader-fr.pod into lib/XML/Reader/French.pm
