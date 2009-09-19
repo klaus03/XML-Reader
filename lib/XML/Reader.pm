@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.23';
+our $VERSION     = '0.24';
 
 sub newhd {
     my $class = shift;
@@ -529,6 +529,8 @@ sub extract_decl      { $_[0][7]; } # type eq 'T'
 1;
 
 __END__
+
+=pod
 
 =head1 NAME
 

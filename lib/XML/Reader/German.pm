@@ -9,6 +9,8 @@ print "XML::Reader. Um den Perl Quelltext des Moduls zu lesen, gehen Sie bitte z
 print "Datei XML/Reader.pm\n";
 print "\n";
 
+=pod
+
 =head1 NAME
 
 XML::Reader - Lesen von XML-Dateien und Bereitstellung der Pfad information basierend auf einem Pull-Parser.
@@ -18,7 +20,7 @@ XML::Reader - Lesen von XML-Dateien und Bereitstellung der Pfad information basi
 This document is the French translation from English of the module XML::Reader. In order to
 get the Perl source code of the module, please see file XML/Reader.pm
 
-Dieses Dokument ist die Deutsche E<Uuml>bersetzung aus dem Englischen des moduls XML::Reader. Um
+Dieses Dokument ist die Deutsche E<Uuml>bersetzung aus dem Englischen des Moduls XML::Reader. Um
 den Perl Quelltext des Moduls zu lesen, gehen Sie bitte zur Datei XML/Reader.pm
 
 =head1 SYNOPSIS
@@ -622,7 +624,7 @@ um die originale XML-Struktur wieder herzustellen:
 Die Option {filter => 3} funktioniert E<auml>hnlich wie {filter => 2}.
 
 Der Unterschied jedoch ist dass mit Option {filter => 3} alle Attribut-Zeilen eliminiert werden
-und anstelle dessen die Attribute fuer ein Start-Tag im hash $rdr->att_hash() erscheinen.
+und anstelle dessen die Attribute fE<uuml>r ein Start-Tag im hash $rdr->att_hash() erscheinen.
 
 Damit wird die Benutzung einer globalen %at-Variable im oben angegebenen Algorithmus nicht mehr
 notwendig und kann daher durch die Konstruktion %{$rdr->att_hash} erstzt werden.

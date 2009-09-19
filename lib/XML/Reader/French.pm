@@ -8,6 +8,8 @@ print "Ce document est une traduction Francaise de l'Anglais du module XML::Read
 print "Pour obtenir la source Perl du module, consultez le fichier XML/Reader.pm\n";
 print "\n";
 
+=pod
+
 =head1 NAME
 
 XML::Reader - Lire du XML avec des informations du chemin, conduit par un parseur d'extraction.

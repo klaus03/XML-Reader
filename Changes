@@ -100,3 +100,8 @@ Revision history for XML-Reader
         Now I am introducing two new dummy *.pm files with their proper Packages
         rename pod/XML-Reader-de.pod into lib/XML/Reader/German.pm
         rename pod/XML-Reader-fr.pod into lib/XML/Reader/French.pm
+
+0.24    19 Sep 2009
+        Need to bump up the version number again, the indexing is still not working.
+        That's probably due to the missing =pod directive.
+        I have now added the =pod directive and I keep my fingers crossed
