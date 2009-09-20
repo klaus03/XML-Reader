@@ -4,8 +4,6 @@ LICENCE
 Makefile.PL
 README
 lib/XML/Reader.pm
-lib/XML/Reader/German.pm
-lib/XML/Reader/French.pm
 t/0010_test.t
 t/0020_test.t
 t/0030_test.t

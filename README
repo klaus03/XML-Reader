@@ -1,4 +1,4 @@
-XML-Reader Version 0.24
+XML-Reader Version 0.25
 
 Reading XML and providing path information based on a pull-parser.
 
@@ -36,10 +36,10 @@ You can also look for information at:
         http://search.cpan.org/dist/XML-Reader/
 
 
-COPYRIGHT AND LICENCE
+COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 by Klaus Eichner
 
 All rights reserved. This program is free software; you can redistribute
-it and/or modify it under the terms of the artistic licence,
+it and/or modify it under the terms of the artistic license,
 see http://www.opensource.org/licenses/artistic-license-1.0.php

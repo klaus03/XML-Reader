@@ -105,3 +105,7 @@ Revision history for XML-Reader
         Need to bump up the version number again, the indexing is still not working.
         That's probably due to the missing =pod directive.
         I have now added the =pod directive and I keep my fingers crossed
+
+0.25    20 Sep 2009
+        AGAIN AND AGAIN: Need to bump up the version number, the indexing is still not working.
+        renamed the two *.pm files into *.pod again.
