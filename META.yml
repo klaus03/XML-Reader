@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               XML-Reader
-version:            0.25
+version:            0.26
 abstract:           Reading XML and providing path information based on a pull-parser.
 author:
     - Klaus Eichner <klaus03@gmail.com>

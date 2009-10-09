@@ -109,3 +109,6 @@ Revision history for XML-Reader
 0.25    20 Sep 2009
         AGAIN AND AGAIN: Need to bump up the version number, the indexing is still not working.
         renamed the two *.pm files into *.pod again.
+
+0.26    09 Oct 2009
+        Introduce a new function: 'slurp_xml' to slurp xml into an array-ref

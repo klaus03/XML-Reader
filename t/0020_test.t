@@ -1,9 +1,9 @@
 use strict;
 use warnings;
 
-use Test::More tests => 168;
+use Test::More tests => 172;
 
-use_ok('XML::Reader');
+use_ok('XML::Reader', qw(slurp_xml));
 
 {
     my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
@@ -501,4 +501,44 @@ use_ok('XML::Reader');
         is($lines[ 2], "item = 'start3', p1 = 'g', p3 = 'i'", 'Pod-Test case no 18: output line  2');
         is($lines[ 3], "item = 'start4', p1 = 'm', p3 = 'o'", 'Pod-Test case no 18: output line  3');
     }
+}
+
+{
+    my $line2 = q{
+    <data>
+      <order>
+        <database>
+          <customer name="smith" id="652">
+            <street>high street</street>
+            <city>boston</city>
+          </customer>
+          <customer name="jones" id="184">
+            <street>maple street</street>
+            <city>new york</city>
+          </customer>
+          <customer name="stewart" id="520">
+            <street>ring road</street>
+            <city>dallas</city>
+          </customer>
+        </database>
+      </order>
+      <dummy value="ttt">test</dummy>
+      <supplier>hhh</supplier>
+      <supplier>iii</supplier>
+      <supplier>jjj</supplier>
+    </data>
+    };
+
+    my $aref = slurp_xml(\$line2, '/data/order/database/customer',
+      ['/@name', '/street', '/city']);
+
+    my @lines;
+    for (@$aref) {
+        push @lines, sprintf("Name = %-7s Street = %-12s City = %s", $_->[0], $_->[1], $_->[2]);
+    }
+
+    is(scalar(@lines),   3,                                                'Pod-Test case no 19: number of output lines');
+    is($lines[ 0], "Name = smith   Street = high street  City = boston",   'Pod-Test case no 19: output line  0');
+    is($lines[ 1], "Name = jones   Street = maple street City = new york", 'Pod-Test case no 19: output line  1');
+    is($lines[ 2], "Name = stewart Street = ring road    City = dallas",   'Pod-Test case no 19: output line  2');
 }
