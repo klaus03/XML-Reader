@@ -112,3 +112,7 @@ Revision history for XML-Reader
 
 0.26    09 Oct 2009
         Introduce a new function: 'slurp_xml' to slurp xml into an array-ref
+
+0.27    10 Oct 2009
+        Change the way 'slurp_xml' handles its parameters
+

@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.26';
+our $VERSION     = '0.27';
 
 sub newhd {
     my $class = shift;
@@ -503,10 +503,10 @@ sub DESTROY {
 }
 
 sub slurp_xml {
-    my ($data, $root, $twigs) = @_;
+    my ($data, $root) = @_; my @twigs = @{$_[2]};
 
     # in @$twigs --> remove all spaces and then all leading and trailing '/', then put back a single leading '/'
-    for my $tw (@$twigs) {
+    for my $tw (@twigs) {
         $tw =~ s{\s}''xmsg;
         $tw =~ s{\A /+}''xms;
         $tw =~ s{/+ \z}''xms;
@@ -523,8 +523,8 @@ sub slurp_xml {
             $branch = [];
         }
         if ($rdr->is_value) {
-            for my $i (0..$#$twigs) {
-                if ($rdr->path eq $twigs->[$i]) {
+            for my $i (0..$#twigs) {
+                if ($rdr->path eq $twigs[$i]) {
                     $branch->[$i] .= $rdr->value;
                 }
             }
