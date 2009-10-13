@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 172;
+use Test::More tests => 176;
 
 use_ok('XML::Reader', qw(slurp_xml));
 
@@ -506,6 +506,8 @@ use_ok('XML::Reader', qw(slurp_xml));
 {
     my $line2 = q{
     <data>
+      <supplier>ggg</supplier>
+      <supplier>hhh</supplier>
       <order>
         <database>
           <customer name="smith" id="652">
@@ -523,22 +525,32 @@ use_ok('XML::Reader', qw(slurp_xml));
         </database>
       </order>
       <dummy value="ttt">test</dummy>
-      <supplier>hhh</supplier>
       <supplier>iii</supplier>
       <supplier>jjj</supplier>
     </data>
     };
 
-    my $aref = slurp_xml(\$line2, '/data/order/database/customer',
-      ['/@name', '/street', '/city']);
+    my $aref = slurp_xml(\$line2,
+      { root => '/data/order/database/customer', branch => ['/@name', '/street', '/city'] },
+      { root => '/data/supplier',                branch => ['/']                          },
+    );
 
     my @lines;
-    for (@$aref) {
-        push @lines, sprintf("Name = %-7s Street = %-12s City = %s", $_->[0], $_->[1], $_->[2]);
+
+    for (@{$aref->[0]}) {
+        push @lines, sprintf("Cust: Name = %-7s Street = %-12s City = %s", $_->[0], $_->[1], $_->[2]);
     }
 
-    is(scalar(@lines),   3,                                                'Pod-Test case no 19: number of output lines');
-    is($lines[ 0], "Name = smith   Street = high street  City = boston",   'Pod-Test case no 19: output line  0');
-    is($lines[ 1], "Name = jones   Street = maple street City = new york", 'Pod-Test case no 19: output line  1');
-    is($lines[ 2], "Name = stewart Street = ring road    City = dallas",   'Pod-Test case no 19: output line  2');
+    for (@{$aref->[1]}) {
+        push @lines, sprintf("Supp: Name = %s", $_->[0]);
+    }
+
+    is(scalar(@lines),   7,                                                      'Pod-Test case no 19: number of output lines');
+    is($lines[ 0], "Cust: Name = smith   Street = high street  City = boston",   'Pod-Test case no 19: output line  0');
+    is($lines[ 1], "Cust: Name = jones   Street = maple street City = new york", 'Pod-Test case no 19: output line  1');
+    is($lines[ 2], "Cust: Name = stewart Street = ring road    City = dallas",   'Pod-Test case no 19: output line  2');
+    is($lines[ 3], "Supp: Name = ggg",                                           'Pod-Test case no 19: output line  3');
+    is($lines[ 4], "Supp: Name = hhh",                                           'Pod-Test case no 19: output line  4');
+    is($lines[ 5], "Supp: Name = iii",                                           'Pod-Test case no 19: output line  5');
+    is($lines[ 6], "Supp: Name = jjj",                                           'Pod-Test case no 19: output line  6');
 }

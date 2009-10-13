@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.27';
+our $VERSION     = '0.28';
 
 sub newhd {
     my $class = shift;
@@ -503,39 +503,48 @@ sub DESTROY {
 }
 
 sub slurp_xml {
-    my ($data, $root) = @_; my @twigs = @{$_[2]};
+    my $data = shift;
 
-    # in @$twigs --> remove all spaces and then all leading and trailing '/', then put back a single leading '/'
-    for my $tw (@twigs) {
-        $tw =~ s{\s}''xmsg;
-        $tw =~ s{\A /+}''xms;
-        $tw =~ s{/+ \z}''xms;
-        $tw = '/'.$tw;
-    }
+    my @tree = map {[]} @_; # start with as many empty lists as there are roots 
 
-    my $list   = [];
-    my $branch = [];
+    my @bush;
 
-    my $rdr = XML::Reader->newhd($data, {filter => 4, using => $root}) or die "Error: $!";
+    my $rdr = XML::Reader->newhd($data, {filter => 4}) or die "Error: $!";
 
     while ($rdr->iterate) {
-        if ($rdr->path eq '/' and $rdr->is_start) {
-            $branch = [];
-        }
-        if ($rdr->is_value) {
-            for my $i (0..$#twigs) {
-                if ($rdr->path eq $twigs[$i]) {
-                    $branch->[$i] .= $rdr->value;
+
+        for my $r (0..$#_) {
+            my $root = $_[$r]{root};
+            my $twig;
+            if ($rdr->path eq $root) {
+                $twig = '/';
+            }
+            elsif (substr($rdr->path, 0, length($root) + 1) eq $root.'/') {
+                $twig = substr($rdr->path, length($root));
+            }
+
+            next unless defined $twig;
+
+            if ($twig eq '/' and $rdr->is_start) {
+                $bush[$r] = [];
+            }
+
+            if ($rdr->is_value) {
+                for my $i (0..$#{$_[$r]{branch}}) {
+                    if ($_[$r]{branch}[$i] eq $twig) {
+                        $bush[$r][$i] .= $rdr->value;
+                    }
                 }
             }
-        }
-        if ($rdr->path eq '/' and $rdr->is_end) {
-            push @$list, $branch;
-            $branch = []; # ...only to be on the safe side: empty $branch after it has been pushed on @$list
+
+            if ($twig eq '/' and $rdr->is_end) {
+                push @{$tree[$r]}, $bush[$r];
+                $bush[$r] = []; # ...only to be on the safe side: empty $bush after it has been pushed on @tree
+            }
         }
     }
 
-    return $list;
+    return \@tree;
 }
 
 # The package used here - XML::Reader::Token 
@@ -1418,12 +1427,15 @@ text-values (see scalar '$count'), so that we can distinguish between the first 
 
 The function slurp_xml reads an XML file and slurps it into an array-ref. Here is an
 example where we want to slurp the name, the street and the city of all customers in
-the path '/data/order/database/customer':
+the path '/data/order/database/customer' and we also want to slurp the supplier in
+'/data/supplier':
 
   use XML::Reader qw(slurp_xml);
 
   my $line2 = q{
   <data>
+    <supplier>ggg</supplier>
+    <supplier>hhh</supplier>
     <order>
       <database>
         <customer name="smith" id="652">
@@ -1441,35 +1453,48 @@ the path '/data/order/database/customer':
       </database>
     </order>
     <dummy value="ttt">test</dummy>
-    <supplier>hhh</supplier>
     <supplier>iii</supplier>
     <supplier>jjj</supplier>
   </data>
   };
 
-  my $aref = slurp_xml(\$line2, '/data/order/database/customer',
-    ['/@name', '/street', '/city']);
+  my $aref = slurp_xml(\$line2,
+    { root => '/data/order/database/customer', branch => ['/@name', '/street', '/city'] },
+    { root => '/data/supplier',                branch => ['/']                          },
+  );
 
-  for (@$aref) {
-      printf "Name = %-7s Street = %-12s City = %s\n", $_->[0], $_->[1], $_->[2];
+  for (@{$aref->[0]}) {
+      printf "Cust: Name = %-7s Street = %-12s City = %s\n", $_->[0], $_->[1], $_->[2];
+  }
+
+  print "\n";
+
+  for (@{$aref->[1]}) {
+      printf "Supp: Name = %s\n", $_->[0];
   }
 
 The first parameter to slurp_xml is the filename (or scalar reference, or open filehandle) of the XML
-that will be slurped. In this case we read from a scalar ref \$line2. The second parameter is the
-root of the sub-tree that we want to slurp (in our case that's '/data/order/database/customer').
-Finally we supply a list of the elements that we want to slurp, relative to the sub-tree. In this
-case it is ['/@name', '/street', '/city'].
+that will be slurped. In this case we read from a scalar ref \$line2. The next parameter is a hash-ref
+with the root of the sub-tree that we want to slurp (in our case that's '/data/order/database/customer')
+and the branches, a list of the elements that we want to slurp, relative to the sub-tree. In this
+case it is ['/@name', '/street', '/city']. The next parameter is our second root/branch definition, in
+this case it is root => '/data/supplier' with branch => ['/'].
 
 Here is the output:
 
-  Name = smith   Street = high street  City = boston
-  Name = jones   Street = maple street City = new york
-  Name = stewart Street = ring road    City = dallas
+  Cust: Name = smith   Street = high street  City = boston
+  Cust: Name = jones   Street = maple street City = new york
+  Cust: Name = stewart Street = ring road    City = dallas
+
+  Supp: Name = ggg
+  Supp: Name = hhh
+  Supp: Name = iii
+  Supp: Name = jjj
 
 slurp_xml works similar to L<XML::Simple>, in that it reads all required information in one go into
 an in-memory data structure. The difference, however, is that slurp_xml lets you be specific in what
-you actually want before you do the slurping, so that your in-memory data structure is smaller
-and less complicated.
+you actually want before you do the slurping, so that in most cases your in-memory data structure is
+smaller and less complicated.
 
 =head1 AUTHOR
 
