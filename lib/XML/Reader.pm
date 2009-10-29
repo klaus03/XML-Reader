@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.28';
+our $VERSION     = '0.29';
 
 sub newhd {
     my $class = shift;
@@ -21,12 +21,13 @@ sub newhd {
     # Option {filter => 2} includes attribute lines before <start>.
     # Option {filter => 3} no       attribute lines.
     # Option {filter => 4} includes attribute lines after <start> and splits <start>, text and </end>.
+    # Option {filter => 5} reads roots and branches.
 
     my %opt = (strip => 1, filter => 2, parse_pi => 0, parse_ct => 0); # newhd defaults to filter=>2
     %opt    = (%opt, %{$_[1]}) if defined $_[1];
 
-    unless ($opt{filter} == 2 or $opt{filter} == 3 or $opt{filter} == 4) {
-        croak "Failed assertion #0005 in subroutine XML::Reader->newhd: filter is set to '$opt{filter}', but must be 2, 3 or 4";
+    unless ($opt{filter} == 2 or $opt{filter} == 3 or $opt{filter} == 4 or $opt{filter} == 5) {
+        croak "Failed assertion #0005 in subroutine XML::Reader->newhd: filter is set to '$opt{filter}', but must be 2, 3, 4 or 5";
     }
 
     my $XmlParser = XML::Parser->new
@@ -101,7 +102,7 @@ sub newhd {
         XR_Decl      => {},
         XR_Prv_SPECD => '',
         XR_Emit_attr => ($opt{filter} == 3 ? 0 : 1),
-        XR_Split_up  => ($opt{filter} == 4 ? 1 : 0),
+        XR_Split_up  => ($opt{filter} == 4 || $opt{filter} == 5 ? 1 : 0),
         XR_Strip     => $opt{strip},
         XR_ParseInst => $opt{parse_pi},
         XR_ParseComm => $opt{parse_ct},
@@ -122,12 +123,25 @@ sub newhd {
     $self->{filter}  = $opt{filter};
     $self->{using}   = !defined($opt{using}) ? [] : ref($opt{using}) ? $opt{using} : [$opt{using}];
 
+    # ********************************************************************************************
+    # The following lines have been disabled by Klaus Eichner, 30 Oct 2009 (for version 0.29)
+    # ********************************************************************************************
     # remove all spaces and then all leading and trailing '/', then put back a single leading '/'
-    for my $check (@{$self->{using}}) {
-        $check =~ s{\s}''xmsg;
-        $check =~ s{\A /+}''xms;
-        $check =~ s{/+ \z}''xms;
-        $check = '/'.$check;
+    # for my $check (@{$self->{using}}) {
+    #    $check =~ s{\s}''xmsg;
+    #    $check =~ s{\A /+}''xms;
+    #    $check =~ s{/+ \z}''xms;
+    #    $check = '/'.$check;
+    # }
+    # ********************************************************************************************
+
+    $self->{bush}  = [];
+    $self->{rlist} = [];
+
+    if ($self->{filter} == 5) {
+        for my $object (@_[2..$#_]) {
+            push @{$self->{rlist}}, $object;
+        }
     }
 
     $self->{plist}        = [];
@@ -139,6 +153,8 @@ sub newhd {
     $self->{dec_hash}     = {};
     $self->{comment}      = '';
     $self->{pyx}          = '';
+    $self->{rx}           = 0;
+    $self->{rvalue}       = [];
     $self->{proc}         = '';
     $self->{type}         = '?';
     $self->{is_start}     = 0;
@@ -166,6 +182,8 @@ sub level        { $_[0]{level};        }
 sub prefix       { $_[0]{prefix};       }
 sub comment      { $_[0]{comment};      }
 sub pyx          { $_[0]{pyx};          }
+sub rx           { $_[0]{rx};           }
+sub rvalue       { $_[0]{rvalue};       }
 sub proc_tgt     { $_[0]{proc_tgt};     }
 sub proc_data    { $_[0]{proc_data};    }
 sub is_decl      { $_[0]{is_decl};      }
@@ -286,6 +304,48 @@ sub iterate {
         }
         else {
             $self->{pyx} = undef;
+        }
+
+        # for {filter => 5} check roots
+        if ($self->{filter} == 5) {
+            $self->{rx} = undef;
+
+            for my $r (0..$#{$self->{rlist}}) {
+                my $param = $self->{rlist}[$r];
+
+                my $root = $param->{root};
+                my $twig;
+                if ($self->{path} eq $root) {
+                    $twig = '/';
+                }
+                elsif (substr($self->{path}, 0, length($root) + 1) eq $root.'/') {
+                    $twig = substr($self->{path}, length($root));
+                }
+
+                next unless defined $twig;
+
+                if ($twig eq '/' and $self->{is_start}) {
+                    $self->{bush}[$r] = [];
+                }
+
+                if ($self->{is_value}) {
+                    for my $i (0..$#{$param->{branch}}) {
+                        if ($param->{branch}[$i] eq $twig) {
+                            $self->{bush}[$r][$i] .= $self->{value};
+                        }
+                    }
+                }
+
+                if ($twig eq '/' and $self->{is_end}) {
+                    $self->{rx} = $r;
+                }
+            }
+
+            unless (defined $self->{rx}) {
+                redo;
+            }
+
+            $self->{rvalue} = $self->{bush}[$self->{rx}];
         }
 
         # Here we check for the {using => ...} option
@@ -507,41 +567,10 @@ sub slurp_xml {
 
     my @tree = map {[]} @_; # start with as many empty lists as there are roots 
 
-    my @bush;
-
-    my $rdr = XML::Reader->newhd($data, {filter => 4}) or die "Error: $!";
+    my $rdr = XML::Reader->newhd($data, {filter => 5}, @_) or die "Error: $!";
 
     while ($rdr->iterate) {
-
-        for my $r (0..$#_) {
-            my $root = $_[$r]{root};
-            my $twig;
-            if ($rdr->path eq $root) {
-                $twig = '/';
-            }
-            elsif (substr($rdr->path, 0, length($root) + 1) eq $root.'/') {
-                $twig = substr($rdr->path, length($root));
-            }
-
-            next unless defined $twig;
-
-            if ($twig eq '/' and $rdr->is_start) {
-                $bush[$r] = [];
-            }
-
-            if ($rdr->is_value) {
-                for my $i (0..$#{$_[$r]{branch}}) {
-                    if ($_[$r]{branch}[$i] eq $twig) {
-                        $bush[$r][$i] .= $rdr->value;
-                    }
-                }
-            }
-
-            if ($twig eq '/' and $rdr->is_end) {
-                push @{$tree[$r]}, $bush[$r];
-                $bush[$r] = []; # ...only to be on the safe side: empty $bush after it has been pushed on @tree
-            }
-        }
+        push @{$tree[$rdr->rx]}, $rdr->rvalue;
     }
 
     return \@tree;
@@ -737,7 +766,13 @@ Option {filter => 4} breaks down each line into its
 individual start-tags, end-tags, attributes, comments and processing-instructions.
 This allows the parsing of XML into pyx-formatted lines.
 
-The syntax is {filter => 2|3|4}, default is {filter => 2}
+Option {filter => 5} selects only data for a given root. The elements for each root are collected in
+an array reference (as specified by the branch) and returned when the root is complete. This
+processing lies half way between option using (where all elements are returned one by one) and the
+function slurp_xml (where all elements are collected in a branch, and all branches are collected
+in an in-memory structure).
+
+The syntax is {filter => 2|3|4|5}, default is {filter => 2}
 
 =item option {strip => }
 
@@ -1323,6 +1358,75 @@ Here is the output:
   Path /parent         v=0 Found end tag   parent
 
 Note that v=1 (i.e. $rdr->is_value == 1) for all text and all attributes.
+
+=head2 Option {filter => 5}
+
+With option {filter => 5}, you specify one (or many) roots, each root has a set of branches attached.
+What you then get back is one record for each occurence of a root in the XML tree. Each record then contains
+the elements that have been specified in the branches. The easiest way to explain its effect is to show
+an example.
+
+  use XML::Reader;
+
+  my $line2 = q{
+  <data>
+    <supplier>ggg</supplier>
+    <supplier>hhh</supplier>
+    <order>
+      <database>
+        <customer name="smith" id="652">
+          <street>high street</street>
+          <city>boston</city>
+        </customer>
+        <customer name="jones" id="184">
+          <street>maple street</street>
+          <city>new york</city>
+        </customer>
+        <customer name="stewart" id="520">
+          <street>ring road</street>
+          <city>dallas</city>
+        </customer>
+      </database>
+    </order>
+    <dummy value="ttt">test</dummy>
+    <supplier>iii</supplier>
+    <supplier>jjj</supplier>
+  </data>
+  };
+
+Let's say we want to read the name, the street and the city of all customers in
+the path '/data/order/database/customer' and we also want to read the supplier in
+'/data/supplier'. Data for our first root ('/data/order/database/customer') is
+identified by $rdr->rx == 0, data for our second root ('/data/supplier') is identified
+by $rdr->rx == 1.
+
+  my $rdr = XML::Reader->newhd(\$line2, {filter => 5},
+    { root => '/data/order/database/customer', branch => ['/@name', '/street', '/city'] },
+    { root => '/data/supplier',                branch => ['/']                          },
+  );
+
+  while ($rdr->iterate) {
+      if ($rdr->rx == 0) {
+          for ($rdr->rvalue) {
+              printf "Cust: Name = %-7s Street = %-12s City = %s\n", $_->[0], $_->[1], $_->[2];
+          }
+      }
+      elsif ($rdr->rx == 1) {
+          for ($rdr->rvalue) {
+              printf "Supp: Name = %s\n", $_->[0];
+          }
+      }
+  }
+
+This is the output:
+
+  Supp: Name = ggg
+  Supp: Name = hhh
+  Cust: Name = smith   Street = high street  City = boston
+  Cust: Name = jones   Street = maple street City = new york
+  Cust: Name = stewart Street = ring road    City = dallas
+  Supp: Name = iii
+  Supp: Name = jjj
 
 =head1 EXAMPLES
 

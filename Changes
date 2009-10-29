@@ -119,3 +119,6 @@ Revision history for XML-Reader
 0.28    13 Oct 2009
         Allow multiple roots in 'slurp_xml'
         inject a "use 5.008" into Makefile.PL
+
+0.29    29 Oct 2009
+        Add {filter => 5}
