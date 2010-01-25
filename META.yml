@@ -1,22 +1,20 @@
---- #YAML:1.0
-name:               XML-Reader
-version:            0.29
-abstract:           Reading XML and providing path information based on a pull-parser.
+---
+name: XML-Reader
+version: 0.30
 author:
-    - Klaus Eichner <klaus03@gmail.com>
-license:            unknown
-distribution_type:  module
+abstract: Reading XML and providing path information based on a pull-parser
+license: perl
 configure_requires:
-    ExtUtils::MakeMaker:  0
-build_requires:
-    ExtUtils::MakeMaker:  0
-requires:
-    XML::Parser:  1
-no_index:
-    directory:
-        - t
-        - inc
-generated_by:       ExtUtils::MakeMaker version 6.55_02
+  Module::Build: 0.340201
+generated_by: Module::Build version 0.340201
 meta-spec:
-    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
-    version:  1.4
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+provides:
+  XML::Reader:
+    file: lib/XML/Reader.pm
+    version: 0.30
+  XML::Reader::Token:
+    file: lib/XML/Reader.pm
+resources:
+  license: http://dev.perl.org/licenses/

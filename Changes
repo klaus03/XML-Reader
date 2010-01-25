@@ -122,3 +122,9 @@ Revision history for XML-Reader
 
 0.29    29 Oct 2009
         Add {filter => 5}
+
+0.30    25 Jan 2010
+        include
+          translated POD-documentation into French: XML-Reader-fr.pod
+          translated POD-documentation into German: XML-Reader-de.pod
+        add Build.PL

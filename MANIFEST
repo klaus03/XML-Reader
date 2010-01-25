@@ -2,8 +2,11 @@ Changes
 MANIFEST
 LICENCE
 Makefile.PL
+Build.PL
 README
 lib/XML/Reader.pm
+lib/XML/Reader_fr.pod
+lib/XML/Reader_de.pod
 t/0010_test.t
 t/0020_test.t
 t/0030_test.t
