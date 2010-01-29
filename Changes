@@ -128,3 +128,10 @@ Revision history for XML-Reader
           translated POD-documentation into French: XML-Reader-fr.pod
           translated POD-documentation into German: XML-Reader-de.pod
         add Build.PL
+
+0.31    29 Jan 2010
+        - I am suddenly getting automated reports about test failures on systems where
+          XML::Parser has not been installed. To fix that problem, I have to add the
+          correct module dependency in Build.PL and in Makefile.PL.
+        - harmonize the version number in XML::Reader::Token with the version number
+          in XML::Reader

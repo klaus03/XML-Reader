@@ -1,9 +1,12 @@
 ---
 name: XML-Reader
-version: 0.30
+version: 0.31
 author:
 abstract: Reading XML and providing path information based on a pull-parser
 license: perl
+requires:
+  Carp: 0
+  XML::Parser: 1
 configure_requires:
   Module::Build: 0.340201
 generated_by: Module::Build version 0.340201
@@ -13,8 +16,9 @@ meta-spec:
 provides:
   XML::Reader:
     file: lib/XML/Reader.pm
-    version: 0.30
+    version: 0.31
   XML::Reader::Token:
     file: lib/XML/Reader.pm
+    version: 0.31
 resources:
   license: http://dev.perl.org/licenses/

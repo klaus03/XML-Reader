@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.30';
+our $VERSION     = '0.31';
 
 sub newhd {
     my $class = shift;
@@ -580,6 +580,8 @@ sub slurp_xml {
 # has been inspired by    XML::TokeParser::Token
 
 package XML::Reader::Token;
+
+our $VERSION = '0.31';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
