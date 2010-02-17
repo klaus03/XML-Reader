@@ -135,3 +135,7 @@ Revision history for XML-Reader
           correct module dependency in Build.PL and in Makefile.PL.
         - harmonize the version number in XML::Reader::Token with the version number
           in XML::Reader
+
+0.32    17 Feb 2010
+        Fix a problem in Build.PL which had an incorrect version use 5.010; the correct
+        version is use 5.008;
