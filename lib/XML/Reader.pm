@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.32';
+our $VERSION     = '0.33';
 
 sub newhd {
     my $class = shift;
@@ -140,7 +140,24 @@ sub newhd {
 
     if ($self->{filter} == 5) {
         for my $object (@_[2..$#_]) {
-            push @{$self->{rlist}}, $object;
+            if ($object->{root} =~ m{\A // ([^/] .*) \z}xms
+            or  $object->{root} =~ m{\A    ([^/] .*) \z}xms) {
+                my $chunk = $1;
+                push @{$self->{rlist}}, {
+                    root   => undef,
+                    qr1    => qr{ / \Q$chunk\E \z}xms,
+                    qrfix  => undef,
+                    branch => $object->{branch},
+                  };
+            }
+            else {
+                push @{$self->{rlist}}, {
+                    root   => $object->{root},
+                    qr1    => undef,
+                    qrfix  => undef,
+                    branch => $object->{branch},
+                  };
+            }
         }
     }
 
@@ -155,6 +172,8 @@ sub newhd {
     $self->{pyx}          = '';
     $self->{rx}           = 0;
     $self->{rvalue}       = [];
+    $self->{rstem}        = '';
+    $self->{rresult}      = [];
     $self->{proc}         = '';
     $self->{type}         = '?';
     $self->{is_start}     = 0;
@@ -184,6 +203,7 @@ sub comment      { $_[0]{comment};      }
 sub pyx          { $_[0]{pyx};          }
 sub rx           { $_[0]{rx};           }
 sub rvalue       { $_[0]{rvalue};       }
+sub rstem        { $_[0]{rstem};        }
 sub proc_tgt     { $_[0]{proc_tgt};     }
 sub proc_data    { $_[0]{proc_data};    }
 sub is_decl      { $_[0]{is_decl};      }
@@ -195,6 +215,12 @@ sub is_attr      { $_[0]{is_attr};      }
 sub is_value     { $_[0]{is_value};     }
 sub is_end       { $_[0]{is_end};       }
 
+sub rval {
+  ref $_[0]{rvalue} eq 'SCALAR' ? ${$_[0]{rvalue}} :
+  ref $_[0]{rvalue} eq 'ARRAY'  ? @{$_[0]{rvalue}} :
+                                  undef;
+}
+
 sub NB_data      { $_[0]{ExpatNB}{XR_Data}; }
 sub NB_fh        { $_[0]{ExpatNB}{XR_fh};   }
 
@@ -202,6 +228,16 @@ sub iterate {
     my $self = shift;
 
     {
+        if ($self->{filter} == 5) {
+            my $res = shift @{$self->{rresult}};
+            if ($res) {
+                $self->{rx}     = $res->[0];
+                $self->{rvalue} = $res->[1];
+                $self->{rstem}  = $res->[2];
+                return 1;
+            }
+        }
+
         my $token = $self->get_token;
         unless (defined $token) {
             return;
@@ -219,6 +255,10 @@ sub iterate {
 
         my $prv_SPECD = $token->extract_prv_SPECD;
         my $nxt_SPECD = $token->extract_nxt_SPECD;
+
+        $self->{rx}     = 0;
+        $self->{rvalue} = [];
+        $self->{rstem}  = '';
 
         if ($token->found_text) {
             my $text    = $token->extract_text;
@@ -308,44 +348,92 @@ sub iterate {
 
         # for {filter => 5} check roots
         if ($self->{filter} == 5) {
-            $self->{rx} = undef;
-
             for my $r (0..$#{$self->{rlist}}) {
                 my $param = $self->{rlist}[$r];
 
-                my $root = $param->{root};
                 my $twig;
-                if ($self->{path} eq $root) {
-                    $twig = '/';
+                my $stem;
+
+                my $root;
+                if (defined $param->{root}) {
+                    $root = $param->{root};
                 }
-                elsif (substr($self->{path}, 0, length($root) + 1) eq $root.'/') {
-                    $twig = substr($self->{path}, length($root));
+                elsif (defined $param->{qrfix}) {
+                    $root = $param->{qrfix};
+                }
+                elsif (defined $param->{qr1}) {
+                    if ($self->{path} =~ $param->{qr1}) {
+                        $root = $self->{path};
+                        $param->{qrfix} = $root;
+                    }
+                }
+
+                if (defined $root) {
+                    if ($self->{path} eq $root) {
+                        $stem = $root;
+                        $twig = '/';
+                    }
+                    elsif (substr($self->{path}, 0, length($root) + 1) eq $root.'/') {
+                        $stem = $root;
+                        $twig = substr($self->{path}, length($root));
+                    }
                 }
 
                 next unless defined $twig;
 
-                if ($twig eq '/' and $self->{is_start}) {
-                    $self->{bush}[$r] = [];
-                }
+                if (ref $param->{branch}) { # here we have an array of branches...
+                    if ($twig eq '/' and $self->{is_start}) {
+                        $self->{bush}[$r] = [];
+                    }
 
-                if ($self->{is_value}) {
-                    for my $i (0..$#{$param->{branch}}) {
-                        if ($param->{branch}[$i] eq $twig) {
-                            $self->{bush}[$r][$i] .= $self->{value};
+                    if ($self->{is_value}) {
+                        for my $i (0..$#{$param->{branch}}) {
+                            if ($param->{branch}[$i] eq $twig) {
+                                $self->{bush}[$r][$i] .= $self->{value};
+                            }
                         }
                     }
                 }
+                else { # here we have branch that is a simple scalar...
+                    if ($twig eq '/' and $self->{is_start}) {
+                        $self->{bush}[$r] = \do{ my $xml = '' };
+                    }
+
+                    my $element = '';
+                    if ($self->{is_start}) {
+                        $element .= '<'.$self->{tag};
+                        for my $key (sort keys %{$self->{att_hash}}) {
+                            my $kval = $self->{att_hash}{$key};
+                            $kval =~ s{&}'&amp;'xmsg;
+                            $kval =~ s{'}'&apos;'xmsg;
+                            $kval =~ s{<}'&lt;'xmsg;
+                            $kval =~ s{>}'&gt;'xmsg;
+                            $element .= qq{ $key='$kval'};
+                        }
+                        $element .= '>';
+                    }
+                    if ($self->{is_text}) {
+                        my $tval = $self->{value};
+                        if ($tval ne '') {
+                            $tval =~ s{&}'&amp;'xmsg;
+                            $tval =~ s{<}'&lt;'xmsg;
+                            $tval =~ s{>}'&gt;'xmsg;
+                            $element .= $tval;
+                        }
+                    }
+                    if ($self->{is_end}) {
+                        $element .= '</'.$self->{tag}.'>';
+                    }
+
+                    ${$self->{bush}[$r]} .= $element;
+                }
 
                 if ($twig eq '/' and $self->{is_end}) {
-                    $self->{rx} = $r;
+                    push @{$self->{rresult}}, [$r, $self->{bush}[$r], $stem];
+                    $param->{qrfix} = undef;
                 }
             }
-
-            unless (defined $self->{rx}) {
-                redo;
-            }
-
-            $self->{rvalue} = $self->{bush}[$self->{rx}];
+            redo;
         }
 
         # Here we check for the {using => ...} option
@@ -581,7 +669,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.32';
+our $VERSION = '0.33';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -605,8 +693,6 @@ sub extract_decl      { $_[0][7]; } # type eq 'T'
 1;
 
 __END__
-
-=pod
 
 =head1 NAME
 
@@ -910,6 +996,24 @@ Returns 1 if the XML-file had an attribute at the current position, otherwise 0 
 Returns 1 if the XML-file has either a text or an attribute at the current position, otherwise 0 is
 returned. This is mostly useful in mode {filter => 4} to see whether the method value() can be used.
 
+=item rx
+
+This is the index of the currently selected branch (only useful when {filter => 5} was set).
+
+=item rval
+
+This is the value of the currently selected branch (only useful when {filter => 5} was set).
+
+=item rvalue
+
+This is a reference to either a scalar or to an array of the currently selected branch (only useful when
+{filter => 5} was set). rvalue is a faster, but not so convenient version of rval (with rvalue you will
+have to do the dereferencing yourself).
+
+=item rstem
+
+This is the stem of the currently selected branch (only useful when {filter => 5} was set).
+
 =back
 
 =head1 OPTION USING
@@ -1123,7 +1227,8 @@ Here is an example...
 
   use XML::Reader;
 
-  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
+  my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
+             q{f</b></a></test>x <!-- remark --> yz</root>};
 
   my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
   while ($rdr->iterate) {
@@ -1133,27 +1238,31 @@ Here is an example...
 This program (with implicit option {filter => 2} as default) produces the following output:
 
   Path: /root                   , Value:
-  Path: /root/test/@param       , Value: v
+  Path: /root/test/@param       , Value: <>v"
   Path: /root/test              , Value:
   Path: /root/test/a            , Value:
-  Path: /root/test/a/b          , Value: e
-  Path: /root/test/a/b/data/@id , Value: z
-  Path: /root/test/a/b/data     , Value: g
+  Path: /root/test/a/b          , Value: "e"
+  Path: /root/test/a/b/data/@id , Value: <>z'
+  Path: /root/test/a/b/data     , Value: 'g'&<>
   Path: /root/test/a/b          , Value: f
   Path: /root/test/a            , Value:
   Path: /root/test              , Value:
   Path: /root                   , Value: x yz
 
 The same {filter => 2} also allows to rebuild the structure of the XML with the help of the methods
-C<is_start> and C<is_end>. Please note that in the above output, the first line ("Path: /root, Value:")
+C<is_start> and C<is_end>. To make things more interesting, we have the following additional requirement:
+We want any text (but not tags and not attributes) to be wrapped inside a pair of "**...**" when it is
+displayed. Please note also that in the above output, the first line ("Path: /root, Value:")
 is empty, but important for the structure of the XML. Therefore we can't ignore it.
 
-Let us now look at the same example (with option {filter => 2}), but with an
-additional algorithm to reconstruct the original XML:
+Let us now look at the same example (with option {filter => 2}), but with an additional algorithm to
+reconstruct the original XML plus the additional requirement to wrap text (but not tags and not attributes)
+inside "** **":
 
   use XML::Reader;
 
-  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
+  my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
+             q{f</b></a></test>x <!-- remark --> yz</root>};
 
   my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
 
@@ -1162,7 +1271,16 @@ additional algorithm to reconstruct the original XML:
   while ($rdr->iterate) {
       my $indentation = '  ' x ($rdr->level - 1);
 
-      if ($rdr->type eq '@')  { $at{$rdr->attr} = $rdr->value; }
+      if ($rdr->type eq '@')  {
+          $at{$rdr->attr} = $rdr->value;
+          for ($at{$rdr->attr}) {
+              s{&}'&amp;'xmsg;
+              s{'}'&apos;'xmsg;
+              s{<}'&lt;'xmsg;
+              s{>}'&gt;'xmsg;
+          }
+      }
+
 
       if ($rdr->is_start) {
           print $indentation, '<', $rdr->tag, join('', map{" $_='$at{$_}'"} sort keys %at), '>', "\n";
@@ -1171,7 +1289,13 @@ additional algorithm to reconstruct the original XML:
       unless ($rdr->type eq '@') { %at = (); }
 
       if ($rdr->type eq 'T' and $rdr->value ne '') {
-          print $indentation, '  ', $rdr->value, "\n";
+          my $v = $rdr->value;
+          for ($v) {
+              s{&}'&amp;'xmsg;
+              s{<}'&lt;'xmsg;
+              s{>}'&gt;'xmsg;
+          }
+          print $indentation, "  ** $v **\n";
       }
 
       if ($rdr->is_end) {
@@ -1182,18 +1306,18 @@ additional algorithm to reconstruct the original XML:
 ...and here is the output:
 
   <root>
-    <test param='v'>
+    <test param='&lt;&gt;v"'>
       <a>
         <b>
-          e
-          <data id='z'>
-            g
+          ** "e" **
+          <data id='&lt;&gt;z&apos;'>
+            ** 'g'&amp;&lt;&gt; **
           </data>
-          f
+          ** f **
         </b>
       </a>
     </test>
-    x yz
+    ** x yz **
   </root>
 
 ...this is proof that the original structure of the XML is not lost.
@@ -1214,7 +1338,8 @@ replaced by %{$rdr->att_hash} :
 
   use XML::Reader;
 
-  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
+  my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
+             q{f</b></a></test>x <!-- remark --> yz</root>};
 
   my $rdr = XML::Reader->newhd(\$text, {filter => 3}) or die "Error: $!";
 
@@ -1222,13 +1347,26 @@ replaced by %{$rdr->att_hash} :
       my $indentation = '  ' x ($rdr->level - 1);
 
       if ($rdr->is_start) {
+          my %h = %{$rdr->att_hash};
+          for (values %h) {
+              s{&}'&amp;'xmsg;
+              s{'}'&apos;'xmsg;
+              s{<}'&lt;'xmsg;
+              s{>}'&gt;'xmsg;
+          }
           print $indentation, '<', $rdr->tag,
-            join('', map{" $_='".$rdr->att_hash->{$_}."'"} sort keys %{$rdr->att_hash}),
+            join('', map{" $_='$h{$_}'"} sort keys %h),
             '>', "\n";
       }
 
       if ($rdr->type eq 'T' and $rdr->value ne '') {
-          print $indentation, '  ', $rdr->value, "\n";
+          my $v = $rdr->value;
+          for ($v) {
+              s{&}'&amp;'xmsg;
+              s{<}'&lt;'xmsg;
+              s{>}'&gt;'xmsg;
+          }
+          print $indentation, "  ** $v **\n";
       }
 
       if ($rdr->is_end) {
@@ -1239,19 +1377,55 @@ replaced by %{$rdr->att_hash} :
 ...the output for {filter => 3} is identical to the output for {filter => 2}:
 
   <root>
-    <test param='v'>
+    <test param='&lt;&gt;v"'>
       <a>
         <b>
-          e
-          <data id='z'>
-            g
+          ** "e" **
+          <data id='&lt;&gt;z&apos;'>
+            ** 'g'&amp;&lt;&gt; **
           </data>
-          f
+          ** f **
         </b>
       </a>
     </test>
-    x yz
+    ** x yz **
   </root>
+
+Finally, we can (and we should) delegate the writing of XML to another module. I would suggest that
+we use L<XML::Writer> for that. Here is the program that uses L<XML::Writer> to output XML:
+
+  use XML::Reader;
+  use XML::Writer;
+
+  my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
+             q{f</b></a></test>x <!-- remark --> yz</root>};
+
+  my $rdr = XML::Reader->newhd(\$text, {filter => 3}) or die "Error: $!";
+  my $wrt = XML::Writer->new(OUTPUT => \*STDOUT, NEWLINES => 1);
+
+  while ($rdr->iterate) {
+      if ($rdr->is_start)                          { $wrt->startTag($rdr->tag, %{$rdr->att_hash}); }
+      if ($rdr->type eq 'T' and $rdr->value ne '') { $wrt->characters('** '.$rdr->value.' **'); }
+      if ($rdr->is_end)                            { $wrt->endTag($rdr->tag); }
+  }
+
+  $wrt->end();
+
+Here is the output from L<XML::Writer>:
+
+  <root
+  ><test param="&lt;&gt;v&quot;"
+  ><a
+  ><b
+  >** "e" **<data id="&lt;&gt;z'"
+  >** 'g'&amp;&lt;&gt; **</data
+  >** f **</b
+  ></a
+  ></test
+  >** x yz **</root
+  >
+
+The format written by L<XML::Writer> needs some getting used to, but it is valid XML.
 
 =head2 Option {filter => 4}
 
@@ -1364,71 +1538,202 @@ Note that v=1 (i.e. $rdr->is_value == 1) for all text and all attributes.
 =head2 Option {filter => 5}
 
 With option {filter => 5}, you specify one (or many) roots, each root has a set of branches attached.
-What you then get back is one record for each occurence of a root in the XML tree. Each record then contains
-the elements that have been specified in the branches. The easiest way to explain its effect is to show
-an example.
+What you then get back is one record for each occurence of a root in the XML tree.
+A root can start with a single slash (such as {root => '/tag1/tag2'}), in which case the path is
+absolute, or it can start with a double-slash (such as {root => '//tag1/tag2'}), in which case the path
+is relative. If you start your root with no slash at all (such as {root => 'tag1/tag2'}), your path is
+also relative.
+
+Each record then contains the elements that have been specified in the branches. (As a special case, the
+branch can be a single '*' character, in which case the complete XML is produced for the root).
+
+To obtain the elements that have been specified in the branches, you can use either function $rdr->rvalue
+or $rdr->rval.
+
+The easiest way to explain its effect is to show an example.
 
   use XML::Reader;
 
   my $line2 = q{
   <data>
     <supplier>ggg</supplier>
+    <customer name="o'rob" id="444">
+      <street>pod alley</street>
+      <city>no city</city>
+    </customer>
+    <customer1 name="troy" id="333">
+      <street>one way</street>
+      <city>any city</city>
+    </customer1>
+    <tcustomer name="nbc" id="777">
+      <street>away</street>
+      <city>acity</city>
+    </tcustomer>
     <supplier>hhh</supplier>
+    <zzz>
+      <customer name='"sue"' id="111">
+        <street>baker street</street>
+        <city>sidney</city>
+      </customer>
+    </zzz>
     <order>
       <database>
-        <customer name="smith" id="652">
+        <customer name="&lt;smith&gt;" id="652">
           <street>high street</street>
           <city>boston</city>
         </customer>
-        <customer name="jones" id="184">
+        <customer name="&amp;jones" id="184">
           <street>maple street</street>
           <city>new york</city>
         </customer>
         <customer name="stewart" id="520">
-          <street>ring road</street>
-          <city>dallas</city>
+          <street>  ring   road   </street>
+          <city>  "'&amp;&lt;&#65;&gt;'"  </city>
         </customer>
       </database>
     </order>
     <dummy value="ttt">test</dummy>
     <supplier>iii</supplier>
     <supplier>jjj</supplier>
+    <p>
+      <p>b1</p>
+      <p>b2</p>
+    </p>
+    <p>
+      b3
+    </p>
   </data>
   };
 
 Let's say we want to read the name, the street and the city of all customers in
-the path '/data/order/database/customer' and we also want to read the supplier in
-'/data/supplier'. Data for our first root ('/data/order/database/customer') is
-identified by $rdr->rx == 0, data for our second root ('/data/supplier') is identified
-by $rdr->rx == 1.
+any relative path ('customer') and we also want to read the supplier in the absolute path
+'/data/supplier'. Then, we want to have data for the relative customer ('//customer')
+supplied as pure XML ({branch => '*'}). Finally we want to have data for the relative path 'p'
+as pure XML.
+
+Data for our first root ('customer') is identified by $rdr->rx == 0, data for our second root
+('/data/supplier') is identified by $rdr->rx == 1, data for our third root ('//customer')
+is identified by $rdr->rx == 2, and data for our fourth root ('p') is identified by $rdr-rx == 3.
+
+In the following program we will use function rdr->rvalue to obtain the data:
 
   my $rdr = XML::Reader->newhd(\$line2, {filter => 5},
-    { root => '/data/order/database/customer', branch => ['/@name', '/street', '/city'] },
-    { root => '/data/supplier',                branch => ['/']                          },
+    { root => 'customer',       branch => ['/@name', '/street', '/city'] },
+    { root => '/data/supplier', branch => ['/']                          },
+    { root => '//customer',     branch => '*' },
+    { root => 'p',              branch => '*' },
   );
+
+  my $root0 = '';
+  my $root1 = '';
+  my $root2 = '';
+  my $root3 = '';
+
+  my $stem0 = '';
 
   while ($rdr->iterate) {
       if ($rdr->rx == 0) {
+          $stem0 .= "  ".$rdr->rstem."\n";
           for ($rdr->rvalue) {
-              printf "Cust: Name = %-7s Street = %-12s City = %s\n", $_->[0], $_->[1], $_->[2];
+              $root0 .= sprintf "  Cust: Name = %-7s Street = %-12s City = %s\n", $_->[0], $_->[1], $_->[2];
           }
       }
       elsif ($rdr->rx == 1) {
           for ($rdr->rvalue) {
-              printf "Supp: Name = %s\n", $_->[0];
+              $root1 .= "  Supp: Name = ".$_->[0]."\n";
+          }
+      }
+      elsif ($rdr->rx == 2) {
+          for ($rdr->rvalue) {
+              $root2 .= "  Xml: ".$$_."\n";
+          }
+      }
+      elsif ($rdr->rx == 3) {
+          for ($rdr->rvalue) {
+              $root3 .= "  P: ".$$_."\n";
           }
       }
   }
 
+  print "root0:\n$root0\n";
+  print "stem0:\n$stem0\n";
+  print "root1:\n$root1\n";
+  print "root2:\n$root2\n";
+  print "root3:\n$root3\n";
+
 This is the output:
 
-  Supp: Name = ggg
-  Supp: Name = hhh
-  Cust: Name = smith   Street = high street  City = boston
-  Cust: Name = jones   Street = maple street City = new york
-  Cust: Name = stewart Street = ring road    City = dallas
-  Supp: Name = iii
-  Supp: Name = jjj
+  root0:
+    Cust: Name = o'rob   Street = pod alley    City = no city
+    Cust: Name = "sue"   Street = baker street City = sidney
+    Cust: Name = <smith> Street = high street  City = boston
+    Cust: Name = &jones  Street = maple street City = new york
+    Cust: Name = stewart Street = ring road    City = "'&<A>'"
+
+  stem0:
+    /data/customer
+    /data/zzz/customer
+    /data/order/database/customer
+    /data/order/database/customer
+    /data/order/database/customer
+
+  root1:
+    Supp: Name = ggg
+    Supp: Name = hhh
+    Supp: Name = iii
+    Supp: Name = jjj
+
+  root2:
+    Xml: <customer id='444' name='o&apos;rob'><street>pod alley</street><city>no city</city></customer>
+    Xml: <customer id='111' name='"sue"'><street>baker street</street><city>sidney</city></customer>
+    Xml: <customer id='652' name='&lt;smith&gt;'><street>high street</street><city>boston</city></customer>
+    Xml: <customer id='184' name='&amp;jones'><street>maple street</street><city>new york</city></customer>
+    Xml: <customer id='520' name='stewart'><street>ring road</street><city>"'&amp;&lt;A&gt;'"</city></customer>
+
+  root3:
+    P: <p><p>b1</p><p>b2</p></p>
+    P: <p>b3</p>
+
+We can also use function rdr->rval to obtain the same data:
+
+  my $rdr = XML::Reader->newhd(\$line2, {filter => 5},
+    { root => 'customer',       branch => ['/@name', '/street', '/city'] },
+    { root => 'p',              branch => '*' },
+  );
+
+  my $out0 = '';
+  my $out1 = '';
+
+  while ($rdr->iterate) {
+      if ($rdr->rx == 0) {
+          my @rv = $rdr->rval;
+          $out0 .= sprintf "  Cust: Name = %-7s Street = %-12s City = %s\n", $rv[0], $rv[1], $rv[2];
+      }
+      elsif ($rdr->rx == 1) {
+          $out1 .= "  P: ".$rdr->rval."\n";
+      }
+  }
+
+  print "output0:\n$out0\n";
+  print "output1:\n$out1\n";
+
+This is the output:
+
+  output0:
+    Cust: Name = o'rob   Street = pod alley    City = no city
+    Cust: Name = "sue"   Street = baker street City = sidney
+    Cust: Name = <smith> Street = high street  City = boston
+    Cust: Name = &jones  Street = maple street City = new york
+    Cust: Name = stewart Street = ring road    City = "'&<A>'"
+
+  output1:
+    P: <p><p>b1</p><p>b2</p></p>
+    P: <p>b3</p>
+
+It is important to notice here that the case "root3" / "output1" { root => 'p', branch => '*' } clearly shows that always the
+biggest possible XML subtree is matched for relative roots. In other words, the output of "P: <p>b1</p>" and "P:
+<p>b2</p>" on its own line is not possible, because they are already part of the bigger line
+"P: <p><p>b1</p><p>b2</p></p>".
 
 =head1 EXAMPLES
 
@@ -1527,6 +1832,24 @@ text-values (see scalar '$count'), so that we can distinguish between the first 
       }
   }
 
+=head2 Parsing XML with {filter => 5}
+
+You could combine {filter => 5} and regular expressions to parse the XML:
+
+  my $rdr = XML::Reader->newhd(\$text, {filter => 5},
+    { root => '/start/param/data/item', branch => '*' },
+  ) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      if ($rdr->rval =~ m{\A <item
+          (?:\s+ p1='([^']*)')?
+          (?:\s+ p2='([^']*)')?
+          (?:\s+ p3='([^']*)')?
+          \s* > ([^<]*) <}xms) {
+          printf "item = '%s', p1 = '%s', p3 = '%s'\n", $4, $1, $3;
+      }
+  }
+
 =head1 FUNCTIONS
 
 =head2 Function slurp_xml
@@ -1566,7 +1889,7 @@ the path '/data/order/database/customer' and we also want to slurp the supplier 
 
   my $aref = slurp_xml(\$line2,
     { root => '/data/order/database/customer', branch => ['/@name', '/street', '/city'] },
-    { root => '/data/supplier',                branch => ['/']                          },
+    { root => '/data/supplier',                branch => '*'                            },
   );
 
   for (@{$aref->[0]}) {
@@ -1576,7 +1899,7 @@ the path '/data/order/database/customer' and we also want to slurp the supplier 
   print "\n";
 
   for (@{$aref->[1]}) {
-      printf "Supp: Name = %s\n", $_->[0];
+      printf "S: %s\n", $$_;
   }
 
 The first parameter to slurp_xml is the filename (or scalar reference, or open filehandle) of the XML
@@ -1592,10 +1915,10 @@ Here is the output:
   Cust: Name = jones   Street = maple street City = new york
   Cust: Name = stewart Street = ring road    City = dallas
 
-  Supp: Name = ggg
-  Supp: Name = hhh
-  Supp: Name = iii
-  Supp: Name = jjj
+  S: <supplier>ggg</supplier>
+  S: <supplier>hhh</supplier>
+  S: <supplier>iii</supplier>
+  S: <supplier>jjj</supplier>
 
 slurp_xml works similar to L<XML::Simple>, in that it reads all required information in one go into
 an in-memory data structure. The difference, however, is that slurp_xml lets you be specific in what

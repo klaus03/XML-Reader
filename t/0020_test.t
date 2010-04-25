@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 184;
+use Test::More tests => 233;
 
 use_ok('XML::Reader', qw(slurp_xml));
 
@@ -610,4 +610,244 @@ use_ok('XML::Reader', qw(slurp_xml));
     is($lines[ 4], "Cust: Name = stewart Street = ring road    City = dallas",   'Pod-Test case no 20: output line  4');
     is($lines[ 5], "Supp: Name = iii",                                           'Pod-Test case no 20: output line  5');
     is($lines[ 6], "Supp: Name = jjj",                                           'Pod-Test case no 20: output line  6');
+}
+
+# Pod-Test case no 21: for XML-Reader ver 0.33 (25 Apr 2010), test for {filter => 5}:
+#   - you can now have duplicate roots (which was not possible before)
+#   - allow branch => '*' which will effectively collect all events and construct a sub-tree in XML format
+#   - allow relative roots, such as 'tag1/tag2' or '//tag1/tag2'
+#     that XML-format has the correct translations
+#       + < into &lt;
+#       + > into &gt;
+#       + & into &amp;
+#       + ' into &apos;
+#       + " into &quot;
+
+{
+    my $line2 = q{
+    <data>
+      <supplier>ggg</supplier>
+      <customer name="o'rob" id="444">
+        <street>pod alley</street>
+        <city>no city</city>
+      </customer>
+      <customer1 name="troy" id="333">
+        <street>one way</street>
+        <city>any city</city>
+      </customer1>
+      <tcustomer name="nbc" id="777">
+        <street>away</street>
+        <city>acity</city>
+      </tcustomer>
+      <supplier>hhh</supplier>
+      <zzz>
+        <customer name='"sue"' id="111">
+          <street>baker street</street>
+          <city>sidney</city>
+        </customer>
+      </zzz>
+      <order>
+        <database>
+          <customer name="&lt;smith&gt;" id="652">
+            <street>high street</street>
+            <city>boston</city>
+          </customer>
+          <customer name="&amp;jones" id="184">
+            <street>maple street</street>
+            <city>new york</city>
+          </customer>
+          <customer name="stewart" id="520">
+            <street>  ring   road   </street>
+            <city>  "'&amp;&lt;&#65;&gt;'"  </city>
+          </customer>
+        </database>
+      </order>
+      <dummy value="ttt">test</dummy>
+      <supplier>iii</supplier>
+      <supplier>jjj</supplier>
+    </data>
+    };
+
+    my $rdr = XML::Reader->newhd(\$line2, {filter => 5},
+      { root => 'customer',       branch => ['/@name', '/street', '/city'] },
+      { root => '/data/supplier', branch => ['/']                          },
+      { root => '//customer',     branch => '*' },
+    );
+
+    my @stm0;
+    my @stm1;
+    my @stm2;
+
+    my @lin0;
+    my @lin1;
+    my @lin2;
+
+    my @lrv0;
+    my @lrv2;
+
+    while ($rdr->iterate) {
+        if ($rdr->rx == 0) {
+            push @stm0, $rdr->rstem;
+            for ($rdr->rvalue) {
+                push @lin0, sprintf("Cust: Name = %-7s Street = %-12s City = %s", $_->[0], $_->[1], $_->[2]);
+            }
+            my @rv = $rdr->rval;
+            push @lrv0, sprintf("C-rv: Name = %-7s Street = %-12s City = %s", $rv[0], $rv[1], $rv[2]);
+        }
+        elsif ($rdr->rx == 1) {
+            push @stm1, $rdr->rstem;
+            for ($rdr->rvalue) {
+                push @lin1, sprintf("Supp: Name = %s", $_->[0]);
+            }
+        }
+        elsif ($rdr->rx == 2) {
+            push @stm2, $rdr->rstem;
+            for ($rdr->rvalue) {
+                push @lin2, $$_;
+            }
+            push @lrv2, $rdr->rval;
+        }
+    }
+
+    is(scalar(@stm0),   5,                          'Pod-Test case no 21-a: number of stems');
+    is($stm0[ 0], q{/data/customer},                'Pod-Test case no 21-a: stem  0');
+    is($stm0[ 1], q{/data/zzz/customer},            'Pod-Test case no 21-a: stem  1');
+    is($stm0[ 2], q{/data/order/database/customer}, 'Pod-Test case no 21-a: stem  2');
+    is($stm0[ 3], q{/data/order/database/customer}, 'Pod-Test case no 21-a: stem  3');
+    is($stm0[ 4], q{/data/order/database/customer}, 'Pod-Test case no 21-a: stem  4');
+
+    is(scalar(@stm1),   4,           'Pod-Test case no 21-b: number of stems');
+    is($stm1[ 0], q{/data/supplier}, 'Pod-Test case no 21-b: stem  0');
+    is($stm1[ 1], q{/data/supplier}, 'Pod-Test case no 21-b: stem  1');
+    is($stm1[ 2], q{/data/supplier}, 'Pod-Test case no 21-b: stem  2');
+    is($stm1[ 3], q{/data/supplier}, 'Pod-Test case no 21-b: stem  3');
+
+    is(scalar(@stm2),   5,                          'Pod-Test case no 21-c: number of stems');
+    is($stm2[ 0], q{/data/customer},                'Pod-Test case no 21-c: stem  0');
+    is($stm2[ 1], q{/data/zzz/customer},            'Pod-Test case no 21-c: stem  1');
+    is($stm2[ 2], q{/data/order/database/customer}, 'Pod-Test case no 21-c: stem  2');
+    is($stm2[ 3], q{/data/order/database/customer}, 'Pod-Test case no 21-c: stem  3');
+    is($stm2[ 4], q{/data/order/database/customer}, 'Pod-Test case no 21-c: stem  4');
+
+    is(scalar(@lin0),   5,                                                       'Pod-Test case no 21-d: number of output lines');
+    is($lin0[ 0], q{Cust: Name = o'rob   Street = pod alley    City = no city},  'Pod-Test case no 21-d: output line  0');
+    is($lin0[ 1], q{Cust: Name = "sue"   Street = baker street City = sidney},   'Pod-Test case no 21-d: output line  1');
+    is($lin0[ 2], q{Cust: Name = <smith> Street = high street  City = boston},   'Pod-Test case no 21-d: output line  2');
+    is($lin0[ 3], q{Cust: Name = &jones  Street = maple street City = new york}, 'Pod-Test case no 21-d: output line  3');
+    is($lin0[ 4], q{Cust: Name = stewart Street = ring road    City = "'&<A>'"}, 'Pod-Test case no 21-d: output line  4');
+
+    is(scalar(@lin1),   4,                                                       'Pod-Test case no 21-e: number of output lines');
+    is($lin1[ 0], q{Supp: Name = ggg},                                           'Pod-Test case no 21-e: output line  0');
+    is($lin1[ 1], q{Supp: Name = hhh},                                           'Pod-Test case no 21-e: output line  1');
+    is($lin1[ 2], q{Supp: Name = iii},                                           'Pod-Test case no 21-e: output line  2');
+    is($lin1[ 3], q{Supp: Name = jjj},                                           'Pod-Test case no 21-e: output line  3');
+
+    is(scalar(@lin2),   5, 'Pod-Test case no 21-c: number of output lines');
+
+    is($lin2[ 0],
+        q{<customer id='444' name='o&apos;rob'>}.
+          q{<street>pod alley</street>}.
+          q{<city>no city</city>}.
+        q{</customer>},
+      'Pod-Test case no 21-f: output line  0');
+
+    is($lin2[ 1],
+        q{<customer id='111' name='"sue"'>}.
+          q{<street>baker street</street>}.
+          q{<city>sidney</city>}.
+        q{</customer>},
+      'Pod-Test case no 21-f: output line  1');
+
+    is($lin2[ 2],
+        q{<customer id='652' name='&lt;smith&gt;'>}.
+          q{<street>high street</street>}.
+          q{<city>boston</city>}.
+        q{</customer>},
+      'Pod-Test case no 21-f: output line  2');
+
+    is($lin2[ 3],
+        q{<customer id='184' name='&amp;jones'>}.
+          q{<street>maple street</street>}.
+          q{<city>new york</city>}.
+        q{</customer>},
+      'Pod-Test case no 21-f: output line  3');
+
+    is($lin2[ 4],
+        q{<customer id='520' name='stewart'>}.
+          q{<street>ring road</street>}.
+          q{<city>"'&amp;&lt;A&gt;'"</city>}.
+        q{</customer>},
+      'Pod-Test case no 21-f: output line  4');
+
+    is(scalar(@lrv0),   5,                                                       'Pod-Test case no 21-g: number of output lines');
+    is($lrv0[ 0], q{C-rv: Name = o'rob   Street = pod alley    City = no city},  'Pod-Test case no 21-g: output line  0');
+    is($lrv0[ 1], q{C-rv: Name = "sue"   Street = baker street City = sidney},   'Pod-Test case no 21-g: output line  1');
+    is($lrv0[ 2], q{C-rv: Name = <smith> Street = high street  City = boston},   'Pod-Test case no 21-g: output line  2');
+    is($lrv0[ 3], q{C-rv: Name = &jones  Street = maple street City = new york}, 'Pod-Test case no 21-g: output line  3');
+    is($lrv0[ 4], q{C-rv: Name = stewart Street = ring road    City = "'&<A>'"}, 'Pod-Test case no 21-g: output line  4');
+
+    is(scalar(@lrv2),   5, 'Pod-Test case no 21-h: number of output lines');
+
+    is($lrv2[ 0],
+        q{<customer id='444' name='o&apos;rob'>}.
+          q{<street>pod alley</street>}.
+          q{<city>no city</city>}.
+        q{</customer>},
+      'Pod-Test case no 21-h: output line  0');
+
+    is($lrv2[ 1],
+        q{<customer id='111' name='"sue"'>}.
+          q{<street>baker street</street>}.
+          q{<city>sidney</city>}.
+        q{</customer>},
+      'Pod-Test case no 21-h: output line  1');
+
+    is($lrv2[ 2],
+        q{<customer id='652' name='&lt;smith&gt;'>}.
+          q{<street>high street</street>}.
+          q{<city>boston</city>}.
+        q{</customer>},
+      'Pod-Test case no 21-h: output line  2');
+
+    is($lrv2[ 3],
+        q{<customer id='184' name='&amp;jones'>}.
+          q{<street>maple street</street>}.
+          q{<city>new york</city>}.
+        q{</customer>},
+      'Pod-Test case no 21-h: output line  3');
+
+    is($lrv2[ 4],
+        q{<customer id='520' name='stewart'>}.
+          q{<street>ring road</street>}.
+          q{<city>"'&amp;&lt;A&gt;'"</city>}.
+        q{</customer>},
+      'Pod-Test case no 21-h: output line  4');
+}
+
+{
+    my $line2 = q{
+    <data>
+      <p>
+        <p>b1</p>
+        <p>b2</p>
+      </p>
+      <p>
+        b3
+      </p>
+    </data>
+    };
+
+    my $rdr = XML::Reader->newhd(\$line2, {filter => 5},
+      { root => 'p', branch => '*' },
+    );
+
+    my @lines;
+
+    while ($rdr->iterate) {
+        push @lines, $rdr->rval;
+    }
+
+    is(scalar(@lines),   2,                      'Pod-Test case no 22: number of lines');
+    is($lines[ 0], q{<p><p>b1</p><p>b2</p></p>}, 'Pod-Test case no 22: line  0');
+    is($lines[ 1], q{<p>b3</p>},                 'Pod-Test case no 22: line  1');
 }

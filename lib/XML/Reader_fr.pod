@@ -317,6 +317,25 @@ La mE<eacute>thode C<is_attr> retourne 1, si l'E<eacute>lE<eacute>ment en cours 
 La mE<eacute>thode C<is_attr> retourne 1, si l'E<eacute>lE<eacute>ment en cours est un texte ou un attribut, sinon 0 est retournE<eacute>. Cette
 mE<eacute>thode est plutE<ocirc>t utile pour l'option {filter => 4}, oE<ugrave> on peut tester l'utilitE<eacute> de la mE<eacute>thode C<value>.
 
+=item rx
+
+C'est l'indexe de la branche en cours (cette fonction est valide uniquement avec {filter => 5}).
+
+=item rval
+
+C'est la valeur de la branche en cours (cette fonction est valide uniquement avec {filter => 5}).
+
+=item rvalue
+
+C'est une rE<eacute>fE<eacute>rence E<agrave> une valeur scalaire (ou E<agrave> une liste) de la
+branche en cours (cette fonction est valide uniquement avec {filter => 5}). rvalue est plus rapide,
+mais moins simple E<agrave> utiliser que la fonction rval (avec rvalue vous devez faire votre
+dE<eacute>rE<eacute>fE<eacute>rencement vous mE<ecirc>me).
+
+=item rstem
+
+C'est la tige de la branche en cours (cette fonction est valide uniquement avec {filter => 5}).
+
 =back
 
 =head1 OPTION USING
@@ -528,7 +547,8 @@ Voici un exemple...
 
   use XML::Reader;
 
-  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
+  my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
+             q{f</b></a></test>x <!-- remark --> yz</root>};
 
   my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
   while ($rdr->iterate) {
@@ -538,28 +558,29 @@ Voici un exemple...
 Le programme (avec l'option {filter => 2} implicitement par dE<eacute>faut) gE<eacute>nE<egrave>re le rE<eacute>sultat suivant:
 
   Path: /root                   , Value:
-  Path: /root/test/@param       , Value: v
+  Path: /root/test/@param       , Value: <>v"
   Path: /root/test              , Value:
   Path: /root/test/a            , Value:
-  Path: /root/test/a/b          , Value: e
-  Path: /root/test/a/b/data/@id , Value: z
-  Path: /root/test/a/b/data     , Value: g
+  Path: /root/test/a/b          , Value: "e"
+  Path: /root/test/a/b/data/@id , Value: <>z'
+  Path: /root/test/a/b/data     , Value: 'g'&<>
   Path: /root/test/a/b          , Value: f
   Path: /root/test/a            , Value:
   Path: /root/test              , Value:
   Path: /root                   , Value: x yz
-
 
 L'option (implicite) {filter => 2} permet E<eacute>galement de reconstruire la structure du XML avec l'assistance
 des mE<eacute>thodes C<is_start> and C<is_end>. Notez que dans le rE<eacute>sultat ci-dessus, la premiE<egrave>re ligne
 ("Path: /root, Value:") est vide, mais elle est importante pour la structure du XML.
 
 Prenons-nous le mE<ecirc>me exemple {filter => 2} avec un algorithme pour reconstruire la structure originale
-du XML:
+du XML. En plus, on exige de rajouter des caractE<egrave>res "** **" pour chaque texte (mais pas les balises
+et pas non plus les attributs):
 
   use XML::Reader;
 
-  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
+  my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
+             q{f</b></a></test>x <!-- remark --> yz</root>};
 
   my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
 
@@ -568,7 +589,16 @@ du XML:
   while ($rdr->iterate) {
       my $indentation = '  ' x ($rdr->level - 1);
 
-      if ($rdr->type eq '@')  { $at{$rdr->attr} = $rdr->value; }
+      if ($rdr->type eq '@')  {
+          $at{$rdr->attr} = $rdr->value;
+          for ($at{$rdr->attr}) {
+              s{&}'&amp;'xmsg;
+              s{'}'&apos;'xmsg;
+              s{<}'&lt;'xmsg;
+              s{>}'&gt;'xmsg;
+          }
+      }
+
 
       if ($rdr->is_start) {
           print $indentation, '<', $rdr->tag, join('', map{" $_='$at{$_}'"} sort keys %at), '>', "\n";
@@ -577,7 +607,13 @@ du XML:
       unless ($rdr->type eq '@') { %at = (); }
 
       if ($rdr->type eq 'T' and $rdr->value ne '') {
-          print $indentation, '  ', $rdr->value, "\n";
+          my $v = $rdr->value;
+          for ($v) {
+              s{&}'&amp;'xmsg;
+              s{<}'&lt;'xmsg;
+              s{>}'&gt;'xmsg;
+          }
+          print $indentation, "  ** $v **\n";
       }
 
       if ($rdr->is_end) {
@@ -588,18 +624,18 @@ du XML:
 ...voici le rE<eacute>sultat:
 
   <root>
-    <test param='v'>
+    <test param='&lt;&gt;v"'>
       <a>
         <b>
-          e
-          <data id='z'>
-            g
+          ** "e" **
+          <data id='&lt;&gt;z&apos;'>
+            ** 'g'&amp;&lt;&gt; **
           </data>
-          f
+          ** f **
         </b>
       </a>
     </test>
-    x yz
+    ** x yz **
   </root>
 
 ...ce qui donne preuve que la structure originale du XML n'est pas perdu.
@@ -616,7 +652,8 @@ Ainsi, dans l'algorithme prE<eacute>cE<eacute>dent, on peut supprimer la variabl
 
   use XML::Reader;
 
-  my $text = q{<root><test param="v"><a><b>e<data id="z">g</data>f</b></a></test>x <!-- remark --> yz</root>};
+  my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
+             q{f</b></a></test>x <!-- remark --> yz</root>};
 
   my $rdr = XML::Reader->newhd(\$text, {filter => 3}) or die "Error: $!";
 
@@ -624,13 +661,26 @@ Ainsi, dans l'algorithme prE<eacute>cE<eacute>dent, on peut supprimer la variabl
       my $indentation = '  ' x ($rdr->level - 1);
 
       if ($rdr->is_start) {
+          my %h = %{$rdr->att_hash};
+          for (values %h) {
+              s{&}'&amp;'xmsg;
+              s{'}'&apos;'xmsg;
+              s{<}'&lt;'xmsg;
+              s{>}'&gt;'xmsg;
+          }
           print $indentation, '<', $rdr->tag,
-            join('', map{" $_='".$rdr->att_hash->{$_}."'"} sort keys %{$rdr->att_hash}),
+            join('', map{" $_='$h{$_}'"} sort keys %h),
             '>', "\n";
       }
 
       if ($rdr->type eq 'T' and $rdr->value ne '') {
-          print $indentation, '  ', $rdr->value, "\n";
+          my $v = $rdr->value;
+          for ($v) {
+              s{&}'&amp;'xmsg;
+              s{<}'&lt;'xmsg;
+              s{>}'&gt;'xmsg;
+          }
+          print $indentation, "  ** $v **\n";
       }
 
       if ($rdr->is_end) {
@@ -641,19 +691,56 @@ Ainsi, dans l'algorithme prE<eacute>cE<eacute>dent, on peut supprimer la variabl
 ...le rE<eacute>sultat de {filter => 3} est identique au rE<eacute>sultat de {filter => 2}:
 
   <root>
-    <test param='v'>
+    <test param='&lt;&gt;v"'>
       <a>
         <b>
-          e
-          <data id='z'>
-            g
+          ** "e" **
+          <data id='&lt;&gt;z&apos;'>
+            ** 'g'&amp;&lt;&gt; **
           </data>
-          f
+          ** f **
         </b>
       </a>
     </test>
-    x yz
+    ** x yz **
   </root>
+
+Finalement on pourrait (et on devrait) effectuer l'E<eacute>criture XML par un autre module. Je propose d'utiliser
+le module L<XML::Writer>. Voici un programme qui utilise L<XML::Writer> pour E<eacute>crire du XML:
+
+  use XML::Reader;
+  use XML::Writer;
+
+  my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
+             q{f</b></a></test>x <!-- remark --> yz</root>};
+
+  my $rdr = XML::Reader->newhd(\$text, {filter => 3}) or die "Error: $!";
+  my $wrt = XML::Writer->new(OUTPUT => \*STDOUT, NEWLINES => 1);
+
+  while ($rdr->iterate) {
+      if ($rdr->is_start)                          { $wrt->startTag($rdr->tag, %{$rdr->att_hash}); }
+      if ($rdr->type eq 'T' and $rdr->value ne '') { $wrt->characters('** '.$rdr->value.' **'); }
+      if ($rdr->is_end)                            { $wrt->endTag($rdr->tag); }
+  }
+
+  $wrt->end();
+
+Voici le rE<eacute>sultat de L<XML::Writer>:
+
+  <root
+  ><test param="&lt;&gt;v&quot;"
+  ><a
+  ><b
+  >** "e" **<data id="&lt;&gt;z'"
+  >** 'g'&amp;&lt;&gt; **</data
+  >** f **</b
+  ></a
+  ></test
+  >** x yz **</root
+  >
+
+
+A la premiE<egrave>re lecture, le format est bizarre, mais c'est du XML tout E<agrave> fait correct.
 
 =head2 Option {filter => 4}
 
@@ -764,72 +851,207 @@ Notez que "v=1" (c'est E<agrave> dire $rdr->C<is_value> == 1) pour tous les text
 
 =head2 Option {filter => 5}
 
-Avec option {filter => 5}, on spE<eacute>cifie une (ou plusieurs) racines ("roots"), chaque "root" a une collection
-de "branches". En rE<eacute>sultat on obtient un enregistrement pour chaque "root" dans l'aborescence XML. Chaque
-enregistrement contient les E<eacute>lE<eacute>ments qui ont E<eacute>tE<eacute> spE<eacute>cifiE<eacute>
-dans les "branches". Voici un exemple qui explique le principe:
+Avec option {filter => 5}, on spE<eacute>cifie une (ou plusieurs) racines ("roots"), chaque racine a une collection
+de "branches". En rE<eacute>sultat on obtient un enregistrement pour chaque "root" dans l'aborescence XML.
+
+Une racine peut commencer par un slash simple (par ex. {root => '/tag1/tag2'}), dans ce cas la racine est
+absolue. Ou la racine peut commencer par un double-slash (par ex. {root => '//tag1/tag2'}), dans ce cas la
+racine est relative. Si la racine ne commence pas par un slash, dans ce cas la racine est E<eacute>galement
+relative.
+
+Chaque enregistrement contient les E<eacute>lE<eacute>ments qui ont E<eacute>tE<eacute> spE<eacute>cifiE<eacute>
+dans les "branches". (il y a un cas particulier: quand la branche est '*', dans ce cas l'aborescence du
+sous-arbre est construit)
+
+Pour obtenir des valeurs qui sont spE<eacute>cifiE<eacute>es dans les branches, on peut utiliser la fonction
+$rdr->rvalue ou $rdr->rval.
+
+Voici un exemple:
 
   use XML::Reader;
 
   my $line2 = q{
   <data>
     <supplier>ggg</supplier>
+    <customer name="o'rob" id="444">
+      <street>pod alley</street>
+      <city>no city</city>
+    </customer>
+    <customer1 name="troy" id="333">
+      <street>one way</street>
+      <city>any city</city>
+    </customer1>
+    <tcustomer name="nbc" id="777">
+      <street>away</street>
+      <city>acity</city>
+    </tcustomer>
     <supplier>hhh</supplier>
+    <zzz>
+      <customer name='"sue"' id="111">
+        <street>baker street</street>
+        <city>sidney</city>
+      </customer>
+    </zzz>
     <order>
       <database>
-        <customer name="smith" id="652">
+        <customer name="&lt;smith&gt;" id="652">
           <street>high street</street>
           <city>boston</city>
         </customer>
-        <customer name="jones" id="184">
+        <customer name="&amp;jones" id="184">
           <street>maple street</street>
           <city>new york</city>
         </customer>
         <customer name="stewart" id="520">
-          <street>ring road</street>
-          <city>dallas</city>
+          <street>  ring   road   </street>
+          <city>  "'&amp;&lt;&#65;&gt;'"  </city>
         </customer>
       </database>
     </order>
     <dummy value="ttt">test</dummy>
     <supplier>iii</supplier>
     <supplier>jjj</supplier>
+    <p>
+      <p>b1</p>
+      <p>b2</p>
+    </p>
+    <p>
+      b3
+    </p>
   </data>
   };
 
 On veut lire les E<eacute>lE<eacute>ments "name", "street" et "city" de tous les clients dans
-le chemin '/data/order/database/customer' et on veut E<eacute>galement lire les fournisseurs
-dans le chemin '/data/supplier'. Les donnE<eacute>es pour la premiE<egrave>re racine
-('/data/order/database/customer') sont identifiable par $rdr->rx == 0, les donnE<eacute>es
-pour la deuxiE<egrave>me racine ('/data/supplier') sont identifiable par $rdr->rx == 1.
+le chemin relatif ('customer') et on veut E<eacute>galement lire les fournisseurs dans le chemin
+absolu ('/data/supplier'). Puis, on veut lire les clients dans le chemin relatif ('//customer')
+en format sous-arborescence XML (voir {branch => '*'}). Finalement on veut lire le chemin relatif
+('p') en format sous-arborescence XML.
+
+Les donnE<eacute>es pour la premiE<egrave>re racine ('customer') sont identifiable par $rdr->rx ==
+0, les donnE<eacute>es pour la deuxiE<egrave>me racine ('/data/supplier') sont identifiable par
+$rdr->rx == 1, les donnE<eacute>es pour la troisiE<egrave>me racine ('//customer') sont
+identifiable par $rdr->rx == 2, et les donnE<eacute>es pour la quatriE<egrave>me racine ('p')
+sont identifiable par $rdr->rx == 3.
+
+Dans le programme ci-dessus on va utiliser la fonction $rdr->rvalue pour lire les donnees:
 
   my $rdr = XML::Reader->newhd(\$line2, {filter => 5},
-    { root => '/data/order/database/customer', branch => ['/@name', '/street', '/city'] },
-    { root => '/data/supplier',                branch => ['/']                          },
+    { root => 'customer',       branch => ['/@name', '/street', '/city'] },
+    { root => '/data/supplier', branch => ['/']                          },
+    { root => '//customer',     branch => '*' },
+    { root => 'p',              branch => '*' },
   );
+
+  my $root0 = '';
+  my $root1 = '';
+  my $root2 = '';
+  my $root3 = '';
+
+  my $stem0 = '';
 
   while ($rdr->iterate) {
       if ($rdr->rx == 0) {
+          $stem0 .= "  ".$rdr->rstem."\n";
           for ($rdr->rvalue) {
-              printf "Cust: Name = %-7s Street = %-12s City = %s\n", $_->[0], $_->[1], $_->[2];
+              $root0 .= sprintf "  Cust: Name = %-7s Street = %-12s City = %s\n", $_->[0], $_->[1], $_->[2];
           }
       }
       elsif ($rdr->rx == 1) {
           for ($rdr->rvalue) {
-              printf "Supp: Name = %s\n", $_->[0];
+              $root1 .= "  Supp: Name = ".$_->[0]."\n";
+          }
+      }
+      elsif ($rdr->rx == 2) {
+          for ($rdr->rvalue) {
+              $root2 .= "  Xml: ".$$_."\n";
+          }
+      }
+      elsif ($rdr->rx == 3) {
+          for ($rdr->rvalue) {
+              $root3 .= "  P: ".$$_."\n";
           }
       }
   }
 
+  print "root0:\n$root0\n";
+  print "stem0:\n$stem0\n";
+  print "root1:\n$root1\n";
+  print "root2:\n$root2\n";
+  print "root3:\n$root3\n";
+
 Voici le rE<eacute>sultat:
 
-  Supp: Name = ggg
-  Supp: Name = hhh
-  Cust: Name = smith   Street = high street  City = boston
-  Cust: Name = jones   Street = maple street City = new york
-  Cust: Name = stewart Street = ring road    City = dallas
-  Supp: Name = iii
-  Supp: Name = jjj
+  root0:
+    Cust: Name = o'rob   Street = pod alley    City = no city
+    Cust: Name = "sue"   Street = baker street City = sidney
+    Cust: Name = <smith> Street = high street  City = boston
+    Cust: Name = &jones  Street = maple street City = new york
+    Cust: Name = stewart Street = ring road    City = "'&<A>'"
+
+  stem0:
+    /data/customer
+    /data/zzz/customer
+    /data/order/database/customer
+    /data/order/database/customer
+    /data/order/database/customer
+
+  root1:
+    Supp: Name = ggg
+    Supp: Name = hhh
+    Supp: Name = iii
+    Supp: Name = jjj
+
+  root2:
+    Xml: <customer id='444' name='o&apos;rob'><street>pod alley</street><city>no city</city></customer>
+    Xml: <customer id='111' name='"sue"'><street>baker street</street><city>sidney</city></customer>
+    Xml: <customer id='652' name='&lt;smith&gt;'><street>high street</street><city>boston</city></customer>
+    Xml: <customer id='184' name='&amp;jones'><street>maple street</street><city>new york</city></customer>
+    Xml: <customer id='520' name='stewart'><street>ring road</street><city>"'&amp;&lt;A&gt;'"</city></customer>
+
+  root3:
+    P: <p><p>b1</p><p>b2</p></p>
+    P: <p>b3</p>
+
+Nous pouvons E<eacute>galement utiliser la fonction $rdr->rval pour obtenir les mE<ecirc>mes donnE<eacute>es:
+
+  my $rdr = XML::Reader->newhd(\$line2, {filter => 5},
+    { root => 'customer',       branch => ['/@name', '/street', '/city'] },
+    { root => 'p',              branch => '*' },
+  );
+
+  my $out0 = '';
+  my $out1 = '';
+
+  while ($rdr->iterate) {
+      if ($rdr->rx == 0) {
+          my @rv = $rdr->rval;
+          $out0 .= sprintf "  Cust: Name = %-7s Street = %-12s City = %s\n", $rv[0], $rv[1], $rv[2];
+      }
+      elsif ($rdr->rx == 1) {
+          $out1 .= "  P: ".$rdr->rval."\n";
+      }
+  }
+
+  print "output0:\n$out0\n";
+  print "output1:\n$out1\n";
+
+Voici le rE<eacute>sultat:
+
+  output0:
+    Cust: Name = o'rob   Street = pod alley    City = no city
+    Cust: Name = "sue"   Street = baker street City = sidney
+    Cust: Name = <smith> Street = high street  City = boston
+    Cust: Name = &jones  Street = maple street City = new york
+    Cust: Name = stewart Street = ring road    City = "'&<A>'"
+
+  output1:
+    P: <p><p>b1</p><p>b2</p></p>
+    P: <p>b3</p>
+
+Il faut dire ici que le rE<eacute>sultat "root3" / "output1" { root => 'p', branch => '*' } contient
+toujours le sous-arbre XML le plus important. Ou dit autrement: la sortie "P: <p>b1</p>" et "P:
+<p>b2</p>" n'est pas possible, car une ligne plus importante qui contient les lignes "P: <p>b1</p>"
+et "P: <p>b2</p>" exsiste dE<eacute>jE<agrave>: cette ligne est "P: <p><p>b1</p><p>b2</p></p>".
 
 =head1 EXEMPLES
 
@@ -929,6 +1151,24 @@ et supprimer la deuxiE<egrave>me partie du texte 'end...' (ce que nous ne voulon
       }
   }
 
+=head2 Parsing XML with {filter => 5}
+
+On peut combiner {filter => 5} avec des expressions rE<eacute>guliE<egrave>res pour parser les donnE<eacute>es XML:
+
+  my $rdr = XML::Reader->newhd(\$text, {filter => 5},
+    { root => '/start/param/data/item', branch => '*' },
+  ) or die "Error: $!";
+
+  while ($rdr->iterate) {
+      if ($rdr->rval =~ m{\A <item
+          (?:\s+ p1='([^']*)')?
+          (?:\s+ p2='([^']*)')?
+          (?:\s+ p3='([^']*)')?
+          \s* > ([^<]*) <}xms) {
+          printf "item = '%s', p1 = '%s', p3 = '%s'\n", $4, $1, $3;
+      }
+  }
+
 =head1 FONCTIONS
 
 =head2 Fonction slurp_xml
@@ -968,7 +1208,7 @@ le chemin '/data/order/database/customer'. Nous souhaitons aussi d'aspirer le 's
 
   my $aref = slurp_xml(\$line2,
     { root => '/data/order/database/customer', branch => ['/@name', '/street', '/city'] },
-    { root => '/data/supplier',                branch => ['/']                          },
+    { root => '/data/supplier',                branch => '*'                            },
   );
 
   for (@{$aref->[0]}) {
@@ -978,7 +1218,7 @@ le chemin '/data/order/database/customer'. Nous souhaitons aussi d'aspirer le 's
   print "\n";
 
   for (@{$aref->[1]}) {
-      printf "Supp: Name = %s\n", $_->[0];
+      printf "S: %s\n", $$_;
   }
 
 Le premier paramE<egrave>tre de slurp_xml est ou le nom du fichier (ou une une rE<eacute>fE<eacute>rence E<agrave>
@@ -996,10 +1236,10 @@ Voici le rE<eacute>sultat:
   Cust: Name = jones   Street = maple street City = new york
   Cust: Name = stewart Street = ring road    City = dallas
 
-  Supp: Name = ggg
-  Supp: Name = hhh
-  Supp: Name = iii
-  Supp: Name = jjj
+  S: <supplier>ggg</supplier>
+  S: <supplier>hhh</supplier>
+  S: <supplier>iii</supplier>
+  S: <supplier>jjj</supplier>
 
 Le fonctionnement de slurp_xml est similaire E<agrave> L<XML::Simple>, c'est E<agrave> dire il lit toutes les
 donnE<eacute>es dans un seul coup dans une structure en mE<eacute>moire. En revanche, la diffE<eacute>rence

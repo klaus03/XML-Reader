@@ -139,3 +139,16 @@ Revision history for XML-Reader
 0.32    17 Feb 2010
         Fix a problem in Build.PL which had an incorrect version use 5.010; the correct
         version is use 5.008;
+
+0.33    25 Apr 2010
+        For {filter => 5}:
+          - you can now have duplicate roots (which was not possible before)
+          - added a new function $self->rstem
+          - allow branch => '*' which will effectively collect all events and construct
+            a sub-tree in XML format, that XML-format has the correct translations
+              + < into &lt;
+              + > into &gt;
+              + & into &amp;
+              + ' into &apos;
+              + " into &quot;
+          - allow relative roots, such as 'tag1/tag2' or '//tag1/tag2'
