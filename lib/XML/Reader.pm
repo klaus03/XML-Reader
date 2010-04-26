@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.33';
+our $VERSION     = '0.34';
 
 sub newhd {
     my $class = shift;
@@ -399,33 +399,35 @@ sub iterate {
                         $self->{bush}[$r] = \do{ my $xml = '' };
                     }
 
-                    my $element = '';
-                    if ($self->{is_start}) {
-                        $element .= '<'.$self->{tag};
-                        for my $key (sort keys %{$self->{att_hash}}) {
-                            my $kval = $self->{att_hash}{$key};
-                            $kval =~ s{&}'&amp;'xmsg;
-                            $kval =~ s{'}'&apos;'xmsg;
-                            $kval =~ s{<}'&lt;'xmsg;
-                            $kval =~ s{>}'&gt;'xmsg;
-                            $element .= qq{ $key='$kval'};
+                    if ($param->{branch} eq '*') { # addition for ver 0.34 (Klaus Eichner, 26th Apr 2010)
+                        my $element = '';
+                        if ($self->{is_start}) {
+                            $element .= '<'.$self->{tag};
+                            for my $key (sort keys %{$self->{att_hash}}) {
+                                my $kval = $self->{att_hash}{$key};
+                                $kval =~ s{&}'&amp;'xmsg;
+                                $kval =~ s{'}'&apos;'xmsg;
+                                $kval =~ s{<}'&lt;'xmsg;
+                                $kval =~ s{>}'&gt;'xmsg;
+                                $element .= qq{ $key='$kval'};
+                            }
+                            $element .= '>';
                         }
-                        $element .= '>';
-                    }
-                    if ($self->{is_text}) {
-                        my $tval = $self->{value};
-                        if ($tval ne '') {
-                            $tval =~ s{&}'&amp;'xmsg;
-                            $tval =~ s{<}'&lt;'xmsg;
-                            $tval =~ s{>}'&gt;'xmsg;
-                            $element .= $tval;
+                        if ($self->{is_text}) {
+                            my $tval = $self->{value};
+                            if ($tval ne '') {
+                                $tval =~ s{&}'&amp;'xmsg;
+                                $tval =~ s{<}'&lt;'xmsg;
+                                $tval =~ s{>}'&gt;'xmsg;
+                                $element .= $tval;
+                            }
                         }
-                    }
-                    if ($self->{is_end}) {
-                        $element .= '</'.$self->{tag}.'>';
-                    }
+                        if ($self->{is_end}) {
+                            $element .= '</'.$self->{tag}.'>';
+                        }
 
-                    ${$self->{bush}[$r]} .= $element;
+                        ${$self->{bush}[$r]} .= $element;
+                    }
                 }
 
                 if ($twig eq '/' and $self->{is_end}) {
@@ -669,7 +671,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.33';
+our $VERSION = '0.34';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }

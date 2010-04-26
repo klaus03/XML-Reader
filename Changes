@@ -152,3 +152,6 @@ Revision history for XML-Reader
               + ' into &apos;
               + " into &quot;
           - allow relative roots, such as 'tag1/tag2' or '//tag1/tag2'
+
+0.34    26 Apr 2010
+        For {filter => 5}: restrict { branch => '...' } to { branch => '*' } only
