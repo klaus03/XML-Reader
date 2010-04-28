@@ -16,7 +16,7 @@ obtenir la source Perl du module, consultez le fichier XML/Reader.pm
 
   my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
-  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
   while ($rdr->iterate) {
       printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
   }
@@ -40,7 +40,7 @@ mais ils n'enregistrent pas le chemin du XML.
 De plus, avec les interfaces de XML::Parser et XML::TokeParser, on est obligE<eacute> de sE<eacute>parer les balises de dE<eacute>but,
 les balises de fin et du texte, ce qui, E<agrave> mon avis, rend l'utilisation assez compliquE<eacute>. (par contre, si on le
 souhaite, XML::Reader peut agir d'une maniE<egrave>re E<agrave> ce que les balises de dE<eacute>but, les balises de fin et du texte
-sont sE<eacute>parE<eacute>s, par l'option {filter => 4}).
+sont sE<eacute>parE<eacute>s, par l'option {filter => 4, mode => 'pyx'}).
 
 Il y a aussi XML::TiePYX, qui permet de parser des fichiers XML de maniE<egrave>re sE<eacute>quentielle (voir
 L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> pour consulter une introduction E<agrave> PYX).
@@ -50,7 +50,7 @@ pas de chemin disponible.
 Par contre, avec XML::Reader, les les balises de dE<eacute>but, les balises de fin et le texte sont traduits en
 expressions similaires E<agrave> XPath. En consE<eacute>quence, il est inutile de compter des balises individuelles, on a
 un chemin et une valeur, et E<ccedil>a suffit. (par contre, au cas oE<ugrave> on veut opE<eacute>rer XML::Reader en fonctionnement
-compatible E<agrave> PYX, il y a toujours l'option {filter => 4}, comme dE<eacute>jE<agrave> mentionnE<eacute> ci-dessus).
+compatible E<agrave> PYX, il y a toujours l'option {filter => 4, mode => 'pyx'}, comme dE<eacute>jE<agrave> mentionnE<eacute> ci-dessus).
 
 Mais revenons-nous au fonctionnement normal de XML::Reader, voici un exemple XML dans la variable '$line1':
 
@@ -84,7 +84,7 @@ Voici un programme qui lit le XML dans la variable '$line1' (voir ci-dessus) pou
 
   use XML::Reader;
 
-  my $rdr = XML::Reader->newhd(\$line1) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$line1) or die "Error: $!";
   my $i = 0;
   while ($rdr->iterate) { $i++;
       printf "%3d. pat=%-22s, val=%-9s, s=%-1s, e=%-1s, tag=%-6s, atr=%-6s, t=%-1s, lvl=%2d\n", $i,
@@ -111,7 +111,7 @@ Voici un programme qui lit le XML dans la variable '$line1' (voir ci-dessus) pou
 
 Pour crE<eacute>er un objet, on utilise la syntaxe suivante:
 
-  my $rdr = XML::Reader->newhd($data,
+  my $rdr = XML::Reader->new($data,
     {strip => 1, filter => 2, using => ['/path1', '/path2']})
     or die "Error: $!";
 
@@ -123,20 +123,20 @@ la rE<eacute>fE<eacute>rence de fichier est utiliser pour lire le XML.
 
 Voici un exemple pour crE<eacute>er un objet XML::Reader avec un fichier:
 
-  my $rdr = XML::Reader->newhd('input.xml') or die "Error: $!";
+  my $rdr = XML::Reader->new('input.xml') or die "Error: $!";
 
 Voici un autre exemple pour crE<eacute>er un objet XML::Reader avec une rE<eacute>fE<eacute>rence E<agrave> une chaE<icirc>ne de caractE<egrave>res:
 
-  my $rdr = XML::Reader->newhd(\'<data>abc</data>') or die "Error: $!";
+  my $rdr = XML::Reader->new(\'<data>abc</data>') or die "Error: $!";
 
 Voici un exemple pour crE<eacute>er un objet XML::Reader avec une rE<eacute>fE<eacute>rence E<agrave> un fichier:
 
   open my $fh, '<', 'input.xml' or die "Error: $!";
-  my $rdr = XML::Reader->newhd($fh);
+  my $rdr = XML::Reader->new($fh);
 
 Voici un exemple pour crE<eacute>er un objet XML::Reader avec \*STDIN:
 
-  my $rdr = XML::Reader->newhd(\*STDIN);
+  my $rdr = XML::Reader->new(\*STDIN);
 
 On peut ajouter une ou plusieurs options dans une rE<eacute>fE<eacute>rence E<agrave> un hashage:
 
@@ -157,26 +157,27 @@ Option {using => } permet de sE<eacute>lectionner un arbre prE<eacute>cis dans l
 
 La syntaxe est {using => ['/path1/path2/path3', '/path4/path5/path6']}
 
-=item option {filter => }
+=item option {filter => } et {mode => }
 
-Option {filter => 2} affiche tous les E<eacute>lE<eacute>ments, y compris les attributs.
+Option {filter => 2} ou {mode => 'attr-bef-start'} affiche tous les E<eacute>lE<eacute>ments, y compris les attributs.
 
-Option {filter => 3} supprime les attributs (c'est E<agrave> dire il supprime toutes les lignes qui
+Option {filter => 3} ou {mode => 'attr-in-hash'} supprime les attributs (c'est E<agrave> dire il supprime toutes les lignes qui
 sont $rdr->type eq '@'). En revanche, le contenu des attributs sont retournE<eacute> dans le hashage
 $rdr->att_hash.
 
-Option {filter => 4} crE<eacute>e une ligne individuel pour chaque balise de dE<eacute>but, de fin,
+Option {filter => 4} ou {mode => 'pyx'} crE<eacute>e une ligne individuel pour chaque balise de dE<eacute>but, de fin,
 pour chaque attribut, pour chaque commentaire et pour chaque processing-instruction. Ce fonctionnement
 permet, en effet, de gE<eacute>nE<eacute>rer un format PYX.
 
-Option {filter => 5} selectionne uniquement les donnE<eacute>es pour les racines ("root"). Les
+Option {filter => 5} ou {mode => 'branches'} selectionne uniquement les donnE<eacute>es pour les racines ("root"). Les
 E<eacute>lE<eacute>ments pour chaque "root" sont accumulE<eacute> dans une rE<eacute>fE<eacute>rence E<agrave>
 un array (comme specifiE<eacute> dans la partie "branch") et quand le "branch" est complet, les donnE<eacute>es
 sont retournE<eacute>. Cette procE<eacute>dure se trouve au milieu entre l'option "using" (qui retourne les
 E<eacute>lE<eacute>ments un par un) et la fonction "slurp_xml" (qui accumule les donnE<eacute>es dans un "branch",
 et tous les "branches" sont accumulE<eacute>s dans une seule structure en mE<eacute>moire).
 
-La syntaxe est {filter => 2|3|4|5}, le dE<eacute>faut est {filter => 2}
+La syntaxe est {filter => 2|3|4|5, mode => 'attr-bef-start'|'attr-in-hash'|'pyx'|'branches'}, le dE<eacute>faut est {filter => 2,
+mode => 'attr-bef-start'}
 
 =item option {strip => }
 
@@ -315,7 +316,7 @@ La mE<eacute>thode C<is_attr> retourne 1, si l'E<eacute>lE<eacute>ment en cours 
 =item is_value
 
 La mE<eacute>thode C<is_attr> retourne 1, si l'E<eacute>lE<eacute>ment en cours est un texte ou un attribut, sinon 0 est retournE<eacute>. Cette
-mE<eacute>thode est plutE<ocirc>t utile pour l'option {filter => 4}, oE<ugrave> on peut tester l'utilitE<eacute> de la mE<eacute>thode C<value>.
+mE<eacute>thode est plutE<ocirc>t utile pour l'option {filter => 4, mode => 'pyx'}, oE<ugrave> on peut tester l'utilitE<eacute> de la mE<eacute>thode C<value>.
 
 =item rx
 
@@ -334,7 +335,7 @@ dE<eacute>rE<eacute>fE<eacute>rencement vous mE<ecirc>me).
 
 =item rstem
 
-C'est la tige de la branche en cours (cette fonction est valide uniquement avec {filter => 5}).
+Cette fonction est identique E<agrave> la fonction "path"
 
 =back
 
@@ -379,7 +380,7 @@ cibler des E<eacute>lE<eacute>ments spE<eacute>cifiques:
   </data>
   };
 
-  my $rdr = XML::Reader->newhd(\$line2,
+  my $rdr = XML::Reader->new(\$line2,
     {using => ['/data/order/database/customer', '/data/supplier']});
 
   my $i = 0;
@@ -408,7 +409,7 @@ Le programme suivant prend un fichier XML et le parse avec XML::Reader, mais san
 
   use XML::Reader;
 
-  my $rdr = XML::Reader->newhd(\$line2);
+  my $rdr = XML::Reader->new(\$line2);
   my $i = 0;
   while ($rdr->iterate) { $i++;
       printf "%3d. prf=%-1s, pat=%-37s, val=%-6s, tag=%-11s, t=%-1s, lvl=%2d\n",
@@ -456,7 +457,7 @@ Voici un exemple oE<ugrave> les commentaires ne sont pas pris en compte par dE<e
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
-  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
 
   while ($rdr->iterate) {
       if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
@@ -476,7 +477,7 @@ Ensuite, les mE<ecirc>mes donnE<eacute>es XML et le mE<ecirc>me algorithme, sauf
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
-  my $rdr = XML::Reader->newhd(\$text, {parse_ct => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {parse_ct => 1}) or die "Error: $!";
 
   while ($rdr->iterate) {
       if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
@@ -505,7 +506,7 @@ l'option {parse_pi => 1}, qui est maintenant active (avec l'option {parse_ct => 
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
-  my $rdr = XML::Reader->newhd(\$text, {parse_ct => 1, parse_pi => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {parse_ct => 1, parse_pi => 1}) or die "Error: $!";
 
   while ($rdr->iterate) {
       if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
@@ -526,13 +527,13 @@ Voici le rE<eacute>sultat:
   Found proc      t=ab, d=cde
   Text 'test'
 
-=head1 OPTION FILTER
+=head1 OPTION FILTER / MODE
 
-L'option {filter => } permet de sE<eacute>lectionner des diffE<eacute>rents modes d'opE<eacute>ratoires pour le traitement du XML.
+L'option {filter => } ou {mode => } permet de sE<eacute>lectionner des diffE<eacute>rents modes d'opE<eacute>ratoires pour le traitement du XML.
 
-=head2 Option {filter => 2}
+=head2 Option {filter => 2} ou {mode => 'attr-bef-start'}
 
-Avec l'option {filter => 2}, XML::Reader gE<eacute>nE<egrave>re une ligne pour chaque morceau de texte. Si la balise prE<eacute>cE<eacute>dente
+Avec l'option {filter => 2} ou {mode => 'attr-bef-start'}, XML::Reader gE<eacute>nE<egrave>re une ligne pour chaque morceau de texte. Si la balise prE<eacute>cE<eacute>dente
 est une balise de dE<eacute>but, alors la mE<eacute>tode C<is_start> retourne 1. Si la balise suivante est une balise de fin,
 alors la mE<eacute>tode C<is_end> retourne 1. Si la balise prE<eacute>cE<eacute>dente est une balise de commentaire, alors la mE<eacute>thode
 C<is_comment> retourne 1. Si la balise prE<eacute>cE<eacute>dente est une balise de XML-declaration, alors la mE<eacute>thode C<is_decl>
@@ -541,7 +542,7 @@ mE<eacute>thode C<is_decl> retourne 1.
 
 De plus, les attributs sont reprE<eacute>sentE<eacute>s par des lignes supplE<eacute>mentaires avec la syntaxe '/@...'.
 
-Option {filter => 2} est le dE<eacute>faut.
+Option {filter => 2, mode => 'attr-bef-start'} est le dE<eacute>faut.
 
 Voici un exemple...
 
@@ -550,12 +551,20 @@ Voici un exemple...
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+
+  # les quatres alternatives ci-dessous sont equivalent:
+  # ----------------------------------------------------
+  #   XML::Reader->new(\$text);
+  #   XML::Reader->new(\$text, {filter => 2                          });
+  #   XML::Reader->new(\$text, {filter => 2, mode => 'attr-bef-start'});
+  #   XML::Reader->new(\$text, {             mode => 'attr-bef-start'});
+
   while ($rdr->iterate) {
       printf "Path: %-24s, Value: %s\n", $rdr->path, $rdr->value;
   }
 
-Le programme (avec l'option {filter => 2} implicitement par dE<eacute>faut) gE<eacute>nE<egrave>re le rE<eacute>sultat suivant:
+Le programme (avec l'option {filter => 2, mode => 'attr-bef-start'} implicitement par dE<eacute>faut) gE<eacute>nE<egrave>re le rE<eacute>sultat suivant:
 
   Path: /root                   , Value:
   Path: /root/test/@param       , Value: <>v"
@@ -569,11 +578,11 @@ Le programme (avec l'option {filter => 2} implicitement par dE<eacute>faut) gE<e
   Path: /root/test              , Value:
   Path: /root                   , Value: x yz
 
-L'option (implicite) {filter => 2} permet E<eacute>galement de reconstruire la structure du XML avec l'assistance
+L'option (implicite) {filter => 2, mode => 'attr-bef-start'} permet E<eacute>galement de reconstruire la structure du XML avec l'assistance
 des mE<eacute>thodes C<is_start> and C<is_end>. Notez que dans le rE<eacute>sultat ci-dessus, la premiE<egrave>re ligne
 ("Path: /root, Value:") est vide, mais elle est importante pour la structure du XML.
 
-Prenons-nous le mE<ecirc>me exemple {filter => 2} avec un algorithme pour reconstruire la structure originale
+Prenons-nous le mE<ecirc>me exemple {filter => 2, mode => 'attr-bef-start'} avec un algorithme pour reconstruire la structure originale
 du XML. En plus, on exige de rajouter des caractE<egrave>res "** **" pour chaque texte (mais pas les balises
 et pas non plus les attributs):
 
@@ -582,7 +591,14 @@ et pas non plus les attributs):
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+
+  # les quatres alternatives ci-dessous sont equivalent:
+  # ----------------------------------------------------
+  #   XML::Reader->new(\$text);
+  #   XML::Reader->new(\$text, {filter => 2                          });
+  #   XML::Reader->new(\$text, {filter => 2, mode => 'attr-bef-start'});
+  #   XML::Reader->new(\$text, {             mode => 'attr-bef-start'});
 
   my %at;
 
@@ -640,22 +656,32 @@ et pas non plus les attributs):
 
 ...ce qui donne preuve que la structure originale du XML n'est pas perdu.
 
-=head2 Option {filter => 3}
+=head2 Option {filter => 3} ou {mode => 'attr-in-hash'}
 
-Pour la plupart, l'option {filter => 3} fonctionne comme l'option {filter => 2}.
+Pour la plupart, l'option {filter => 3, mode => 'attr-in-hash'} fonctionne comme l'option {filter => 2, mode => 'attr-bef-start'}.
 
-Mais il y a une diffE<eacute>rence: avec l'option {filter => 3}, les attributs sont supprimE<eacute>es et E<agrave> la place,
+Mais il y a une diffE<eacute>rence: avec l'option {filter => 3, mode => 'attr-in-hash'}, les attributs sont supprimE<eacute>es et E<agrave> la place,
 les attributs sont prE<eacute>sentE<eacute>s dans un hashage "$rdr->C<att_hash>()" pour chaque balise de dE<eacute>but.
 
 Ainsi, dans l'algorithme prE<eacute>cE<eacute>dent, on peut supprimer la variable globale "%at" et la remplacer par
 %{$rdr->C<att_hash>}:
+
+Voici un nouveau algorithme avec {filter => 3, mode => 'attr-in-hash'}, on ne s'occupe pas des attributs (c'est-E<agrave>-dire,
+on ne verifie pas $rdr->type eq '@') et (comme dE<acute>jE<agrave> mentionnE<eacute> ci-dessus) la variable %at est remplacE<eacute>e
+par %{$rdr->att_hash} :
 
   use XML::Reader;
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->newhd(\$text, {filter => 3}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 3}) or die "Error: $!";
+
+  # les trois alternatives ci-dessous sont equivalent:
+  # --------------------------------------------------
+  #   XML::Reader->new(\$text, {filter => 3                        });
+  #   XML::Reader->new(\$text, {filter => 3, mode => 'attr-in-hash'});
+  #   XML::Reader->new(\$text, {             mode => 'attr-in-hash'});
 
   while ($rdr->iterate) {
       my $indentation = '  ' x ($rdr->level - 1);
@@ -688,7 +714,7 @@ Ainsi, dans l'algorithme prE<eacute>cE<eacute>dent, on peut supprimer la variabl
       }
   }
 
-...le rE<eacute>sultat de {filter => 3} est identique au rE<eacute>sultat de {filter => 2}:
+...le rE<eacute>sultat de {filter => 3, mode => 'attr-in-hash'} est identique au rE<eacute>sultat de {filter => 2, mode => 'attr-bef-start'}:
 
   <root>
     <test param='&lt;&gt;v"'>
@@ -714,7 +740,7 @@ le module L<XML::Writer>. Voici un programme qui utilise L<XML::Writer> pour E<e
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->newhd(\$text, {filter => 3}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 3}) or die "Error: $!";
   my $wrt = XML::Writer->new(OUTPUT => \*STDOUT, NEWLINES => 1);
 
   while ($rdr->iterate) {
@@ -742,9 +768,9 @@ Voici le rE<eacute>sultat de L<XML::Writer>:
 
 A la premiE<egrave>re lecture, le format est bizarre, mais c'est du XML tout E<agrave> fait correct.
 
-=head2 Option {filter => 4}
+=head2 Option {filter => 4} ou {mode => 'pyx'}
 
-ME<ecirc>me si ce n'est pas la raison principale de XML::Reader, l'option {filter => 4} permet de gE<eacute>nE<eacute>rer des
+ME<ecirc>me si ce n'est pas la raison principale de XML::Reader, l'option {filter => 4, mode => 'pyx'} permet de gE<eacute>nE<eacute>rer des
 lignes individuelles pour chaque balise de dE<eacute>but, de fin, commentaires, processing-instruction et XML-Declaration.
 Le but est de gE<eacute>nE<eacute>rer une chaE<icirc>ne de caractE<egrave>res du modE<egrave>le "PYX" pour l'analyse par la suite.
 
@@ -763,7 +789,13 @@ Voici un exemple:
       dskjfh <!-- remark --> uuu
     </delta>};
 
-  my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_pi => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_pi => 1}) or die "Error: $!";
+
+  # les trois alternatives ci-dessous sont equivalent:
+  # --------------------------------------------------
+  #   XML::Reader->new(\$text, {filter => 4               , parse_pi => 1});
+  #   XML::Reader->new(\$text, {filter => 4, mode => 'pyx', parse_pi => 1});
+  #   XML::Reader->new(\$text, {             mode => 'pyx', parse_pi => 1});
 
   while ($rdr->iterate) {
       printf "Type = %1s, pyx = %s\n", $rdr->type, $rdr->pyx;
@@ -795,7 +827,13 @@ En fait, les commentaires sont gE<eacute>nE<eacute>rE<eacute>s avec un caractE<e
       <!-- remark -->
     </delta>};
 
-  my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_ct => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_ct => 1}) or die "Error: $!";
+
+  # les trois alternatives ci-dessous sont equivalent:
+  # --------------------------------------------------
+  #   XML::Reader->new(\$text, {filter => 4,                parse_ct => 1});
+  #   XML::Reader->new(\$text, {filter => 4, mode => 'pyx', parse_ct => 1});
+  #   XML::Reader->new(\$text, {             mode => 'pyx', parse_ct => 1});
 
   while ($rdr->iterate) {
       printf "Type = %1s, pyx = %s\n", $rdr->type, $rdr->pyx;
@@ -807,7 +845,7 @@ Voici le rE<eacute>sultat:
   Type = #, pyx = #remark
   Type = E, pyx = )delta
 
-Avec l'option {filter => 4}, les mE<eacute>thodes habituelles restent accessibles: C<value>, C<attr>, C<path>, C<is_start>,
+Avec l'option {filter => 4, mode => 'pyx'}, les mE<eacute>thodes habituelles restent accessibles: C<value>, C<attr>, C<path>, C<is_start>,
 C<is_end>, C<is_decl>, C<is_proc>, C<is_comment>, C<is_attr>, C<is_text>, C<is_value>, C<comment>, C<proc_tgt>,
 C<proc_data>, C<dec_hash> or C<att_hash>. Voici un exemple:
 
@@ -819,7 +857,13 @@ C<proc_data>, C<dec_hash> or C<att_hash>. Voici un exemple:
       <child>ghi</child>
     </parent>};
 
-  my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_pi => 1, parse_ct => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_pi => 1, parse_ct => 1}) or die "Error: $!";
+
+  # les trois alternatives ci-dessous sont equivalent:
+  # --------------------------------------------------
+  #   XML::Reader->new(\$text, {filter => 4,                parse_ct => 1, parse_pi => 1});
+  #   XML::Reader->new(\$text, {filter => 4, mode => 'pyx', parse_ct => 1, parse_pi => 1});
+  #   XML::Reader->new(\$text, {             mode => 'pyx', parse_ct => 1, parse_pi => 1});
 
   while ($rdr->iterate) {
       printf "Path %-15s v=%s ", $rdr->path, $rdr->is_value;
@@ -849,9 +893,9 @@ Voici le rE<eacute>sultat:
 
 Notez que "v=1" (c'est E<agrave> dire $rdr->C<is_value> == 1) pour tous les textes et pour tous les attributs.
 
-=head2 Option {filter => 5}
+=head2 Option {filter => 5} ou {mode => 'branches'}
 
-Avec option {filter => 5}, on spE<eacute>cifie une (ou plusieurs) racines ("roots"), chaque racine a une collection
+Avec option {filter => 5, mode => 'branches'}, on spE<eacute>cifie une (ou plusieurs) racines ("roots"), chaque racine a une collection
 de "branches". En rE<eacute>sultat on obtient un enregistrement pour chaque "root" dans l'aborescence XML.
 
 Une racine peut commencer par un slash simple (par ex. {root => '/tag1/tag2'}), dans ce cas la racine est
@@ -935,23 +979,29 @@ sont identifiable par $rdr->rx == 3.
 
 Dans le programme ci-dessus on va utiliser la fonction $rdr->rvalue pour lire les donnees:
 
-  my $rdr = XML::Reader->newhd(\$line2, {filter => 5},
+  my $rdr = XML::Reader->new(\$line2, {filter => 5},
     { root => 'customer',       branch => ['/@name', '/street', '/city'] },
     { root => '/data/supplier', branch => ['/']                          },
     { root => '//customer',     branch => '*' },
     { root => 'p',              branch => '*' },
   );
 
+  # les trois alternatives ci-dessous sont equivalent:
+  # --------------------------------------------------
+  #   XML::Reader->new(\$line2, {filter => 5,                   });
+  #   XML::Reader->new(\$line2, {filter => 5, mode => 'branches'});
+  #   XML::Reader->new(\$line2, {             mode => 'branches'});
+
   my $root0 = '';
   my $root1 = '';
   my $root2 = '';
   my $root3 = '';
 
-  my $stem0 = '';
+  my $path0 = '';
 
   while ($rdr->iterate) {
       if ($rdr->rx == 0) {
-          $stem0 .= "  ".$rdr->rstem."\n";
+          $path0 .= "  ".$rdr->path."\n";
           for ($rdr->rvalue) {
               $root0 .= sprintf "  Cust: Name = %-7s Street = %-12s City = %s\n", $_->[0], $_->[1], $_->[2];
           }
@@ -974,7 +1024,7 @@ Dans le programme ci-dessus on va utiliser la fonction $rdr->rvalue pour lire le
   }
 
   print "root0:\n$root0\n";
-  print "stem0:\n$stem0\n";
+  print "path0:\n$path0\n";
   print "root1:\n$root1\n";
   print "root2:\n$root2\n";
   print "root3:\n$root3\n";
@@ -988,7 +1038,7 @@ Voici le rE<eacute>sultat:
     Cust: Name = &jones  Street = maple street City = new york
     Cust: Name = stewart Street = ring road    City = "'&<A>'"
 
-  stem0:
+  path0:
     /data/customer
     /data/zzz/customer
     /data/order/database/customer
@@ -1014,10 +1064,16 @@ Voici le rE<eacute>sultat:
 
 Nous pouvons E<eacute>galement utiliser la fonction $rdr->rval pour obtenir les mE<ecirc>mes donnE<eacute>es:
 
-  my $rdr = XML::Reader->newhd(\$line2, {filter => 5},
+  my $rdr = XML::Reader->new(\$line2, {filter => 5},
     { root => 'customer',       branch => ['/@name', '/street', '/city'] },
     { root => 'p',              branch => '*' },
   );
+
+  # les trois alternatives ci-dessous sont equivalent:
+  # --------------------------------------------------
+  #   XML::Reader->new(\$line2, {filter => 5,                   });
+  #   XML::Reader->new(\$line2, {filter => 5, mode => 'branches'});
+  #   XML::Reader->new(\$line2, {             mode => 'branches'});
 
   my $out0 = '';
   my $out1 = '';
@@ -1085,15 +1141,15 @@ ne fait pas partie du rE<eacute>sultat):
   item = 'start3', p1 = 'g', p3 = 'i'
   item = 'start4', p1 = 'm', p3 = 'o'
 
-=head2 Parser l'exemple XML avec l'option {filter => 2}
+=head2 Parser l'exemple XML avec l'option {filter => 2} ou {mode => 'attr-bef-start'}
 
-Ci-dessous un programme pour parser le XML avec l'option {filter => 2}. (Notez que le prE<eacute>fixe
-'/start/param/data/item' est renseignE<eacute> dans l'option {using =>} de la fonction newhd). En plus,
+Ci-dessous un programme pour parser le XML avec l'option {filter => 2, mode => 'attr-bef-start'}. (Notez que le prE<eacute>fixe
+'/start/param/data/item' est renseignE<eacute> dans l'option {using =>} de la fonction new). En plus,
 nous avons besoins de 2 variables scalaires '$p1' et '$p3' pour enregistrer les paramE<egrave>tres '/@p1'
 et '/@p3' et les transfE<eacute>rer dans la partie '$rdr->is_start' du programme, oE<ugrave> on peut les afficher.
 
-  my $rdr = XML::Reader->newhd(\$text,
-    {filter => 2, using => '/start/param/data/item'}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text,
+    {mode => 'attr-bef-start', using => '/start/param/data/item'}) or die "Error: $!";
 
   my ($p1, $p3);
 
@@ -1107,13 +1163,13 @@ et '/@p3' et les transfE<eacute>rer dans la partie '$rdr->is_start' du programme
       unless ($rdr->is_attr) { $p1 = undef; $p3 = undef; }
   }
 
-=head2 Parser l'exemple XML avec l'option {filter => 3}
+=head2 Parser l'exemple XML avec l'option {filter => 3} ou {mode => 'attr-in-hash'}
 
-Avec l'option {filter => 3}, nous pouvons annuler les deux variables '$p1' et '$p3'. Le
+Avec l'option {filter => 3, mode => 'attr-in-hash'}, nous pouvons annuler les deux variables '$p1' et '$p3'. Le
 programme devient assez simple:
 
-  my $rdr = XML::Reader->newhd(\$text,
-    {filter => 3, using => '/start/param/data/item'}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text,
+    {mode => 'attr-in-hash', using => '/start/param/data/item'}) or die "Error: $!";
 
   while ($rdr->iterate) {
       if ($rdr->path eq '/' and $rdr->is_start) {
@@ -1122,17 +1178,17 @@ programme devient assez simple:
       }
   }
 
-=head2 Parser l'exemple XML avec l'option {filter => 4}
+=head2 Parser l'exemple XML avec l'option {filter => 4} ou {mode => 'pyx'}
 
-Avec l'option {filter => 4}, par contre, le programme devient plus compliquE<eacute>: Comme dE<eacute>jE<agrave>
-montrE<eacute> dans l'exemple {filter => 2}, nous avons besoin de deux variables scalaires ('$p1' et
+Avec l'option {filter => 4, mode => 'pyx'}, par contre, le programme devient plus compliquE<eacute>: Comme dE<eacute>jE<agrave>
+montrE<eacute> dans l'exemple {filter => 2, mode => 'attr-bef-start'}, nous avons besoin de deux variables scalaires ('$p1' et
 '$p3') pour enregistrer les paramE<egrave>tres '/@p1' et '/@p3' et les transfE<eacute>rer E<agrave> l'endoit oE<ugrave> on peut
 les afficher. En plus, nous avons besoin de compter les valeurs de texte (voir variable '$count'
 ci-dessous), afin d'identifier la premiE<egrave>re partie du texte 'start...' (ce que nous voulons afficher)
 et supprimer la deuxiE<egrave>me partie du texte 'end...' (ce que nous ne voulons pas afficher).
 
-  my $rdr = XML::Reader->newhd(\$text,
-    {filter => 4, using => '/start/param/data/item'}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text,
+    {mode => 'pyx', using => '/start/param/data/item'}) or die "Error: $!";
 
   my ($count, $p1, $p3);
 
@@ -1151,11 +1207,11 @@ et supprimer la deuxiE<egrave>me partie du texte 'end...' (ce que nous ne voulon
       }
   }
 
-=head2 Parsing XML with {filter => 5}
+=head2 Parser l'exemple XML avec l'option {filter => 5} ou {mode => 'branches'}
 
-On peut combiner {filter => 5} avec des expressions rE<eacute>guliE<egrave>res pour parser les donnE<eacute>es XML:
+On peut combiner {filter => 5, mode => 'branches'} avec des expressions rE<eacute>guliE<egrave>res pour parser les donnE<eacute>es XML:
 
-  my $rdr = XML::Reader->newhd(\$text, {filter => 5},
+  my $rdr = XML::Reader->new(\$text, {mode => 'branches'},
     { root => '/start/param/data/item', branch => '*' },
   ) or die "Error: $!";
 
@@ -1257,8 +1313,8 @@ Voici le texte original en Anglais:
 Copyright (C) 2009 by Klaus Eichner.
 
 All rights reserved. This program is free software; you can redistribute
-it and/or modify it under the terms of the artistic license,
-see L<http://www.opensource.org/licenses/artistic-license-1.0.php>
+it and/or modify it under the terms of the artistic license 2.0,
+see http://www.opensource.org/licenses/artistic-license-2.0.php
 
 =head1 MODULES ASSOCIES
 

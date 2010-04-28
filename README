@@ -1,4 +1,4 @@
-XML-Reader Version 0.34
+XML-Reader Version 0.35
 
 Reading XML and providing path information based on a pull-parser.
 
@@ -41,5 +41,5 @@ COPYRIGHT AND LICENSE
 Copyright (C) 2009 by Klaus Eichner
 
 All rights reserved. This program is free software; you can redistribute
-it and/or modify it under the terms of the artistic license,
-see http://www.opensource.org/licenses/artistic-license-1.0.php
+it and/or modify it under the terms of the artistic license 2.0,
+see http://www.opensource.org/licenses/artistic-license-2.0.php

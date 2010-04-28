@@ -155,3 +155,18 @@ Revision history for XML-Reader
 
 0.34    26 Apr 2010
         For {filter => 5}: restrict { branch => '...' } to { branch => '*' } only
+
+0.35    28 Apr 2010
+        Relicencing under the "Artistic Licence 2.0"
+        Replace XML::Reader::newhd()
+             by XML::Reader::new()
+        Add option
+          {mode   => 'attr-bef-start' | 'attr-in-hash' | 'pyx' | 'branches'} as an alternative to the existing
+          {filter => 2|3|4|5}
+        Add an option {sepchar => 'xyz'} to XML::Reader->new
+        For {parse_pi => 1}, fix a bug with $rdr->dec_hash->{standalone}
+          (used to be '1' and '' which is false, 'yes' and 'no' is correct)
+        For {filter => 5}:
+          - function rstem() is redundant ==> replace function rstem() by path()
+          - fix a bug in functions is_text() / is_value()
+          - allow the writing of comments and PI if {branch => '*'} is selected

@@ -13,7 +13,7 @@ use_ok('XML::Reader');
 
     {
         my $count = 0;
-        my $rdr = XML::Reader->newhd(\$line, {filter => 2});
+        my $rdr = XML::Reader->new(\$line, {filter => 2});
         while ($rdr->iterate) { $count++; }
         is($count, 23, 'counting values {filter => 2}');
     }
@@ -22,7 +22,7 @@ use_ok('XML::Reader');
 {
     my $line = q{<data><dummy></dummy>a      <!-- b -->    c</data>};
     my $out = '';
-    my $rdr = XML::Reader->newhd(\$line);
+    my $rdr = XML::Reader->new(\$line);
     while ($rdr->iterate) { $out .= '['.$rdr->tag.'='.$rdr->value.']'; }
     is($out, '[data=][dummy=][data=a c]', 'defaults are ok {strip => 1, filter => 2}');
 }
@@ -30,7 +30,7 @@ use_ok('XML::Reader');
 {
     my $line = q{<data><dummy><!-- test --></dummy></data>};
     my $out = '';
-    my $rdr = XML::Reader->newhd(\$line, {parse_ct => 1});
+    my $rdr = XML::Reader->new(\$line, {parse_ct => 1});
     while ($rdr->iterate) { $out .= '['.$rdr->path.'='.$rdr->comment.']'; }
     is($out, '[/data=][/data/dummy=][/data/dummy=test][/data=]', 'comment is produced');
 }
@@ -38,7 +38,7 @@ use_ok('XML::Reader');
 {
     my $line = q{<data>     a        b c             </data>};
     my $out = '';
-    my $rdr = XML::Reader->newhd(\$line, {strip => 1});
+    my $rdr = XML::Reader->new(\$line, {strip => 1});
     while ($rdr->iterate) { $out .= '['.$rdr->type.'='.$rdr->value.']'; }
     is($out, '[T=a b c]', 'field is stripped of spaces');
 }
@@ -46,7 +46,7 @@ use_ok('XML::Reader');
 {
     my $line = q{<data>     a        b c             </data>};
     my $out = '';
-    my $rdr = XML::Reader->newhd(\$line, {strip => 0});
+    my $rdr = XML::Reader->new(\$line, {strip => 0});
     while ($rdr->iterate) { $out .= '['.$rdr->type.'='.$rdr->value.']'; }
     is($out, '[T=     a        b c             ]', 'field is not stripped of spaces');
 }
@@ -70,16 +70,16 @@ use_ok('XML::Reader');
         my $end_seq   = '';
         my $lvl_seq   = '';
 
-        my $rdr = XML::Reader->newhd(\$line);
+        my $rdr = XML::Reader->new(\$line);
         while ($rdr->iterate) {
             $start_seq .= $rdr->is_start;
             $end_seq   .= $rdr->is_end;
             $lvl_seq   .= '['.$rdr->level.']';
         }
 
-        is($start_seq, '11011000100', 'sequence of start-tags (with newhd)');
-        is($end_seq,   '01001000111', 'sequence of end-tags (with newhd)');
-        is($lvl_seq,   '[1][2][1][2][3][2][4][4][3][2][1]', 'sequence of level information (with newhd)');
+        is($start_seq, '11011000100', 'sequence of start-tags (with new)');
+        is($end_seq,   '01001000111', 'sequence of end-tags (with new)');
+        is($lvl_seq,   '[1][2][1][2][3][2][4][4][3][2][1]', 'sequence of level information (with new)');
     }
 }
 
@@ -89,11 +89,11 @@ use_ok('XML::Reader');
     {
         my $info = '';
 
-        my $rdr = XML::Reader->newhd(\$line);
+        my $rdr = XML::Reader->new(\$line);
         while ($rdr->iterate) {
             $info .= '['.$rdr->path.'='.$rdr->value.']';
         }
-        is($info, '[/a=][/a/b=][/a/b/c=][/a/b/c/d=][/a/b/c=][/a/b=][/a=]', 'an empty, 4-level deep, nested XML (with newhd)');
+        is($info, '[/a=][/a/b=][/a/b/c=][/a/b/c/d=][/a/b/c=][/a/b=][/a=]', 'an empty, 4-level deep, nested XML (with new)');
     }
 }
 
@@ -108,7 +108,7 @@ use_ok('XML::Reader');
         my $data    = '';
         my $comment = '';
 
-        my $rdr = XML::Reader->newhd(\$line, {parse_ct => 1});
+        my $rdr = XML::Reader->new(\$line, {parse_ct => 1});
         my $i = 0;
         while ($rdr->iterate) { $i++;
             $comment = $rdr->comment if $i == 2;
@@ -122,7 +122,7 @@ use_ok('XML::Reader');
         my $data    = '';
         my $comment = '';
 
-        my $rdr = XML::Reader->newhd(\$line, {parse_ct => 1});
+        my $rdr = XML::Reader->new(\$line, {parse_ct => 1});
         my $i = 0;
         while ($rdr->iterate) { $i++;
             $comment .= $rdr->comment if $rdr->type eq 'T';
@@ -136,15 +136,15 @@ use_ok('XML::Reader');
         my $data    = '';
         my $comment = '';
 
-        my $rdr = XML::Reader->newhd(\$line, {parse_ct => 1});
+        my $rdr = XML::Reader->new(\$line, {parse_ct => 1});
         my $i = 0;
         while ($rdr->iterate) { $i++;
             $comment .= $rdr->comment if $rdr->type eq 'T';
             $data    .= $rdr->value   if $rdr->type eq 'T';
         }
-        is($i,       2, 'only one line is produced (with newhd)');
-        is($comment, 'hello', 'comment is found to be correct (with newhd)');
-        is($data,    'oooppp', 'data is not empty (with newhd)');
+        is($i,       2, 'only one line is produced (with new)');
+        is($comment, 'hello', 'comment is found to be correct (with new)');
+        is($data,    'oooppp', 'data is not empty (with new)');
     }
 }
 
@@ -192,7 +192,7 @@ use_ok('XML::Reader');
     {
         my $att_seq = '';
 
-        my $rdr = XML::Reader->newhd(\$line, {filter => 3, using => ['/data/item/alpha', '/data/item/beta']});
+        my $rdr = XML::Reader->new(\$line, {filter => 3, using => ['/data/item/alpha', '/data/item/beta']});
         my $i = 0;
         while ($rdr->iterate) { $i++;
             my %at = %{$rdr->att_hash};
@@ -211,7 +211,7 @@ use_ok('XML::Reader');
         my $point_38 = '';
         my $point_48 = '';
 
-        my $rdr = XML::Reader->newhd(\$line, {using => ['/data/item', '/data/btem/user/level/agreement']});
+        my $rdr = XML::Reader->new(\$line, {using => ['/data/item', '/data/btem/user/level/agreement']});
         my $i = 0;
         while ($rdr->iterate) { $i++;
             my $point = '['.$rdr->prefix.']['.$rdr->path.']['.$rdr->is_start.']['.$rdr->is_end.']['.$rdr->level.']';
@@ -243,7 +243,7 @@ use_ok('XML::Reader');
         my $point_30 = '';
         my $point_41 = '';
 
-        my $rdr = XML::Reader->newhd(\$line, {using => ['/data/item', '/data/btem/user/level/agreement']});
+        my $rdr = XML::Reader->new(\$line, {using => ['/data/item', '/data/btem/user/level/agreement']});
         my $i = 0;
         while ($rdr->iterate) { $i++;
             my $point = '['.$rdr->prefix.']['.$rdr->path.']['.$rdr->is_start.$rdr->is_end.']['.$rdr->level.']';
@@ -274,7 +274,7 @@ use_ok('XML::Reader');
 
     my $output = '';
 
-    my $rdr = XML::Reader->newhd(\$line);
+    my $rdr = XML::Reader->new(\$line);
     my $i = 0;
     while ($rdr->iterate) { $i++;
         $output .= '['.$rdr->path.'-'.$rdr->value.']['.$rdr->is_start.$rdr->is_end.']['.$rdr->level.']';
@@ -287,7 +287,7 @@ use_ok('XML::Reader');
 
     my $output = '';
 
-    my $rdr = XML::Reader->newhd(\$line);
+    my $rdr = XML::Reader->new(\$line);
     my $i = 0;
     while ($rdr->iterate) { $i++;
         $output .= '['.$rdr->path.'-'.$rdr->value.']['.$rdr->is_start.$rdr->is_end.']['.$rdr->level.']';
@@ -301,7 +301,7 @@ use_ok('XML::Reader');
     my $tag  = '';
     my $attr = '';
 
-    my $rdr = XML::Reader->newhd(\$line);
+    my $rdr = XML::Reader->new(\$line);
     my $i = 0;
     while ($rdr->iterate) { $i++;
         $tag  .= '['.$rdr->tag.']';
@@ -316,7 +316,7 @@ use_ok('XML::Reader');
 
     my $output = '';
 
-    my $rdr = XML::Reader->newhd(\$line);
+    my $rdr = XML::Reader->new(\$line);
     my $i = 0;
     while ($rdr->iterate) { $i++;
         $output .= '['.$rdr->value.']';
@@ -328,7 +328,7 @@ use_ok('XML::Reader');
     my $line = q{<root><id order='desc' nb='no' screen='color'>show
     <data name='abc' addr='def'>definition</data>text</id></root>};
 
-    my $rdr = XML::Reader->newhd(\$line);
+    my $rdr = XML::Reader->new(\$line);
 
     my $output = '';
 
@@ -391,7 +391,7 @@ use_ok('XML::Reader');
     my $point_38 = '';
     my $point_42 = '';
 
-    my $rdr = XML::Reader->newhd(\$line, {using => ['/data/item', '/data/btem/user/lvl/a']});
+    my $rdr = XML::Reader->new(\$line, {using => ['/data/item', '/data/btem/user/lvl/a']});
 
     my $i = 0;
     while ($rdr->iterate) { $i++;
@@ -443,7 +443,7 @@ use_ok('XML::Reader');
 
     my $line = qq{<$c_tag $c_attr='$c_value'> $c_text <?$c_pi1 $c_pi2?> <!-- $c_comment --> </$c_tag>};
 
-    my $rdr = XML::Reader->newhd(\$line, {filter => 4, parse_pi => 1, parse_ct => 1}) or die "Error: $!";
+    my $rdr = XML::Reader->new(\$line, {filter => 4, parse_pi => 1, parse_ct => 1}) or die "Error: $!";
 
     while ($rdr->iterate) {
         if    ($rdr->is_start)   { $v_starttag = $rdr->tag; }

@@ -12,26 +12,52 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.34';
+our $VERSION     = '0.35';
 
-sub newhd {
+# deprecated functions (Klaus EICHNER, 28 Apr 2010, ver. 0.35):
+# only for backward compatibility
+
+sub newhd { new(@_);  } # newhd() is now deprecated, use new()  instead
+sub rstem { path(@_); } # rstem() is now deprecated, use path() instead
+
+sub new {
     my $class = shift;
     my $self = {};
 
-    # Option {filter => 2} includes attribute lines before <start>.
-    # Option {filter => 3} no       attribute lines.
-    # Option {filter => 4} includes attribute lines after <start> and splits <start>, text and </end>.
-    # Option {filter => 5} reads roots and branches.
+    my %opt;
+    %opt = %{$_[1]} if defined $_[1];
 
-    my %opt = (strip => 1, filter => 2, parse_pi => 0, parse_ct => 0); # newhd defaults to filter=>2
-    %opt    = (%opt, %{$_[1]}) if defined $_[1];
+    if (defined $opt{mode}) {
+        my $flt;
+        if    ($opt{mode} eq 'attr-bef-start') { $flt = 2; } # attributes appear on seperate lines * before * <start>.
+        elsif ($opt{mode} eq 'attr-in-hash')   { $flt = 3; } # no seperate lines for attributes, they appear in the hash %{$rdr->att_hash}.
+        elsif ($opt{mode} eq 'pyx')            { $flt = 4; } # pyx compatible way: delivers attributes, <start>, characters, </end> on individual lines.
+        elsif ($opt{mode} eq 'branches')       { $flt = 5; } # reads roots and branches: $rdr->rx, $rdr->rvalue and $rdr->rval
+        else {
+            croak "Failed assertion #0010 in XML::Reader->new: invalid mode = '$opt{mode}', expected 'attr-bef-start', 'attr-in-hash', 'pyx' or 'branches'";
+        }
+
+        if (defined $opt{filter}) {
+            unless ($opt{filter} eq $flt) {
+                croak "Failed assertion #0020 in XML::Reader->new: filter = '$opt{filter}' does not match mode = '$opt{mode}' (which corresponds to filter = '$flt')";
+            }
+        }
+        else {
+            $opt{filter} = $flt;
+        }
+    }
+
+    $opt{strip}    = 1 unless defined $opt{strip};
+    $opt{filter}   = 2 unless defined $opt{filter};
+    $opt{parse_pi} = 0 unless defined $opt{parse_pi};
+    $opt{parse_ct} = 0 unless defined $opt{parse_ct};
 
     unless ($opt{filter} == 2 or $opt{filter} == 3 or $opt{filter} == 4 or $opt{filter} == 5) {
-        croak "Failed assertion #0005 in subroutine XML::Reader->newhd: filter is set to '$opt{filter}', but must be 2, 3, 4 or 5";
+        croak "Failed assertion #0030 in XML::Reader->new: filter is set to '$opt{filter}', but must be 2, 3, 4 or 5";
     }
 
     my $XmlParser = XML::Parser->new
-      or croak "Failed assertion #0010 in subroutine XML::Reader->newhd: Can't create XML::Parser->new";
+      or croak "Failed assertion #0040 in XML::Reader->new: Can't create XML::Parser->new";
 
     # The following references to the handler-functions from the XML::Parser object will be 
     # copied into the ExpatNB object during the later call to XML::Parser->parse_start.
@@ -47,7 +73,7 @@ sub newhd {
 
     # We are trying to open the file (the filename is held in in $_[0]). If the filename
     # happens to be a reference to a scalar, then it is opened quite naturally as an
-    # 'in-memory-file'. If the open fails, then we return failure from XML::Reader->newhd
+    # 'in-memory-file'. If the open fails, then we return failure from XML::Reader->new
     # and the calling program has to check $! to handle the failed call.
     # If, however, the filename is already a filehandle (i.e. ref($_[0]) eq 'GLOB'), then
     # we use that filehandle directly
@@ -106,7 +132,7 @@ sub newhd {
         XR_Strip     => $opt{strip},
         XR_ParseInst => $opt{parse_pi},
         XR_ParseComm => $opt{parse_ct},
-      ) or croak "Failed assertion #0020 in subroutine XML::Reader->newhd: Can't create XML::Parser->parse_start";
+      ) or croak "Failed assertion #0050 in subroutine XML::Reader->new: Can't create XML::Parser->parse_start";
 
     # for XML::Reader, version 0.21 (12-Sep-2009):
     # inject an {XR_debug} into $self->{ExpatNB}, if so requested by $opt{debug}
@@ -120,6 +146,7 @@ sub newhd {
     # Likewise, the instructions "XR_Text => ''", "XR_Comment => ''", and "XR_fh => $fh" , etc...
     # create corresponding elements inside the $ExpatNB-object.
 
+    $self->{sepchar} = defined $opt{sepchar} ? $opt{sepchar} : '';
     $self->{filter}  = $opt{filter};
     $self->{using}   = !defined($opt{using}) ? [] : ref($opt{using}) ? $opt{using} : [$opt{using}];
 
@@ -172,7 +199,6 @@ sub newhd {
     $self->{pyx}          = '';
     $self->{rx}           = 0;
     $self->{rvalue}       = [];
-    $self->{rstem}        = '';
     $self->{rresult}      = [];
     $self->{proc}         = '';
     $self->{type}         = '?';
@@ -203,7 +229,6 @@ sub comment      { $_[0]{comment};      }
 sub pyx          { $_[0]{pyx};          }
 sub rx           { $_[0]{rx};           }
 sub rvalue       { $_[0]{rvalue};       }
-sub rstem        { $_[0]{rstem};        }
 sub proc_tgt     { $_[0]{proc_tgt};     }
 sub proc_data    { $_[0]{proc_data};    }
 sub is_decl      { $_[0]{is_decl};      }
@@ -233,7 +258,6 @@ sub iterate {
             if ($res) {
                 $self->{rx}     = $res->[0];
                 $self->{rvalue} = $res->[1];
-                $self->{rstem}  = $res->[2];
                 return 1;
             }
         }
@@ -258,7 +282,6 @@ sub iterate {
 
         $self->{rx}     = 0;
         $self->{rvalue} = [];
-        $self->{rstem}  = '';
 
         if ($token->found_text) {
             my $text    = $token->extract_text;
@@ -271,15 +294,14 @@ sub iterate {
                 $proc_data = ${$token->extract_proc}[1];
             }
 
-            $self->{is_decl}      =                          $prv_SPECD eq 'D'  ? 1 : 0;
-            $self->{is_start}     =                          $prv_SPECD eq 'S'  ? 1 : 0;
-            $self->{is_proc}      =                          $prv_SPECD eq 'P'  ? 1 : 0;
-            $self->{is_comment}   =                          $prv_SPECD eq 'C'  ? 1 : 0;
-            $self->{is_text}      = ($self->{filter} != 4 || $prv_SPECD eq '-') ? 1 : 0;
-            $self->{is_end}       =                          $nxt_SPECD eq 'E'  ? 1 : 0;
+            $self->{is_decl}      = $prv_SPECD eq 'D'  ? 1 : 0;
+            $self->{is_start}     = $prv_SPECD eq 'S'  ? 1 : 0;
+            $self->{is_proc}      = $prv_SPECD eq 'P'  ? 1 : 0;
+            $self->{is_comment}   = $prv_SPECD eq 'C'  ? 1 : 0;
+            $self->{is_end}       = $nxt_SPECD eq 'E'  ? 1 : 0;
 
+            $self->{is_text}      = 1;
             $self->{is_attr}      = 0;
-            $self->{is_value}     = ($self->{is_text} || $self->{is_attr}) ? 1 : 0;
 
             $self->{path}         = '/'.join('/', @{$self->{plist}});
             $self->{attr}         = '';
@@ -301,11 +323,10 @@ sub iterate {
             $self->{is_start}     = 0;
             $self->{is_proc}      = 0;
             $self->{is_comment}   = 0;
-            $self->{is_text}      = 0;
             $self->{is_end}       = 0;
 
+            $self->{is_text}      = 0;
             $self->{is_attr}      = 1;
-            $self->{is_value}     = 1;
 
             $self->{path}         = '/'.join('/', @{$self->{plist}}).'/@'.$key;
             $self->{attr}         = $key;
@@ -320,12 +341,15 @@ sub iterate {
             $self->{dec_hash}     = {};
         }
         else {
-            croak "Failed assertion #0030 in subroutine XML::Reader->iterate: Found data type '".$token->[0]."'";
+            croak "Failed assertion #0060 in subroutine XML::Reader->iterate: Found data type '".$token->[0]."'";
         }
 
-        # for {filter => 4} setup pyx
-        # (-- and promote $self->{type} from 'T'/'@' to any of the following codes: 'D', '?', 'S', 'E', '#', 'T', '@' --)
-        if ($self->{filter} == 4) {
+        # for {filter => 4 or 5}
+        #   - promote $self->{type}    -- from 'T'/'@' to any of the following codes: 'D', '?', 'S', 'E', '#', 'T', '@'
+        #   - update  $self->{is_text}
+        #   - setup   $self->{pyx}
+
+        if ($self->{filter} == 4 or $self->{filter} == 5) {
             if    ($self->{type} eq '@') { $self->{pyx} = 'A'.$self->{attr}.' '.$self->{value}; }
             elsif ($self->{is_decl})     { my $dc = $self->{dec_hash};
                                            $self->{type} = 'D'; $self->{pyx} = '?xml'.join('', map {" $_='$dc->{$_}'"} sort {$b cmp $a} keys %$dc); }
@@ -333,18 +357,17 @@ sub iterate {
             elsif ($self->{is_start})    { $self->{type} = 'S'; $self->{pyx} = '('.$self->{tag}; }
             elsif ($self->{is_end})      { $self->{type} = 'E'; $self->{pyx} = ')'.$self->{tag}; }
             elsif ($self->{is_comment})  { $self->{type} = '#'; $self->{pyx} = '#'.$self->{comment}; }
-            elsif ($self->{is_text})     { $self->{type} = 'T'; $self->{pyx} = '-'.$self->{value}; }
-            else {
-                croak "Failed assertion #0040 in subroutine XML::Reader->iterate: Found invalid ".
-                  "prv_SPECD = '$prv_SPECD', ".
-                  "nxt_SPECD = '$nxt_SPECD', ".
-                  "type = '".$self->{type}."'";
-            }
+            else                         { $self->{type} = 'T'; $self->{pyx} = '-'.$self->{value}; }
             $self->{pyx} =~ s{\n}'\\n'xmsg; # replace newlines by a literal "\\n"
+
+            # update $self->{is_text}
+            $self->{is_text} = $self->{type} eq 'T' ? 1 : 0;
         }
         else {
             $self->{pyx} = undef;
         }
+
+        $self->{is_value} = ($self->{is_text} || $self->{is_attr}) ? 1 : 0;
 
         # for {filter => 5} check roots
         if ($self->{filter} == 5) {
@@ -352,7 +375,6 @@ sub iterate {
                 my $param = $self->{rlist}[$r];
 
                 my $twig;
-                my $stem;
 
                 my $root;
                 if (defined $param->{root}) {
@@ -370,11 +392,9 @@ sub iterate {
 
                 if (defined $root) {
                     if ($self->{path} eq $root) {
-                        $stem = $root;
                         $twig = '/';
                     }
                     elsif (substr($self->{path}, 0, length($root) + 1) eq $root.'/') {
-                        $stem = $root;
                         $twig = substr($self->{path}, length($root));
                     }
                 }
@@ -389,7 +409,8 @@ sub iterate {
                     if ($self->{is_value}) {
                         for my $i (0..$#{$param->{branch}}) {
                             if ($param->{branch}[$i] eq $twig) {
-                                $self->{bush}[$r][$i] .= $self->{value};
+                                my $ref = \$self->{bush}[$r][$i];
+                                $$ref .= (defined $$ref ? $self->{sepchar} : '').$self->{value};
                             }
                         }
                     }
@@ -401,6 +422,18 @@ sub iterate {
 
                     if ($param->{branch} eq '*') { # addition for ver 0.34 (Klaus Eichner, 26th Apr 2010)
                         my $element = '';
+                        if ($self->{is_decl}) {
+                            $element .= '<?';
+                            for my $key (sort keys %{$self->{dec_hash}}) {
+                                my $kval = $self->{dec_hash}{$key};
+                                $kval =~ s{&}'&amp;'xmsg;
+                                $kval =~ s{'}'&apos;'xmsg;
+                                $kval =~ s{<}'&lt;'xmsg;
+                                $kval =~ s{>}'&gt;'xmsg;
+                                $element .= qq{ $key='$kval'};
+                            }
+                            $element .= '?>';
+                        }
                         if ($self->{is_start}) {
                             $element .= '<'.$self->{tag};
                             for my $key (sort keys %{$self->{att_hash}}) {
@@ -413,6 +446,17 @@ sub iterate {
                             }
                             $element .= '>';
                         }
+                        if ($self->{is_proc}) {
+                            my $tgt = $self->{proc_tgt};
+                            my $dat = $self->{proc_data};
+                            for ($tgt, $dat) {
+                                s{&}'&amp;'xmsg;
+                                s{'}'&apos;'xmsg;
+                                s{<}'&lt;'xmsg;
+                                s{>}'&gt;'xmsg;
+                            }
+                            $element .= "<?$tgt $dat?>";
+                        }
                         if ($self->{is_text}) {
                             my $tval = $self->{value};
                             if ($tval ne '') {
@@ -421,6 +465,13 @@ sub iterate {
                                 $tval =~ s{>}'&gt;'xmsg;
                                 $element .= $tval;
                             }
+                        }
+                        if ($self->{is_comment}) {
+                            my $tval = $self->{comment};
+                            $tval =~ s{&}'&amp;'xmsg;
+                            $tval =~ s{<}'&lt;'xmsg;
+                            $tval =~ s{>}'&gt;'xmsg;
+                            $element .= "<!-- $tval -->";
                         }
                         if ($self->{is_end}) {
                             $element .= '</'.$self->{tag}.'>';
@@ -431,7 +482,7 @@ sub iterate {
                 }
 
                 if ($twig eq '/' and $self->{is_end}) {
-                    push @{$self->{rresult}}, [$r, $self->{bush}[$r], $stem];
+                    push @{$self->{rresult}}, [$r, $self->{bush}[$r]];
                     $param->{qrfix} = undef;
                 }
             }
@@ -478,8 +529,21 @@ sub get_token {
         # We leave immediately as soon as there is no more data left (EOF)
         last if $buf eq '';
 
-        # ...and here is the all important parsing of that chunk:
+        # and here is the all important parsing of that chunk:
+        # and we could get exceptions thrown here if the XML is invalid...
+        
         $self->{ExpatNB}->parse_more($buf);
+
+        # ...the recommended way to catch those exceptions is not here, but by wrapping
+        # eval{} around $rdr->iterate like follows
+        #
+        #    while (eval{$rdr->iterate}) {
+        #        my $text = $rdr->value;
+        #        # ...
+        #    }
+        #    if ($@) {
+        #        print "found an error: $@\n";
+        #    }
     }
 
     # return failure if end-of-file...
@@ -496,9 +560,9 @@ sub handle_decl {
     return unless $ExpatNB->{XR_ParseInst};
 
     convert_structure($ExpatNB, 'D');
-    $ExpatNB->{XR_Decl} = [(defined $version    ? (version    => $version)    : ()),
-                           (defined $encoding   ? (encoding   => $encoding)   : ()),
-                           (defined $standalone ? (standalone => $standalone) : ()),
+    $ExpatNB->{XR_Decl} = [(defined $version    ? (version    => $version)                     : ()),
+                           (defined $encoding   ? (encoding   => $encoding)                    : ()),
+                           (defined $standalone ? (standalone => ($standalone ? 'yes' : 'no')) : ()),
                           ];
 }
 
@@ -657,7 +721,7 @@ sub slurp_xml {
 
     my @tree = map {[]} @_; # start with as many empty lists as there are roots 
 
-    my $rdr = XML::Reader->newhd($data, {filter => 5}, @_) or die "Error: $!";
+    my $rdr = XML::Reader->new($data, {filter => 5}, @_) or die "Error: $!";
 
     while ($rdr->iterate) {
         push @{$tree[$rdr->rx]}, $rdr->rvalue;
@@ -671,7 +735,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.34';
+our $VERSION = '0.35';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -706,7 +770,7 @@ XML::Reader - Reading XML and providing path information based on a pull-parser.
 
   my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
-  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
   while ($rdr->iterate) {
       printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
   }
@@ -727,7 +791,7 @@ It was developped as a wrapper on top of XML::Parser (while, at the same time, s
 have been copied from XML::TokeParser). Both XML::Parser and XML::TokeParser allow pull-mode
 parsing, but do not keep track of the complete XML-Path. Also, the interfaces to XML::Parser and
 XML::TokeParser require you to distinguish between start-tags, end-tags and text on seperate lines,
-which, in my view, complicates the interface (although, XML::Reader allows option {filter => 4} which
+which, in my view, complicates the interface (although, XML::Reader allows option {filter => 4, mode => 'pyx'} which
 emulates start-tags, end-tags and text on separate lines, if that's what you want).
 
 There is also XML::TiePYX, which lets you pull-mode parse XML-Files (see
@@ -737,7 +801,7 @@ provide the full XML-path.
 
 By contrast, XML::Reader translates start-tags, end-tags and text into XPath-like expressions. So
 you don't need to worry about tags, you just get a path and a value, and that's it. (However, should
-you wish to operate XML::Reader in a PYX compatible mode, there is option {filter => 4}, as mentioned
+you wish to operate XML::Reader in a PYX compatible mode, there is option {filter => 4, mode => 'pyx'}, as mentioned
 above, which allows you to parse XML in that way).
 
 But going back to the normal mode of operation, here is an example XML in variable '$line1':
@@ -771,7 +835,7 @@ Here is a sample program which parses the XML in '$line1' from above to demonstr
 
   use XML::Reader;
 
-  my $rdr = XML::Reader->newhd(\$line1) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$line1) or die "Error: $!";
   my $i = 0;
   while ($rdr->iterate) { $i++;
       printf "%3d. pat=%-22s, val=%-9s, s=%-1s, e=%-1s, tag=%-6s, atr=%-6s, t=%-1s, lvl=%2d\n", $i,
@@ -798,7 +862,7 @@ Here is a sample program which parses the XML in '$line1' from above to demonstr
 
 To create an XML::Reader object, the following syntax is used:
 
-  my $rdr = XML::Reader->newhd($data,
+  my $rdr = XML::Reader->new($data,
     {strip => 1, filter => 2, using => ['/path1', '/path2']})
     or die "Error: $!";
 
@@ -811,20 +875,20 @@ that filehandle is used to read the XML.
 
 Here is an example to create an XML::Reader object with a file-name:
 
-  my $rdr = XML::Reader->newhd('input.xml') or die "Error: $!";
+  my $rdr = XML::Reader->new('input.xml') or die "Error: $!";
 
 Here is another example to create an XML::Reader object with a reference:
 
-  my $rdr = XML::Reader->newhd(\'<data>abc</data>') or die "Error: $!";
+  my $rdr = XML::Reader->new(\'<data>abc</data>') or die "Error: $!";
 
 Here is an example to create an XML::Reader object with an open filehandle:
 
   open my $fh, '<', 'input.xml' or die "Error: $!";
-  my $rdr = XML::Reader->newhd($fh);
+  my $rdr = XML::Reader->new($fh);
 
 Here is an example to create an XML::Reader object with \*STDIN:
 
-  my $rdr = XML::Reader->newhd(\*STDIN);
+  my $rdr = XML::Reader->new(\*STDIN);
 
 One or more of the following options can be added as a hash-reference:
 
@@ -845,24 +909,25 @@ Option {using => } allows for selecting a sub-tree of the XML.
 
 The syntax is {using => ['/path1/path2/path3', '/path4/path5/path6']}
 
-=item option {filter => }
+=item option {filter => } and {mode => }
 
-Option {filter => 2} shows all lines, including attributes.
+Option {filter => 2} or {mode => 'attr-bef-start'} shows all lines, including attributes.
 
-Option {filter => 3} removes attribute lines (i.e. it removes lines where $rdr->type eq '@').
+Option {filter => 3} or {mode => 'attr-in-hash'} removes attribute lines (i.e. it removes lines where $rdr->type eq '@').
 Instead, it returns the attributes in a hash $rdr->att_hash.
 
-Option {filter => 4} breaks down each line into its
+Option {filter => 4} or {mode => 'pyx'} breaks down each line into its
 individual start-tags, end-tags, attributes, comments and processing-instructions.
 This allows the parsing of XML into pyx-formatted lines.
 
-Option {filter => 5} selects only data for a given root. The elements for each root are collected in
+Option {filter => 5} or {mode => 'branches'} selects only data for a given root. The elements for each root are collected in
 an array reference (as specified by the branch) and returned when the root is complete. This
 processing lies half way between option using (where all elements are returned one by one) and the
 function slurp_xml (where all elements are collected in a branch, and all branches are collected
 in an in-memory structure).
 
-The syntax is {filter => 2|3|4|5}, default is {filter => 2}
+The syntax is {filter => 2|3|4|5, mode => 'attr-bef-start'|'attr-in-hash'|'pyx'|'branches'}, default is {filter => 2,
+mode => 'attr-bef-start'}
 
 =item option {strip => }
 
@@ -996,25 +1061,25 @@ Returns 1 if the XML-file had an attribute at the current position, otherwise 0 
 =item is_value
 
 Returns 1 if the XML-file has either a text or an attribute at the current position, otherwise 0 is
-returned. This is mostly useful in mode {filter => 4} to see whether the method value() can be used.
+returned. This is mostly useful in {filter => 4, mode => 'pyx'} to see whether the method value() can be used.
 
 =item rx
 
-This is the index of the currently selected branch (only useful when {filter => 5} was set).
+This is the index of the currently selected branch (only useful when {filter => 5, mode => 'branches'} was set).
 
 =item rval
 
-This is the value of the currently selected branch (only useful when {filter => 5} was set).
+This is the value of the currently selected branch (only useful when {filter => 5, mode => 'branches'} was set).
 
 =item rvalue
 
 This is a reference to either a scalar or to an array of the currently selected branch (only useful when
-{filter => 5} was set). rvalue is a faster, but not so convenient version of rval (with rvalue you will
+{filter => 5, mode => 'branches'} was set). rvalue is a faster, but not so convenient version of rval (with rvalue you will
 have to do the dereferencing yourself).
 
 =item rstem
 
-This is the stem of the currently selected branch (only useful when {filter => 5} was set).
+This is function is a duplicate of the existing function path.
 
 =back
 
@@ -1061,7 +1126,7 @@ to target specific elements:
   </data>
   };
 
-  my $rdr = XML::Reader->newhd(\$line2,
+  my $rdr = XML::Reader->new(\$line2,
     {using => ['/data/order/database/customer', '/data/supplier']});
 
   my $i = 0;
@@ -1090,7 +1155,7 @@ The following program takes the same XML and parses it with XML::Reader, but wit
 
   use XML::Reader;
 
-  my $rdr = XML::Reader->newhd(\$line2);
+  my $rdr = XML::Reader->new(\$line2);
   my $i = 0;
   while ($rdr->iterate) { $i++;
       printf "%3d. prf=%-1s, pat=%-37s, val=%-6s, tag=%-11s, t=%-1s, lvl=%2d\n",
@@ -1138,7 +1203,7 @@ Here is an example where comments are ignored by default:
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
-  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
 
   while ($rdr->iterate) {
       if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
@@ -1159,7 +1224,7 @@ activated:
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
-  my $rdr = XML::Reader->newhd(\$text, {parse_ct => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {parse_ct => 1}) or die "Error: $!";
 
   while ($rdr->iterate) {
       if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
@@ -1187,7 +1252,7 @@ option {parse_pi => 1}, which is now activated (together with option {parse_ct =
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
-  my $rdr = XML::Reader->newhd(\$text, {parse_ct => 1, parse_pi => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {parse_ct => 1, parse_pi => 1}) or die "Error: $!";
 
   while ($rdr->iterate) {
       if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
@@ -1209,13 +1274,13 @@ Here is the output:
   Found proc      t=ab, d=cde
   Text 'test'
 
-=head1 OPTION FILTER
+=head1 OPTION FILTER / MODE
 
-Option {filter => } allows to select different operation modes when processing the XML data.
+Option {filter => } or {mode => } allows to select different operation modes when processing the XML data.
 
-=head2 Option {filter => 2}
+=head2 Option {filter => 2} or {mode => 'attr-bef-start'}
 
-With option {filter => 2}, XML::Reader produces one line for each character event.
+With option {filter => 2} or {mode => 'attr-bef-start'}, XML::Reader produces one line for each character event.
 A preceding start-tag results in method is_start to be set to 1, a trailing end-tag
 results in method is_end to be set to 1. Likewise, a preceding comment results in method
 is_comment to be set to 1, a preceding XML-declaration results in method is_decl to be set
@@ -1223,7 +1288,7 @@ to 1, a preceding processing-instruction results in method is_proc to be set to 
 
 Also, attribute lines are added via the special '/@...' syntax.
 
-Option {filter => 2} is the default.
+Option {filter => 2, mode => 'attr-bef-start'} is the default.
 
 Here is an example...
 
@@ -1232,12 +1297,20 @@ Here is an example...
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+
+  # the following four alternatives are equivalent:
+  # -----------------------------------------------
+  #   XML::Reader->new(\$text);
+  #   XML::Reader->new(\$text, {filter => 2                          });
+  #   XML::Reader->new(\$text, {filter => 2, mode => 'attr-bef-start'});
+  #   XML::Reader->new(\$text, {             mode => 'attr-bef-start'});
+
   while ($rdr->iterate) {
       printf "Path: %-24s, Value: %s\n", $rdr->path, $rdr->value;
   }
 
-This program (with implicit option {filter => 2} as default) produces the following output:
+This program (with implicit option {filter => 2, mode => 'attr-bef-start'} as default) produces the following output:
 
   Path: /root                   , Value:
   Path: /root/test/@param       , Value: <>v"
@@ -1251,13 +1324,13 @@ This program (with implicit option {filter => 2} as default) produces the follow
   Path: /root/test              , Value:
   Path: /root                   , Value: x yz
 
-The same {filter => 2} also allows to rebuild the structure of the XML with the help of the methods
+The same {filter => 2, mode => 'attr-bef-start'} also allows to rebuild the structure of the XML with the help of the methods
 C<is_start> and C<is_end>. To make things more interesting, we have the following additional requirement:
 We want any text (but not tags and not attributes) to be wrapped inside a pair of "**...**" when it is
 displayed. Please note also that in the above output, the first line ("Path: /root, Value:")
 is empty, but important for the structure of the XML. Therefore we can't ignore it.
 
-Let us now look at the same example (with option {filter => 2}), but with an additional algorithm to
+Let us now look at the same example (with option {filter => 2, mode => 'attr-bef-start'}), but with an additional algorithm to
 reconstruct the original XML plus the additional requirement to wrap text (but not tags and not attributes)
 inside "** **":
 
@@ -1266,7 +1339,14 @@ inside "** **":
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->newhd(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+
+  # the following four alternatives are equivalent:
+  # -----------------------------------------------
+  #   XML::Reader->new(\$text);
+  #   XML::Reader->new(\$text, {filter => 2                          });
+  #   XML::Reader->new(\$text, {filter => 2, mode => 'attr-bef-start'});
+  #   XML::Reader->new(\$text, {             mode => 'attr-bef-start'});
 
   my %at;
 
@@ -1324,18 +1404,18 @@ inside "** **":
 
 ...this is proof that the original structure of the XML is not lost.
 
-=head2 Option {filter => 3}
+=head2 Option {filter => 3} or {mode => 'attr-in-hash'}
 
-Option {filter => 3} works very much like {filter => 2}.
+Option {filter => 3, mode => 'attr-in-hash'} works very much like {filter => 2, mode => 'attr-bef-start'}.
 
-The difference, though, is that with option {filter => 3} all attribute-lines are suppressed
+The difference, though, is that with option {filter => 3, mode => 'attr-in-hash'} all attribute-lines are suppressed
 and instead, the attributes are presented for each start-line in the hash $rdr->att_hash().
 
 This allows, in fact, to dispense with the global %at variable of the previous algorithm, and
 use %{$rdr->att_hash} instead:
 
-Here is the new algorithm for {filter => 3}, we don't need to worry about attributes (that is,
-we don't need to check fot $rdr->type eq '@') and, as already mentioned, the %at variable is
+Here is the new algorithm for {filter => 3, mode => 'attr-in-hash'}, we don't need to worry about attributes (that is,
+we don't need to check for $rdr->type eq '@') and, as already mentioned, the %at variable is
 replaced by %{$rdr->att_hash} :
 
   use XML::Reader;
@@ -1343,7 +1423,13 @@ replaced by %{$rdr->att_hash} :
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->newhd(\$text, {filter => 3}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 3}) or die "Error: $!";
+
+  # the following three alternatives are equivalent:
+  # ------------------------------------------------
+  #   XML::Reader->new(\$text, {filter => 3                        });
+  #   XML::Reader->new(\$text, {filter => 3, mode => 'attr-in-hash'});
+  #   XML::Reader->new(\$text, {             mode => 'attr-in-hash'});
 
   while ($rdr->iterate) {
       my $indentation = '  ' x ($rdr->level - 1);
@@ -1376,7 +1462,7 @@ replaced by %{$rdr->att_hash} :
       }
   }
 
-...the output for {filter => 3} is identical to the output for {filter => 2}:
+...the output for {filter => 3, mode => 'attr-in-hash'} is identical to the output for {filter => 2, mode => 'attr-bef-start'}:
 
   <root>
     <test param='&lt;&gt;v"'>
@@ -1402,7 +1488,7 @@ we use L<XML::Writer> for that. Here is the program that uses L<XML::Writer> to 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->newhd(\$text, {filter => 3}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 3}) or die "Error: $!";
   my $wrt = XML::Writer->new(OUTPUT => \*STDOUT, NEWLINES => 1);
 
   while ($rdr->iterate) {
@@ -1429,9 +1515,9 @@ Here is the output from L<XML::Writer>:
 
 The format written by L<XML::Writer> needs some getting used to, but it is valid XML.
 
-=head2 Option {filter => 4}
+=head2 Option {filter => 4} or {mode => 'pyx'}
 
-Although this is not the main purpose of XML::Reader, option {filter => 4} can generate individual lines for
+Although this is not the main purpose of XML::Reader, option {filter => 4, mode => 'pyx'} can generate individual lines for
 start-tags, end-tags, comments, processing-instructions and XML-Declarations. Its aim is to generate
 a pyx string for further processing and analysis.
 
@@ -1450,7 +1536,13 @@ Here is an example:
       dskjfh <!-- remark --> uuu
     </delta>};
 
-  my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_pi => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_pi => 1}) or die "Error: $!";
+
+  # the following three alternatives are equivalent:
+  # ------------------------------------------------
+  #   XML::Reader->new(\$text, {filter => 4               , parse_pi => 1});
+  #   XML::Reader->new(\$text, {filter => 4, mode => 'pyx', parse_pi => 1});
+  #   XML::Reader->new(\$text, {             mode => 'pyx', parse_pi => 1});
 
   while ($rdr->iterate) {
       printf "Type = %1s, pyx = %s\n", $rdr->type, $rdr->pyx;
@@ -1483,7 +1575,13 @@ as can be seen by the following example:
       <!-- remark -->
     </delta>};
 
-  my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_ct => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_ct => 1}) or die "Error: $!";
+
+  # the following three alternatives are equivalent:
+  # ------------------------------------------------
+  #   XML::Reader->new(\$text, {filter => 4,                parse_ct => 1});
+  #   XML::Reader->new(\$text, {filter => 4, mode => 'pyx', parse_ct => 1});
+  #   XML::Reader->new(\$text, {             mode => 'pyx', parse_ct => 1});
 
   while ($rdr->iterate) {
       printf "Type = %1s, pyx = %s\n", $rdr->type, $rdr->pyx;
@@ -1495,7 +1593,7 @@ Here is the output:
   Type = #, pyx = #remark
   Type = E, pyx = )delta
 
-Finally, when operating with {filter => 4}, the usual methods (C<value>, C<attr>, C<path>, C<is_start>,
+Finally, when operating with {filter => 4, mode => 'pyx'}, the usual methods (C<value>, C<attr>, C<path>, C<is_start>,
 C<is_end>, C<is_decl>, C<is_proc>, C<is_comment>, C<is_attr>, C<is_text>, C<is_value>, C<comment>, C<proc_tgt>,
 C<proc_data>, C<dec_hash> or C<att_hash>) remain operational. Here is an example:
 
@@ -1507,7 +1605,13 @@ C<proc_data>, C<dec_hash> or C<att_hash>) remain operational. Here is an example
       <child>ghi</child>
     </parent>};
 
-  my $rdr = XML::Reader->newhd(\$text, {filter => 4, parse_pi => 1, parse_ct => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_ct => 1, parse_pi => 1}) or die "Error: $!";
+
+  # the following three alternatives are equivalent:
+  # ------------------------------------------------
+  #   XML::Reader->new(\$text, {filter => 4,                parse_ct => 1, parse_pi => 1});
+  #   XML::Reader->new(\$text, {filter => 4, mode => 'pyx', parse_ct => 1, parse_pi => 1});
+  #   XML::Reader->new(\$text, {             mode => 'pyx', parse_ct => 1, parse_pi => 1});
 
   while ($rdr->iterate) {
       printf "Path %-15s v=%s ", $rdr->path, $rdr->is_value;
@@ -1537,9 +1641,9 @@ Here is the output:
 
 Note that v=1 (i.e. $rdr->is_value == 1) for all text and all attributes.
 
-=head2 Option {filter => 5}
+=head2 Option {filter => 5} or {mode => 'branches'}
 
-With option {filter => 5}, you specify one (or many) roots, each root has a set of branches attached.
+With option {filter => 5, mode => 'branches'}, you specify one (or many) roots, each root has a set of branches attached.
 What you then get back is one record for each occurence of a root in the XML tree.
 A root can start with a single slash (such as {root => '/tag1/tag2'}), in which case the path is
 absolute, or it can start with a double-slash (such as {root => '//tag1/tag2'}), in which case the path
@@ -1619,23 +1723,29 @@ is identified by $rdr->rx == 2, and data for our fourth root ('p') is identified
 
 In the following program we will use function rdr->rvalue to obtain the data:
 
-  my $rdr = XML::Reader->newhd(\$line2, {filter => 5},
+  my $rdr = XML::Reader->new(\$line2, {filter => 5},
     { root => 'customer',       branch => ['/@name', '/street', '/city'] },
     { root => '/data/supplier', branch => ['/']                          },
     { root => '//customer',     branch => '*' },
     { root => 'p',              branch => '*' },
   );
 
+  # the following three alternatives are equivalent:
+  # ------------------------------------------------
+  #   XML::Reader->new(\$line2, {filter => 5,                   });
+  #   XML::Reader->new(\$line2, {filter => 5, mode => 'branches'});
+  #   XML::Reader->new(\$line2, {             mode => 'branches'});
+
   my $root0 = '';
   my $root1 = '';
   my $root2 = '';
   my $root3 = '';
 
-  my $stem0 = '';
+  my $path0 = '';
 
   while ($rdr->iterate) {
       if ($rdr->rx == 0) {
-          $stem0 .= "  ".$rdr->rstem."\n";
+          $path0 .= "  ".$rdr->path."\n";
           for ($rdr->rvalue) {
               $root0 .= sprintf "  Cust: Name = %-7s Street = %-12s City = %s\n", $_->[0], $_->[1], $_->[2];
           }
@@ -1658,7 +1768,7 @@ In the following program we will use function rdr->rvalue to obtain the data:
   }
 
   print "root0:\n$root0\n";
-  print "stem0:\n$stem0\n";
+  print "path0:\n$path0\n";
   print "root1:\n$root1\n";
   print "root2:\n$root2\n";
   print "root3:\n$root3\n";
@@ -1672,7 +1782,7 @@ This is the output:
     Cust: Name = &jones  Street = maple street City = new york
     Cust: Name = stewart Street = ring road    City = "'&<A>'"
 
-  stem0:
+  path0:
     /data/customer
     /data/zzz/customer
     /data/order/database/customer
@@ -1698,10 +1808,16 @@ This is the output:
 
 We can also use function rdr->rval to obtain the same data:
 
-  my $rdr = XML::Reader->newhd(\$line2, {filter => 5},
+  my $rdr = XML::Reader->new(\$line2, {filter => 5},
     { root => 'customer',       branch => ['/@name', '/street', '/city'] },
     { root => 'p',              branch => '*' },
   );
+
+  # the following three alternatives are equivalent:
+  # ------------------------------------------------
+  #   XML::Reader->new(\$line2, {filter => 5,                   });
+  #   XML::Reader->new(\$line2, {filter => 5, mode => 'branches'});
+  #   XML::Reader->new(\$line2, {             mode => 'branches'});
 
   my $out0 = '';
   my $out1 = '';
@@ -1769,15 +1885,15 @@ We expect exactly 4 output-lines from our parse (i.e. we don't expect the 'dataz
   item = 'start3', p1 = 'g', p3 = 'i'
   item = 'start4', p1 = 'm', p3 = 'o'
 
-=head2 Parsing XML with {filter => 2}
+=head2 Parsing XML with {filter => 2} or {mode => 'attr-bef-start'}
 
-Here is a sample program to parse that XML with {filter => 2}. (Note how the prefix
-'/start/param/data/item' is located in the {using =>} option of newhd). We need two
+Here is a sample program to parse that XML with {filter => 2, mode => 'attr-bef-start'}. (Note how the prefix
+'/start/param/data/item' is located in the {using =>} option of new). We need two
 scalars ('$p1' and '$p3') to hold the parameters in '/@p1' and in '/@p3' and carry
 them over to the $rdr->is_start section, where they can be printed.
 
-  my $rdr = XML::Reader->newhd(\$text,
-    {filter => 2, using => '/start/param/data/item'}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text,
+    {mode => 'attr-bef-start', using => '/start/param/data/item'}) or die "Error: $!";
 
   my ($p1, $p3);
 
@@ -1791,13 +1907,13 @@ them over to the $rdr->is_start section, where they can be printed.
       unless ($rdr->is_attr) { $p1 = undef; $p3 = undef; }
   }
 
-=head2 Parsing XML with {filter => 3}
+=head2 Parsing XML with {filter => 3} or {mode => 'attr-in-hash'}
 
-With {filter => 3} we can dispense with the two scalars '$p1' and '$p3', the code
+With {filter => 3, mode => 'attr-in-hash'} we can dispense with the two scalars '$p1' and '$p3', the code
 becomes very simple:
 
-  my $rdr = XML::Reader->newhd(\$text,
-    {filter => 3, using => '/start/param/data/item'}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text,
+    {mode => 'attr-in-hash', using => '/start/param/data/item'}) or die "Error: $!";
 
   while ($rdr->iterate) {
       if ($rdr->path eq '/' and $rdr->is_start) {
@@ -1806,16 +1922,16 @@ becomes very simple:
       }
   }
 
-=head2 Parsing XML with {filter => 4}
+=head2 Parsing XML with {filter => 4} or {mode => 'pyx'}
 
-With {filter => 4}, however, the code becomes slightly more complicated again: As already
-shown for {filter => 2}, we need again two scalars ('$p1' and '$p3') to hold the parameters in
+With {filter => 4, mode => 'pyx'}, however, the code becomes slightly more complicated again: As already
+shown for {filter => 2, mode => 'attr-bef-start'}, we need again two scalars ('$p1' and '$p3') to hold the parameters in
 '/@p1' and in '/@p3' and carry them over. In addition to that, we also need a way to count
 text-values (see scalar '$count'), so that we can distinguish between the first value 'start...'
 (that we want to print) and the second value 'end...' (that we do not want to print).
 
-  my $rdr = XML::Reader->newhd(\$text,
-    {filter => 4, using => '/start/param/data/item'}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text,
+    {mode => 'pyx', using => '/start/param/data/item'}) or die "Error: $!";
 
   my ($count, $p1, $p3);
 
@@ -1834,11 +1950,11 @@ text-values (see scalar '$count'), so that we can distinguish between the first 
       }
   }
 
-=head2 Parsing XML with {filter => 5}
+=head2 Parsing XML with {filter => 5} or {mode => 'branches'}
 
-You could combine {filter => 5} and regular expressions to parse the XML:
+You could combine {mode => 'branches'} and regular expressions to parse the XML:
 
-  my $rdr = XML::Reader->newhd(\$text, {filter => 5},
+  my $rdr = XML::Reader->new(\$text, {mode => 'branches'},
     { root => '/start/param/data/item', branch => '*' },
   ) or die "Error: $!";
 
@@ -1936,8 +2052,8 @@ Klaus Eichner, March 2009
 Copyright (C) 2009 by Klaus Eichner
 
 All rights reserved. This program is free software; you can redistribute
-it and/or modify it under the terms of the artistic license,
-see http://www.opensource.org/licenses/artistic-license-1.0.php
+it and/or modify it under the terms of the artistic license 2.0,
+see http://www.opensource.org/licenses/artistic-license-2.0.php
 
 =head1 RELATED MODULES
 
