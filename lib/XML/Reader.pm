@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.35';
+our $VERSION     = '0.36';
 
 # deprecated functions (Klaus EICHNER, 28 Apr 2010, ver. 0.35):
 # only for backward compatibility
@@ -216,10 +216,24 @@ sub new {
     return $self;
 }
 
-sub path         { $_[0]{path};         }
+# path() and value() are the two main functions:
+# **********************************************
+
+sub path  { $_[0]{path}; }
+
+sub value {
+    if ($_[0]{filter} == 5) {
+        ref $_[0]{rvalue} eq 'SCALAR' ? ${$_[0]{rvalue}} :
+        ref $_[0]{rvalue} eq 'ARRAY'  ? @{$_[0]{rvalue}} :
+                                        undef;
+    }
+    else {
+        $_[0]{value};
+    }
+}
+
 sub tag          { $_[0]{tag};          }
 sub attr         { $_[0]{attr};         }
-sub value        { $_[0]{value};        }
 sub att_hash     { $_[0]{att_hash};     }
 sub dec_hash     { $_[0]{dec_hash};     }
 sub type         { $_[0]{type};         }
@@ -239,12 +253,6 @@ sub is_text      { $_[0]{is_text};      }
 sub is_attr      { $_[0]{is_attr};      }
 sub is_value     { $_[0]{is_value};     }
 sub is_end       { $_[0]{is_end};       }
-
-sub rval {
-  ref $_[0]{rvalue} eq 'SCALAR' ? ${$_[0]{rvalue}} :
-  ref $_[0]{rvalue} eq 'ARRAY'  ? @{$_[0]{rvalue}} :
-                                  undef;
-}
 
 sub NB_data      { $_[0]{ExpatNB}{XR_Data}; }
 sub NB_fh        { $_[0]{ExpatNB}{XR_fh};   }
@@ -735,7 +743,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.35';
+our $VERSION = '0.36';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -1067,14 +1075,10 @@ returned. This is mostly useful in {filter => 4, mode => 'pyx'} to see whether t
 
 This is the index of the currently selected branch (only useful when {filter => 5, mode => 'branches'} was set).
 
-=item rval
-
-This is the value of the currently selected branch (only useful when {filter => 5, mode => 'branches'} was set).
-
 =item rvalue
 
 This is a reference to either a scalar or to an array of the currently selected branch (only useful when
-{filter => 5, mode => 'branches'} was set). rvalue is a faster, but not so convenient version of rval (with rvalue you will
+{filter => 5, mode => 'branches'} was set). rvalue is a faster, but not so convenient version of value (with rvalue you will
 have to do the dereferencing yourself).
 
 =item rstem
@@ -1653,8 +1657,7 @@ also relative.
 Each record then contains the elements that have been specified in the branches. (As a special case, the
 branch can be a single '*' character, in which case the complete XML is produced for the root).
 
-To obtain the elements that have been specified in the branches, you can use either function $rdr->rvalue
-or $rdr->rval.
+To obtain the elements that have been specified in the branches, you can use function $rdr->rvalue.
 
 The easiest way to explain its effect is to show an example.
 
@@ -1806,7 +1809,7 @@ This is the output:
     P: <p><p>b1</p><p>b2</p></p>
     P: <p>b3</p>
 
-We can also use function rdr->rval to obtain the same data:
+We can also use function rdr->value to obtain the same data:
 
   my $rdr = XML::Reader->new(\$line2, {filter => 5},
     { root => 'customer',       branch => ['/@name', '/street', '/city'] },
@@ -1824,11 +1827,11 @@ We can also use function rdr->rval to obtain the same data:
 
   while ($rdr->iterate) {
       if ($rdr->rx == 0) {
-          my @rv = $rdr->rval;
+          my @rv = $rdr->value;
           $out0 .= sprintf "  Cust: Name = %-7s Street = %-12s City = %s\n", $rv[0], $rv[1], $rv[2];
       }
       elsif ($rdr->rx == 1) {
-          $out1 .= "  P: ".$rdr->rval."\n";
+          $out1 .= "  P: ".$rdr->value."\n";
       }
   }
 
@@ -1959,7 +1962,7 @@ You could combine {mode => 'branches'} and regular expressions to parse the XML:
   ) or die "Error: $!";
 
   while ($rdr->iterate) {
-      if ($rdr->rval =~ m{\A <item
+      if ($rdr->value =~ m{\A <item
           (?:\s+ p1='([^']*)')?
           (?:\s+ p2='([^']*)')?
           (?:\s+ p3='([^']*)')?

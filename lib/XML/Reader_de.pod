@@ -326,15 +326,11 @@ ob es sinnvoll ist die Methode value() aufzurufen.
 
 Das ist der Index des aktuellen Branches (macht nur Sinn wenn {filter => 5, mode => 'branches'} gesetzt wurde).
 
-=item rval
-
-Das ist der Wert des aktuellen Branches (macht nur Sinn wenn {filter => 5, mode => 'branches'} gesetzt wurde).
-
 =item rvalue
 
 Das ist eine Referenz (auf einen Scalar-Wert oder auf ein Array) fE<uuml>r den aktuellen Branch.
 (macht nur Sinn wenn {filter => 5, mode => 'branches'} gesetzt wurde). rvalue is schneller als, aber nicht so einfach
-zu benutzen wie, die E<auml>hnliche funktion rval (mit rvalue muss man die De-Referenzierung selber
+zu benutzen wie, die E<auml>hnliche funktion value (mit rvalue muss man die De-Referenzierung selber
 ausfE<uuml>hren.
 
 =item rstem
@@ -918,8 +914,8 @@ Jeder Record enthE<auml>lt genau die Elemente die in der "branch" Struktur defin
 betrachtet man den Ast {branch => '*'}, in welchem Falle die komplette XML-Strujtur des Unterbaumes zurE<uuml>ck
 gegeben wird.
 
-Um die Element zu erhalten die in der "branch" Struktur definiert wurden, kann man entweder die Funktion
-$rdr->rvalue oder $rdr->rval benutzen.
+Um die Element zu erhalten die in der "branch" Struktur definiert wurden, kann man die Funktion
+$rdr->rvalue benutzen.
 
 Am einfachsten lE<auml>sst sich dieses an einem Beispiel erklE<auml>ren:
 
@@ -1072,7 +1068,7 @@ Hier ist das Ergebnis:
     P: <p><p>b1</p><p>b2</p></p>
     P: <p>b3</p>
 
-Wir kE<ouml>nnen ebenso die Funktion $rdr->rval benutzn um die gleichen Daten zu erhalten:
+Wir kE<ouml>nnen ebenso die Funktion $rdr->value benutzen um die gleichen Daten zu erhalten:
 
   my $rdr = XML::Reader->new(\$line2, {filter => 5},
     { root => 'customer',       branch => ['/@name', '/street', '/city'] },
@@ -1090,11 +1086,11 @@ Wir kE<ouml>nnen ebenso die Funktion $rdr->rval benutzn um die gleichen Daten zu
 
   while ($rdr->iterate) {
       if ($rdr->rx == 0) {
-          my @rv = $rdr->rval;
+          my @rv = $rdr->value;
           $out0 .= sprintf "  Cust: Name = %-7s Street = %-12s City = %s\n", $rv[0], $rv[1], $rv[2];
       }
       elsif ($rdr->rx == 1) {
-          $out1 .= "  P: ".$rdr->rval."\n";
+          $out1 .= "  P: ".$rdr->value."\n";
       }
   }
 
@@ -1227,7 +1223,7 @@ Sie kE<ouml>nnen {filter => 5, mode => 'branches'} und regulE<auml>re AusdrE<uum
   ) or die "Error: $!";
 
   while ($rdr->iterate) {
-      if ($rdr->rval =~ m{\A <item
+      if ($rdr->value =~ m{\A <item
           (?:\s+ p1='([^']*)')?
           (?:\s+ p2='([^']*)')?
           (?:\s+ p3='([^']*)')?

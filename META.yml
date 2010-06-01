@@ -3,7 +3,7 @@ abstract: 'Reading XML and providing path information based on a pull-parser'
 author: []
 configure_requires:
   Module::Build: 0.36
-generated_by: 'Module::Build version 0.3603'
+generated_by: 'Module::Build version 0.3607'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -12,13 +12,13 @@ name: XML-Reader
 provides:
   XML::Reader:
     file: lib/XML/Reader.pm
-    version: 0.35
+    version: 0.36
   XML::Reader::Token:
     file: lib/XML/Reader.pm
-    version: 0.35
+    version: 0.36
 requires:
   Carp: 0
   XML::Parser: 1
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.35
+version: 0.36

@@ -727,7 +727,7 @@ use_ok('XML::Reader', qw(slurp_xml));
                 for ($rdr->rvalue) {
                      push @lin0, sprintf("Cust: Name = %-7s Street = %-12s City = %s", $_->[0], $_->[1], $_->[2]);
                 }
-                my @rv = $rdr->rval;
+                my @rv = $rdr->value;
                 push @lrv0, sprintf("C-rv: Name = %-7s Street = %-12s City = %s", $rv[0], $rv[1], $rv[2]);
             }
             elsif ($rdr->rx == 1) {
@@ -741,7 +741,7 @@ use_ok('XML::Reader', qw(slurp_xml));
                 for ($rdr->rvalue) {
                     push @lin2, $$_;
                 }
-                push @lrv2, $rdr->rval;
+                push @lrv2, $rdr->value;
             }
             elsif ($rdr->rx == 3) {
                 for ($rdr->rvalue) {
@@ -890,7 +890,7 @@ use_ok('XML::Reader', qw(slurp_xml));
         my @l_city;
 
         while ($rdr->iterate) {
-            my ($name, $id, $street, $city) = $rdr->rval;
+            my ($name, $id, $street, $city) = $rdr->value;
             for ($name, $id, $street, $city) { $_ = '*undef*' unless defined $_; }
 
             push @l_name,   $name;
@@ -932,7 +932,7 @@ use_ok('XML::Reader', qw(slurp_xml));
         my @l_city;
 
         while ($rdr->iterate) {
-            my ($name, $id, $street, $city) = $rdr->rval;
+            my ($name, $id, $street, $city) = $rdr->value;
             for ($name, $id, $street, $city) { $_ = '*undef*' unless defined $_; }
 
             push @l_name,   $name;
@@ -970,7 +970,7 @@ use_ok('XML::Reader', qw(slurp_xml));
 
         my $txt_strip_0 = '';
         while ($rdr_strip_0->iterate) {
-            my ($y, $z, $d1, $d2) = $rdr_strip_0->rval;
+            my ($y, $z, $d1, $d2) = $rdr_strip_0->value;
             for ($y, $z, $d1, $d2) { $_ = '?' unless defined $_; }
             $txt_strip_0 .= "[y='$y', z='$z', d1='$d1', d2='$d2']";
         }
@@ -986,7 +986,7 @@ use_ok('XML::Reader', qw(slurp_xml));
 
         my $txt_strip_1 = '';
         while ($rdr_strip_1->iterate) {
-            my ($y, $z, $d1, $d2) = $rdr_strip_1->rval;
+            my ($y, $z, $d1, $d2) = $rdr_strip_1->value;
             for ($y, $z, $d1, $d2) { $_ = '?' unless defined $_; }
             $txt_strip_1 .= "[y='$y', z='$z', d1='$d1', d2='$d2']";
         }
@@ -1016,7 +1016,7 @@ use_ok('XML::Reader', qw(slurp_xml));
     my @lines;
 
     while ($rdr->iterate) {
-        push @lines, $rdr->rval;
+        push @lines, $rdr->value;
     }
 
     is(scalar(@lines),   2,                      'Pod-Test case no 22: number of lines');

@@ -322,15 +322,11 @@ mE<eacute>thode est plutE<ocirc>t utile pour l'option {filter => 4, mode => 'pyx
 
 C'est l'indexe de la branche en cours (cette fonction est valide uniquement avec {filter => 5}).
 
-=item rval
-
-C'est la valeur de la branche en cours (cette fonction est valide uniquement avec {filter => 5}).
-
 =item rvalue
 
 C'est une rE<eacute>fE<eacute>rence E<agrave> une valeur scalaire (ou E<agrave> une liste) de la
 branche en cours (cette fonction est valide uniquement avec {filter => 5}). rvalue est plus rapide,
-mais moins simple E<agrave> utiliser que la fonction rval (avec rvalue vous devez faire votre
+mais moins simple E<agrave> utiliser que la fonction value (avec rvalue vous devez faire votre
 dE<eacute>rE<eacute>fE<eacute>rencement vous mE<ecirc>me).
 
 =item rstem
@@ -908,7 +904,7 @@ dans les "branches". (il y a un cas particulier: quand la branche est '*', dans 
 sous-arbre est construit)
 
 Pour obtenir des valeurs qui sont spE<eacute>cifiE<eacute>es dans les branches, on peut utiliser la fonction
-$rdr->rvalue ou $rdr->rval.
+$rdr->rvalue.
 
 Voici un exemple:
 
@@ -1062,7 +1058,7 @@ Voici le rE<eacute>sultat:
     P: <p><p>b1</p><p>b2</p></p>
     P: <p>b3</p>
 
-Nous pouvons E<eacute>galement utiliser la fonction $rdr->rval pour obtenir les mE<ecirc>mes donnE<eacute>es:
+Nous pouvons E<eacute>galement utiliser la fonction $rdr->value pour obtenir les mE<ecirc>mes donnE<eacute>es:
 
   my $rdr = XML::Reader->new(\$line2, {filter => 5},
     { root => 'customer',       branch => ['/@name', '/street', '/city'] },
@@ -1080,11 +1076,11 @@ Nous pouvons E<eacute>galement utiliser la fonction $rdr->rval pour obtenir les 
 
   while ($rdr->iterate) {
       if ($rdr->rx == 0) {
-          my @rv = $rdr->rval;
+          my @rv = $rdr->value;
           $out0 .= sprintf "  Cust: Name = %-7s Street = %-12s City = %s\n", $rv[0], $rv[1], $rv[2];
       }
       elsif ($rdr->rx == 1) {
-          $out1 .= "  P: ".$rdr->rval."\n";
+          $out1 .= "  P: ".$rdr->value."\n";
       }
   }
 
@@ -1216,7 +1212,7 @@ On peut combiner {filter => 5, mode => 'branches'} avec des expressions rE<eacut
   ) or die "Error: $!";
 
   while ($rdr->iterate) {
-      if ($rdr->rval =~ m{\A <item
+      if ($rdr->value =~ m{\A <item
           (?:\s+ p1='([^']*)')?
           (?:\s+ p2='([^']*)')?
           (?:\s+ p3='([^']*)')?

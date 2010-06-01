@@ -170,3 +170,7 @@ Revision history for XML-Reader
           - function rstem() is redundant ==> replace function rstem() by path()
           - fix a bug in functions is_text() / is_value()
           - allow the writing of comments and PI if {branch => '*'} is selected
+
+0.36    01 June 2010
+        in case of {filter => 5}, make value() take over the role of rvalue()
+        Improve the content of the README file

@@ -1,9 +1,98 @@
-XML-Reader Version 0.35
+XML-Reader Version 0.36
 
 Reading XML and providing path information based on a pull-parser.
 
-There aren't any machine dependencies, no C compiler is required.
+SYNOPSIS
 
+  use XML::Reader;
+
+  my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
+
+  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  while ($rdr->iterate) {
+      printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
+  }
+
+This program produces the following output:
+
+  Path: /init              , Value: n t
+  Path: /init/page/@node   , Value: 400
+  Path: /init/page         , Value: m r
+  Path: /init              , Value:
+
+DESCRIPTION
+
+  XML::Reader provides a simple and easy to use interface for sequentially parsing XML
+  files (so called "pull-mode" parsing) and at the same time keeps track of the complete XML-path.
+
+  It was developped as a wrapper on top of XML::Parser (while, at the same time, some basic functions
+  have been copied from XML::TokeParser). Both XML::Parser and XML::TokeParser allow pull-mode
+  parsing, but do not keep track of the complete XML-Path. Also, the interfaces to XML::Parser and
+  XML::TokeParser require you to distinguish between start-tags, end-tags and text on seperate lines,
+  which, in my view, complicates the interface (although, XML::Reader allows option {filter => 4, mode => 'pyx'} which
+  emulates start-tags, end-tags and text on separate lines, if that's what you want).
+
+  There is also XML::TiePYX, which lets you pull-mode parse XML-Files (see
+  L<http://www.xml.com/pub/a/2000/03/15/feature/index.html> for an introduction to PYX).
+  But still, with XML::TiePYX you need to account for start-tags, end-tags and text, and it does not
+  provide the full XML-path.
+
+  By contrast, XML::Reader translates start-tags, end-tags and text into XPath-like expressions. So
+  you don't need to worry about tags, you just get a path and a value, and that's it. (However, should
+  you wish to operate XML::Reader in a PYX compatible mode, there is option {filter => 4, mode => 'pyx'}, as mentioned
+  above, which allows you to parse XML in that way).
+
+  But going back to the normal mode of operation, here is an example XML in variable '$line1':
+
+  my $line1 = 
+  q{<?xml version="1.0" encoding="iso-8859-1"?>
+    <data>
+      <item>abc</item>
+      <item><!-- c1 -->
+        <dummy/>
+        fgh
+        <inner name="ttt" id="fff">
+          ooo <!-- c2 --> ppp
+        </inner>
+      </item>
+    </data>
+  };
+
+  This example can be parsed with XML::Reader using the methods C<iterate> to iterate one-by-one through the
+  XML-data, C<path> and C<value> to extract the current XML-path and its value.
+
+  You can also keep track of the start- and end-tags: There is a method C<is_start>, which returns 1 or
+  0, depending on whether the XML-file had a start tag at the current position. There is also the
+  equivalent method C<is_end>.
+
+  There are also the methods C<tag>, C<attr>, C<type> and C<level>. C<tag> gives you the current tag-name,
+  C<attr> returns the attribute-name, C<type> returns either 'T' for text or '@' for attributes and
+  C<level> indicates the current nesting-level (a number >= 0).
+
+  Here is a sample program which parses the XML in '$line1' from above to demonstrate the principle...
+
+  use XML::Reader;
+
+  my $rdr = XML::Reader->new(\$line1) or die "Error: $!";
+  my $i = 0;
+  while ($rdr->iterate) { $i++;
+      printf "%3d. pat=%-22s, val=%-9s, s=%-1s, e=%-1s, tag=%-6s, atr=%-6s, t=%-1s, lvl=%2d\n", $i,
+        $rdr->path, $rdr->value, $rdr->is_start, $rdr->is_end, $rdr->tag, $rdr->attr, $rdr->type, $rdr->level;
+  }
+
+  ...and here is the output:
+
+   1. pat=/data                 , val=         , s=1, e=0, tag=data  , atr=      , t=T, lvl= 1
+   2. pat=/data/item            , val=abc      , s=1, e=1, tag=item  , atr=      , t=T, lvl= 2
+   3. pat=/data                 , val=         , s=0, e=0, tag=data  , atr=      , t=T, lvl= 1
+   4. pat=/data/item            , val=         , s=1, e=0, tag=item  , atr=      , t=T, lvl= 2
+   5. pat=/data/item/dummy      , val=         , s=1, e=1, tag=dummy , atr=      , t=T, lvl= 3
+   6. pat=/data/item            , val=fgh      , s=0, e=0, tag=item  , atr=      , t=T, lvl= 2
+   7. pat=/data/item/inner/@id  , val=fff      , s=0, e=0, tag=@id   , atr=id    , t=@, lvl= 4
+   8. pat=/data/item/inner/@name, val=ttt      , s=0, e=0, tag=@name , atr=name  , t=@, lvl= 4
+   9. pat=/data/item/inner      , val=ooo ppp  , s=1, e=1, tag=inner , atr=      , t=T, lvl= 3
+  10. pat=/data/item            , val=         , s=0, e=1, tag=item  , atr=      , t=T, lvl= 2
+  11. pat=/data                 , val=         , s=0, e=1, tag=data  , atr=      , t=T, lvl= 1
 
 INSTALLATION
 

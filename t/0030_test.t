@@ -23,7 +23,7 @@ is(tresult({filter =>   1                           }), q{[Err]},               
 is(tresult({filter =>   2                           }), q{[Ok]<@p1/a><@p2/b><dummy/><sub/data><dummy/>},             'Case 001c: {filter =>   2                         }');
 is(tresult({filter =>   3                           }), q{[Ok]<dummy/><sub/data><dummy/>},                           'Case 001d: {filter =>   3                         }');
 is(tresult({filter =>   4                           }), q{[Ok]<dummy/><@p1/a><@p2/b><sub/><sub/data><sub/><dummy/>}, 'Case 001f: {filter =>   4                         }');
-is(tresult({filter =>   5                           }), q{[Ok]<dummy/>},                                             'Case 001e: {filter =>   5                         }');
+is(tresult({filter =>   5                           }), q{[Ok]<dummy/<dummy p1='a' p2='b'><sub>data</sub></dummy>>}, 'Case 001e: {filter =>   5                         }');
 is(tresult({filter => 888                           }), q{[Err]},                                                    'Case 001g: {filter => 888                         }');
 
 is(tresult({filter =>   2, mode => 'attr-bef-start*'}), q{[Err]},                                                    'Case 002a: {filter =>   2, mode => attr-bef-start*}');
@@ -34,12 +34,12 @@ is(tresult({filter =>   5, mode => 'branches*'      }), q{[Err]},               
 is(tresult({filter =>   2, mode => 'attr-bef-start' }), q{[Ok]<@p1/a><@p2/b><dummy/><sub/data><dummy/>},             'Case 003a: {filter =>   2, mode => attr-bef-start }');
 is(tresult({filter =>   3, mode => 'attr-in-hash'   }), q{[Ok]<dummy/><sub/data><dummy/>},                           'Case 003b: {filter =>   3, mode => attr-in-hash   }');
 is(tresult({filter =>   4, mode => 'pyx'            }), q{[Ok]<dummy/><@p1/a><@p2/b><sub/><sub/data><sub/><dummy/>}, 'Case 003c: {filter =>   4, mode => pyx            }');
-is(tresult({filter =>   5, mode => 'branches'       }), q{[Ok]<dummy/>},                                             'Case 003d: {filter =>   5, mode => branches       }');
+is(tresult({filter =>   5, mode => 'branches'       }), q{[Ok]<dummy/<dummy p1='a' p2='b'><sub>data</sub></dummy>>}, 'Case 003d: {filter =>   5, mode => branches       }');
 
 is(tresult({               mode => 'attr-bef-start' }), q{[Ok]<@p1/a><@p2/b><dummy/><sub/data><dummy/>},             'Case 004a: {               mode => attr-bef-start }');
 is(tresult({               mode => 'attr-in-hash'   }), q{[Ok]<dummy/><sub/data><dummy/>},                           'Case 004b: {               mode => attr-in-hash   }');
 is(tresult({               mode => 'pyx'            }), q{[Ok]<dummy/><@p1/a><@p2/b><sub/><sub/data><sub/><dummy/>}, 'Case 004c: {               mode => pyx            }');
-is(tresult({               mode => 'branches'       }), q{[Ok]<dummy/>},                                             'Case 004d: {               mode => branches       }');
+is(tresult({               mode => 'branches'       }), q{[Ok]<dummy/<dummy p1='a' p2='b'><sub>data</sub></dummy>>}, 'Case 004d: {               mode => branches       }');
 
 {
     my $data = q{<?xml version="1.0" encoding="iso-8859-1"?><init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
@@ -49,7 +49,7 @@ is(tresult({               mode => 'branches'       }), q{[Ok]<dummy/>},        
           {root => '/init', branch => '*'});
         $rdr->iterate;
 
-        is($rdr->rval, q{<init>n t<page node='400'>m r</page></init>},                         'test-branch-001: {parse_ct => 0, parse_pi => 0}');
+        is($rdr->value, q{<init>n t<page node='400'>m r</page></init>},                         'test-branch-001: {parse_ct => 0, parse_pi => 0}');
     }
 
     {
@@ -57,7 +57,7 @@ is(tresult({               mode => 'branches'       }), q{[Ok]<dummy/>},        
           {root => '/init', branch => '*'});
         $rdr->iterate;
 
-        is($rdr->rval, q{<init>n t<page node='400'>m<!-- remark -->r</page></init>},           'test-branch-002: {parse_ct => 1, parse_pi => 0}');
+        is($rdr->value, q{<init>n t<page node='400'>m<!-- remark -->r</page></init>},           'test-branch-002: {parse_ct => 1, parse_pi => 0}');
     }
 
     {
@@ -65,7 +65,7 @@ is(tresult({               mode => 'branches'       }), q{[Ok]<dummy/>},        
           {root => '/init', branch => '*'});
         $rdr->iterate;
 
-        is($rdr->rval, q{<init>n<?test pi?>t<page node='400'>m r</page></init>},               'test-branch-003: {parse_ct => 0, parse_pi => 1}');
+        is($rdr->value, q{<init>n<?test pi?>t<page node='400'>m r</page></init>},               'test-branch-003: {parse_ct => 0, parse_pi => 1}');
     }
 
     {
@@ -73,7 +73,7 @@ is(tresult({               mode => 'branches'       }), q{[Ok]<dummy/>},        
           {root => '/init', branch => '*'});
         $rdr->iterate;
 
-        is($rdr->rval, q{<init>n<?test pi?>t<page node='400'>m<!-- remark -->r</page></init>}, 'test-branch-004: {parse_ct => 1, parse_pi => 1}');
+        is($rdr->value, q{<init>n<?test pi?>t<page node='400'>m<!-- remark -->r</page></init>}, 'test-branch-004: {parse_ct => 1, parse_pi => 1}');
     }
 }
 
