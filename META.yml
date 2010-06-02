@@ -12,13 +12,13 @@ name: XML-Reader
 provides:
   XML::Reader:
     file: lib/XML/Reader.pm
-    version: 0.36
+    version: 0.37
   XML::Reader::Token:
     file: lib/XML/Reader.pm
-    version: 0.36
+    version: 0.37
 requires:
   Carp: 0
   XML::Parser: 1
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.36
+version: 0.37

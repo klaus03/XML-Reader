@@ -107,7 +107,7 @@ Voici un programme qui lit le XML dans la variable '$line1' (voir ci-dessus) pou
 
 =head1 INTERFACE
 
-=head2 CrE<eacute>ation d'un objet
+=head2 CrE<eacute>ation objet
 
 Pour crE<eacute>er un objet, on utilise la syntaxe suivante:
 
@@ -352,7 +352,7 @@ On dit que '/chemin1/chemin2/chemin3' (ou '/chemin4/chemin5/chemin6') sont "abso
 signifie que chaque chemin commence forcement par un caractE<egrave>re '/', et le mot "complE<egrave>t" signifie que
 la derniE<egrave>re partie 'chemin3' (ou 'chemin6') sera suivi implicitement par un caractE<egrave>re '/'.
 
-=head2 Un exemple avec l'option 'using'
+=head2 Exemple avec using
 
 Le programme suivant prend un fichier XML et le parse avec XML::Reader, y compris l'option 'using' pour
 cibler des E<eacute>lE<eacute>ments spE<eacute>cifiques:
@@ -399,7 +399,7 @@ Voici le rE<eacute>sultat de ce programme:
   10. prf=/data/supplier               , pat=/      , val=iii, tag=      , t=T, lvl= 0
   11. prf=/data/supplier               , pat=/      , val=jjj, tag=      , t=T, lvl= 0
 
-=head2 Un example sans option 'using'
+=head2 Exemple sans using
 
 Le programme suivant prend un fichier XML et le parse avec XML::Reader, mais sans option 'using':
 
@@ -527,7 +527,7 @@ Voici le rE<eacute>sultat:
 
 L'option {filter => } ou {mode => } permet de sE<eacute>lectionner des diffE<eacute>rents modes d'opE<eacute>ratoires pour le traitement du XML.
 
-=head2 Option {filter => 2} ou {mode => 'attr-bef-start'}
+=head2 Option filter 2 mode attr-bef-start
 
 Avec l'option {filter => 2} ou {mode => 'attr-bef-start'}, XML::Reader gE<eacute>nE<egrave>re une ligne pour chaque morceau de texte. Si la balise prE<eacute>cE<eacute>dente
 est une balise de dE<eacute>but, alors la mE<eacute>tode C<is_start> retourne 1. Si la balise suivante est une balise de fin,
@@ -652,7 +652,7 @@ et pas non plus les attributs):
 
 ...ce qui donne preuve que la structure originale du XML n'est pas perdu.
 
-=head2 Option {filter => 3} ou {mode => 'attr-in-hash'}
+=head2 Option filter 3 mode attr-in-hash
 
 Pour la plupart, l'option {filter => 3, mode => 'attr-in-hash'} fonctionne comme l'option {filter => 2, mode => 'attr-bef-start'}.
 
@@ -764,7 +764,7 @@ Voici le rE<eacute>sultat de L<XML::Writer>:
 
 A la premiE<egrave>re lecture, le format est bizarre, mais c'est du XML tout E<agrave> fait correct.
 
-=head2 Option {filter => 4} ou {mode => 'pyx'}
+=head2 Option filter 4 mode pyx
 
 ME<ecirc>me si ce n'est pas la raison principale de XML::Reader, l'option {filter => 4, mode => 'pyx'} permet de gE<eacute>nE<eacute>rer des
 lignes individuelles pour chaque balise de dE<eacute>but, de fin, commentaires, processing-instruction et XML-Declaration.
@@ -889,7 +889,7 @@ Voici le rE<eacute>sultat:
 
 Notez que "v=1" (c'est E<agrave> dire $rdr->C<is_value> == 1) pour tous les textes et pour tous les attributs.
 
-=head2 Option {filter => 5} ou {mode => 'branches'}
+=head2 Option filter 5 mode branches
 
 Avec option {filter => 5, mode => 'branches'}, on spE<eacute>cifie une (ou plusieurs) racines ("roots"), chaque racine a une collection
 de "branches". En rE<eacute>sultat on obtient un enregistrement pour chaque "root" dans l'aborescence XML.
@@ -1137,7 +1137,7 @@ ne fait pas partie du rE<eacute>sultat):
   item = 'start3', p1 = 'g', p3 = 'i'
   item = 'start4', p1 = 'm', p3 = 'o'
 
-=head2 Parser l'exemple XML avec l'option {filter => 2} ou {mode => 'attr-bef-start'}
+=head2 Exemple filter 2 mode attr-bef-start
 
 Ci-dessous un programme pour parser le XML avec l'option {filter => 2, mode => 'attr-bef-start'}. (Notez que le prE<eacute>fixe
 '/start/param/data/item' est renseignE<eacute> dans l'option {using =>} de la fonction new). En plus,
@@ -1159,7 +1159,7 @@ et '/@p3' et les transfE<eacute>rer dans la partie '$rdr->is_start' du programme
       unless ($rdr->is_attr) { $p1 = undef; $p3 = undef; }
   }
 
-=head2 Parser l'exemple XML avec l'option {filter => 3} ou {mode => 'attr-in-hash'}
+=head2 Exemple filter 3 mode attr-in-hash
 
 Avec l'option {filter => 3, mode => 'attr-in-hash'}, nous pouvons annuler les deux variables '$p1' et '$p3'. Le
 programme devient assez simple:
@@ -1174,7 +1174,7 @@ programme devient assez simple:
       }
   }
 
-=head2 Parser l'exemple XML avec l'option {filter => 4} ou {mode => 'pyx'}
+=head2 Exemple filter 4 mode pyx
 
 Avec l'option {filter => 4, mode => 'pyx'}, par contre, le programme devient plus compliquE<eacute>: Comme dE<eacute>jE<agrave>
 montrE<eacute> dans l'exemple {filter => 2, mode => 'attr-bef-start'}, nous avons besoin de deux variables scalaires ('$p1' et
@@ -1203,7 +1203,7 @@ et supprimer la deuxiE<egrave>me partie du texte 'end...' (ce que nous ne voulon
       }
   }
 
-=head2 Parser l'exemple XML avec l'option {filter => 5} ou {mode => 'branches'}
+=head2 Exemple filter 5 mode branches
 
 On peut combiner {filter => 5, mode => 'branches'} avec des expressions rE<eacute>guliE<egrave>res pour parser les donnE<eacute>es XML:
 

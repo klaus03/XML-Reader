@@ -174,3 +174,9 @@ Revision history for XML-Reader
 0.36    01 June 2010
         in case of {filter => 5}, make value() take over the role of rvalue()
         Improve the content of the README file
+
+0.37    02 June 2010
+        The POD documentation has headers (=head1 and =head2) that are too
+        complicated, i.e. they contain characters like '(', ')' and '>'. This confuses
+        the POD Parser. This version simplifies the headers. (all 3 POD files are
+        affected: 'Reader.pm', 'Reader_fr.pod' and 'Reader_de.pod'

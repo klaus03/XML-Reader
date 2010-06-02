@@ -358,7 +358,7 @@ Man kann sagen dass die Pfade '/pfad1/pfad2/pfad3' und '/pfad4/pfad5/pfad6' "abs
 der Begriff "komplett" bedeutet dass der Pfad intern mit einem anghE<auml>ngten '/'-Zeichen
 abgeschlossen wird.
 
-=head2 Ein Beispiel mit Option 'using'
+=head2 Beispiel mit using
 
 Das folgende Programm liest eine XML-Datei und parst sie mit XML::Reader, die Option 'using'
 selektiert dabei nur einen Teil des XML-Baumes:
@@ -405,7 +405,7 @@ Das ist das Ergebnis dieses Programms:
   10. prf=/data/supplier               , pat=/      , val=iii, tag=      , t=T, lvl= 0
   11. prf=/data/supplier               , pat=/      , val=jjj, tag=      , t=T, lvl= 0
 
-=head2 Ein Beispiel ohne Option 'using'
+=head2 Beispiel ohne using
 
 Das folgende Programm liest eine XML-Datei und parst sie mit XML::Reader, jedoch ohne Option 'using'.
 
@@ -535,7 +535,7 @@ Hier ist das Resultat:
 
 Die Option {filter => } oder {mode => } erlaubt verschiedene Grundeinstellungen zum Verarbeiten von XML-Daten.
 
-=head2 Option {filter => 2} oder {mode => 'attr-bef-start'}
+=head2 Option filter 2 mode attr-bef-start
 
 Mit der Option {filter => 2} oder {mode => 'attr-bef-start'}, XML::Reader erzeugt eine Zeile fE<uuml>r jedes Text-Event. Falls der vorangehende
 Tag ein Start-Tag ist, dann wird die Methode C<is_start> auf 1 gesetzt. Falls der folgende Tag ein End-Tag
@@ -661,7 +661,7 @@ und auch keine Attribute) mit den Zeichen "** **" markiert werden.
 
 ...Dieses Resultat beweist dass die originale XML-Struktur nicht verloren gegangen ist.
 
-=head2 Option {filter => 3} oder {mode => 'attr-in-hash'}
+=head2 Option filter 3 mode attr-in-hash
 
 Die Option {filter => 3, mode => 'attr-in-hash'} funktioniert E<auml>hnlich wie {filter => 2, mode => 'attr-bef-start'}.
 
@@ -774,7 +774,7 @@ Hier ist das Resultat von L<XML::Writer>:
 Das Ausgabeformat von L<XML::Writer> ist anfE<auml>nglich gewE<ouml>hnungsbedE<uuml>rftig, es ist
 jedoch korrektes XML Format.
 
-=head2 Option {filter => 4} oder {mode => 'pyx'}
+=head2 Option filter 4 mode pyx
 
 Obwohl es nicht die Hauptfunktion von XML::Reader darstellt, erlaubt die Option {filter => 4, mode => 'pyx'} die Erzeugung von
 individuellen Zeilen fE<uuml>r jeweils das Start-Tag, das End-Tag, Kommentare, Processing-Instructions und
@@ -901,7 +901,7 @@ Hier ist das Ergebnis:
 
 Bitte beachten Sie dass fE<uuml>r alle Texte und fE<uuml>r alle Attribute v=1 gesetzt ist (d.h. $rdr->C<is_value> == 1).
 
-=head2 Option {filter => 5} oder {mode => 'branches'}
+=head2 Option filter 5 mode branches
 
 Mit der Option {filter => 5, mode => 'branches'} spezifiziert man eine (oder mehrere) Wurzeln ("root"), jede "root" hat eine Liste
 von E<Auml>sten ("branch"). Man erhE<auml>lt daraufhin genau einen Record fE<uuml>r jedes Auftreten der "root" in
@@ -1147,7 +1147,7 @@ Wir erwarten genau 4 Ergebnis-Zeilen von unserem Parse-Lauf (d.h. wir erwarten k
   item = 'start3', p1 = 'g', p3 = 'i'
   item = 'start4', p1 = 'm', p3 = 'o'
 
-=head2 XML-Parsen mit {filter => 2} oder {mode => 'attr-bef-start'}
+=head2 Beispiel XML filter 2 mode attr-bef-start
 
 Hier ist ein Beispiel-Programm um die XML-Datei mit {filter => 2, mode => 'attr-bef-start'} zu parsen. (Bitte
 beachten Sie wie der PrE<auml>fix '/start/param/data/item' in der {using => ...} Option
@@ -1170,7 +1170,7 @@ $rdr->is_start zu E<uuml>bertragen, wo sie dann ausgegeben werden kE<ouml>nnen.
       unless ($rdr->is_attr) { $p1 = undef; $p3 = undef; }
   }
 
-=head2 XML-Parsen mit {filter => 3} oder {mode => 'attr-in-hash'}
+=head2 Beispiel filter 3 mode attr-in-hash
 
 Mit {filter => 3, mode => 'attr-in-hash'} kE<ouml>nnen wir auf die zwei scalar Variablen ('$p1' und '$p3') verzichten, das
 Programm vereinfacht sich wie folgt:
@@ -1185,7 +1185,7 @@ Programm vereinfacht sich wie folgt:
       }
   }
 
-=head2 XML-Parsen mit {filter => 4} oder {mode => 'pyx'}
+=head2 Beispiel filter 4 mode pyx
 
 Jedoch mit {filter => 4, mode => 'pyx'} wird das Programm wieder komplizierter: Wie schon im Beispiel
 fE<uuml>r {filter => 2, mode => 'attr-bef-start'} gezeigt, benE<ouml>tigen wir hier wieder zwei scalar Variablen ('$p1' und '$p3')
@@ -1214,7 +1214,7 @@ Wert 'end...' (welchen wir nicht ausgeben wollen) unterscheiden kE<ouml>nnen.
       }
   }
 
-=head2 XML-Parsen mit {filter => 5} oder {mode => 'branches'}
+=head2 Beispiel filter 5 mode branches
 
 Sie kE<ouml>nnen {filter => 5, mode => 'branches'} und regulE<auml>re AusdrE<uuml>cke lombinieren:
 

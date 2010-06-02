@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.36';
+our $VERSION     = '0.37';
 
 # deprecated functions (Klaus EICHNER, 28 Apr 2010, ver. 0.35):
 # only for backward compatibility
@@ -743,7 +743,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.36';
+our $VERSION = '0.37';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -1106,7 +1106,7 @@ absolute meaning they have to start with a '/'-character and complete meaning th
 item in path 'path3' (or 'path6', for that matter) will be completed internally by a trailing
 '/'-character.
 
-=head2 An example with option 'using'
+=head2 Example with using
 
 The following program takes this XML and parses it with XML::Reader, including the option 'using'
 to target specific elements:
@@ -1153,7 +1153,7 @@ This is the output of that program:
   10. prf=/data/supplier               , pat=/      , val=iii, tag=      , t=T, lvl= 0
   11. prf=/data/supplier               , pat=/      , val=jjj, tag=      , t=T, lvl= 0
 
-=head2 An example without option 'using'
+=head2 Example without using
 
 The following program takes the same XML and parses it with XML::Reader, but without the option 'using'.
 
@@ -1282,7 +1282,7 @@ Here is the output:
 
 Option {filter => } or {mode => } allows to select different operation modes when processing the XML data.
 
-=head2 Option {filter => 2} or {mode => 'attr-bef-start'}
+=head2 Option filter 2 mode attr-bef-start
 
 With option {filter => 2} or {mode => 'attr-bef-start'}, XML::Reader produces one line for each character event.
 A preceding start-tag results in method is_start to be set to 1, a trailing end-tag
@@ -1408,7 +1408,7 @@ inside "** **":
 
 ...this is proof that the original structure of the XML is not lost.
 
-=head2 Option {filter => 3} or {mode => 'attr-in-hash'}
+=head2 Option filter 3 mode attr-in-hash
 
 Option {filter => 3, mode => 'attr-in-hash'} works very much like {filter => 2, mode => 'attr-bef-start'}.
 
@@ -1519,7 +1519,7 @@ Here is the output from L<XML::Writer>:
 
 The format written by L<XML::Writer> needs some getting used to, but it is valid XML.
 
-=head2 Option {filter => 4} or {mode => 'pyx'}
+=head2 Option filter 4 mode pyx
 
 Although this is not the main purpose of XML::Reader, option {filter => 4, mode => 'pyx'} can generate individual lines for
 start-tags, end-tags, comments, processing-instructions and XML-Declarations. Its aim is to generate
@@ -1645,7 +1645,7 @@ Here is the output:
 
 Note that v=1 (i.e. $rdr->is_value == 1) for all text and all attributes.
 
-=head2 Option {filter => 5} or {mode => 'branches'}
+=head2 Option filter 5 mode branches
 
 With option {filter => 5, mode => 'branches'}, you specify one (or many) roots, each root has a set of branches attached.
 What you then get back is one record for each occurence of a root in the XML tree.
@@ -1888,7 +1888,7 @@ We expect exactly 4 output-lines from our parse (i.e. we don't expect the 'dataz
   item = 'start3', p1 = 'g', p3 = 'i'
   item = 'start4', p1 = 'm', p3 = 'o'
 
-=head2 Parsing XML with {filter => 2} or {mode => 'attr-bef-start'}
+=head2 Example filter 2 mode attr-bef-start
 
 Here is a sample program to parse that XML with {filter => 2, mode => 'attr-bef-start'}. (Note how the prefix
 '/start/param/data/item' is located in the {using =>} option of new). We need two
@@ -1910,7 +1910,7 @@ them over to the $rdr->is_start section, where they can be printed.
       unless ($rdr->is_attr) { $p1 = undef; $p3 = undef; }
   }
 
-=head2 Parsing XML with {filter => 3} or {mode => 'attr-in-hash'}
+=head2 Example filter 3 mode attr-in-hash
 
 With {filter => 3, mode => 'attr-in-hash'} we can dispense with the two scalars '$p1' and '$p3', the code
 becomes very simple:
@@ -1925,7 +1925,7 @@ becomes very simple:
       }
   }
 
-=head2 Parsing XML with {filter => 4} or {mode => 'pyx'}
+=head2 Example filter 4 mode pyx
 
 With {filter => 4, mode => 'pyx'}, however, the code becomes slightly more complicated again: As already
 shown for {filter => 2, mode => 'attr-bef-start'}, we need again two scalars ('$p1' and '$p3') to hold the parameters in
@@ -1953,7 +1953,7 @@ text-values (see scalar '$count'), so that we can distinguish between the first 
       }
   }
 
-=head2 Parsing XML with {filter => 5} or {mode => 'branches'}
+=head2 Example filter 5 mode branches
 
 You could combine {mode => 'branches'} and regular expressions to parse the XML:
 
