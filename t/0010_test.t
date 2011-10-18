@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 66;
+use Test::More tests => 67;
 
 use_ok('XML::Reader');
 
@@ -417,6 +417,18 @@ use_ok('XML::Reader');
     is($point_22, '[/data/item][/@ts][vy][@][00][@ts][ts]',                           'check filter=>2 at data point 22');
     is($point_38, '[/data/item][/beta/test][t o][T][11][test][]',                     'check filter=>2 at data point 38');
     is($point_42, '[/data/item][/][][T][01][][]',                                     'check filter=>2 at data point 42');
+}
+
+{
+    my $line = qq{<root>\n}.
+               qq{  test1 \\n \\t \\ \\\\ \\\\\\ \t \n}.
+               qq{  test2\n}.
+               qq{\t<item />\n}.
+               qq{</root>};
+    my $out = '';
+    my $rdr = XML::Reader->new(\$line, {filter => 4, strip => 0});
+    while ($rdr->iterate) { $out .= '['.$rdr->pyx.']'; }
+    is($out, '[(root][-\\n  test1 \\\\n \\\\t \\\\ \\\\\\\\ \\\\\\\\\\\\ \\t \\n  test2\\n\\t][(item][)item][-\\n][)root]', 'PYX escapes work as expected');
 }
 
 # stress tests

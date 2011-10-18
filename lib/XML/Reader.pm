@@ -12,7 +12,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.37';
+our $VERSION     = '0.38';
 
 # deprecated functions (Klaus EICHNER, 28 Apr 2010, ver. 0.35):
 # only for backward compatibility
@@ -366,6 +366,8 @@ sub iterate {
             elsif ($self->{is_end})      { $self->{type} = 'E'; $self->{pyx} = ')'.$self->{tag}; }
             elsif ($self->{is_comment})  { $self->{type} = '#'; $self->{pyx} = '#'.$self->{comment}; }
             else                         { $self->{type} = 'T'; $self->{pyx} = '-'.$self->{value}; }
+            $self->{pyx} =~ s{\\}'\\\\'xmsg; # replace each backslash by a double-backslash
+            $self->{pyx} =~ s{\t}'\\t'xmsg; # replace tabs by a literal "\\t"
             $self->{pyx} =~ s{\n}'\\n'xmsg; # replace newlines by a literal "\\n"
 
             # update $self->{is_text}
@@ -743,7 +745,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.37';
+our $VERSION = '0.38';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }

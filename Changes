@@ -180,3 +180,7 @@ Revision history for XML-Reader
         complicated, i.e. they contain characters like '(', ')' and '>'. This confuses
         the POD Parser. This version simplifies the headers. (all 3 POD files are
         affected: 'Reader.pm', 'Reader_fr.pod' and 'Reader_de.pod'
+
+0.38    18 Oct 2011
+        For PYX output, replace a single \ by a double \\ and replace tabs by a literal "\t"
+        Remove META.yml from MANIFEST
