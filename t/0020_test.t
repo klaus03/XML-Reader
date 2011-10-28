@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 265;
+use Test::More tests => 271;
 
 use_ok('XML::Reader', qw(slurp_xml));
 
@@ -270,7 +270,7 @@ use_ok('XML::Reader', qw(slurp_xml));
             }
         }
 
-        is(scalar(@lines), 14,                     'Pod-Test case no 11: number of output lines');
+        is(scalar(@lines), 14,                   'Pod-Test case no 11: number of output lines');
         is($lines[ 0], q{<root>},                'Pod-Test case no 11: output line  0');
         is($lines[ 1], q{  <test param='v'>},    'Pod-Test case no 11: output line  1');
         is($lines[ 2], q{    <a>},               'Pod-Test case no 11: output line  2');
@@ -307,7 +307,7 @@ use_ok('XML::Reader', qw(slurp_xml));
             }
         }
 
-        is(scalar(@lines), 14,                     'Pod-Test case no 12: number of output lines');
+        is(scalar(@lines), 14,                   'Pod-Test case no 12: number of output lines');
         is($lines[ 0], q{<root>},                'Pod-Test case no 12: output line  0');
         is($lines[ 1], q{  <test param='v'>},    'Pod-Test case no 12: output line  1');
         is($lines[ 2], q{    <a>},               'Pod-Test case no 12: output line  2');
@@ -399,7 +399,7 @@ use_ok('XML::Reader', qw(slurp_xml));
         elsif ($rdr->is_text)    { push @lines, $txt."Found text      ".$rdr->value; }
     }
 
-    is(scalar(@lines),  10,                                                   'Pod-Test case no 15: number of output lines');
+    is(scalar(@lines),  10,                                                       'Pod-Test case no 15: number of output lines');
     is($lines[ 0], "Path /               " ."v=0 Found decl      version='1.0'",  'Pod-Test case no 15: output line  0');
     is($lines[ 1], "Path /parent         " ."v=0 Found start tag parent",         'Pod-Test case no 15: output line  1');
     is($lines[ 2], "Path /parent/\@abc    "."v=1 Found attribute abc='def'",      'Pod-Test case no 15: output line  2');
@@ -707,6 +707,7 @@ use_ok('XML::Reader', qw(slurp_xml));
           { root => '/data/supplier', branch => ['/']                          },
           { root => '//customer',     branch => '*' },
           { root => '//customer',     branch => '**' },
+          { root => '//customer',     branch => '+' },
         );
 
         my @stm0;
@@ -717,6 +718,7 @@ use_ok('XML::Reader', qw(slurp_xml));
         my @lin1;
         my @lin2;
         my @lin3;
+        my @lin4;
 
         my @lrv0;
         my @lrv2;
@@ -739,13 +741,19 @@ use_ok('XML::Reader', qw(slurp_xml));
             elsif ($rdr->rx == 2) {
                 push @stm2, $rdr->path;
                 for ($rdr->rvalue) {
-                    push @lin2, $$_;
+                    push @lin2, $_;
                 }
                 push @lrv2, $rdr->value;
             }
             elsif ($rdr->rx == 3) {
                 for ($rdr->rvalue) {
-                    push @lin3, $$_;
+                    push @lin3, $_;
+                }
+            }
+            elsif ($rdr->rx == 4) {
+                for ($rdr->rvalue) {
+                    local $" = "', '";
+                    push @lin4, "Pyx: '@$_'";
                 }
             }
         }
@@ -822,11 +830,11 @@ use_ok('XML::Reader', qw(slurp_xml));
 
         is(scalar(@lin3),   5, 'Pod-Test case no 21-g: number of output lines');
 
-        is($lin3[ 0], q{}, 'Pod-Test case no 21-g: output line  0');
-        is($lin3[ 1], q{}, 'Pod-Test case no 21-g: output line  1');
-        is($lin3[ 2], q{}, 'Pod-Test case no 21-g: output line  2');
-        is($lin3[ 3], q{}, 'Pod-Test case no 21-g: output line  3');
-        is($lin3[ 4], q{}, 'Pod-Test case no 21-g: output line  4');
+        is($lin3[ 0], undef, 'Pod-Test case no 21-g: output line  0');
+        is($lin3[ 1], undef, 'Pod-Test case no 21-g: output line  1');
+        is($lin3[ 2], undef, 'Pod-Test case no 21-g: output line  2');
+        is($lin3[ 3], undef, 'Pod-Test case no 21-g: output line  3');
+        is($lin3[ 4], undef, 'Pod-Test case no 21-g: output line  4');
 
 
         is(scalar(@lrv0),   5,                                                       'Pod-Test case no 21-h: number of output lines');
@@ -872,6 +880,78 @@ use_ok('XML::Reader', qw(slurp_xml));
               q{<city>"'&amp;&lt;A&gt;'"</city>}.
             q{</customer>},
           'Pod-Test case no 21-i: output line  4');
+
+        is(scalar(@lin4),   5, 'Pod-Test case no 21-j: number of output lines');
+
+        is($lin4[ 0],
+            q{Pyx: }.
+            q{'(customer', }.
+            q{'Aid 444', }.
+            q{'Aname o'rob', }.
+            q{'(street', }.
+            q{'-pod alley', }.
+            q{')street', }.
+            q{'(city', }.
+            q{'-no city', }.
+            q{')city', }.
+            q{')customer'},
+          'Pod-Test case no 21-j: output line  0');
+
+        is($lin4[ 1],
+            q{Pyx: }.
+            q{'(customer', }.
+            q{'Aid 111', }.
+            q{'Aname "sue"', }.
+            q{'(street', }.
+            q{'-baker street', }.
+            q{')street', }.
+            q{'(city', }.
+            q{'-sidney', }.
+            q{')city', }.
+            q{')customer'},
+          'Pod-Test case no 21-j: output line  1');
+
+        is($lin4[ 2],
+            q{Pyx: }.
+            q{'(customer', }.
+            q{'Aid 652', }.
+            q{'Aname <smith>', }.
+            q{'(street', }.
+            q{'-high street', }.
+            q{')street', }.
+            q{'(city', }.
+            q{'-boston', }.
+            q{')city', }.
+            q{')customer'},
+          'Pod-Test case no 21-j: output line  2');
+
+        is($lin4[ 3],
+            q{Pyx: }.
+            q{'(customer', }.
+            q{'Aid 184', }.
+            q{'Aname &jones', }.
+            q{'(street', }.
+            q{'-maple street', }.
+            q{')street', }.
+            q{'(city', }.
+            q{'-new york', }.
+            q{')city', }.
+            q{')customer'},
+          'Pod-Test case no 21-j: output line  3');
+
+        is($lin4[ 4],
+            q{Pyx: }.
+            q{'(customer', }.
+            q{'Aid 520', }.
+            q{'Aname stewart', }.
+            q{'(street', }.
+            q{'-ring road', }.
+            q{')street', }.
+            q{'(city', }.
+            q{'-"'&<A>'"', }.
+            q{')city', }.
+            q{')customer'},
+          'Pod-Test case no 21-j: output line  4');
     }
 
     {

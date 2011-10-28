@@ -12,13 +12,16 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.38';
+our $VERSION     = '0.39';
 
 # deprecated functions (Klaus EICHNER, 28 Apr 2010, ver. 0.35):
 # only for backward compatibility
 
-sub newhd { new(@_);  } # newhd() is now deprecated, use new()  instead
-sub rstem { path(@_); } # rstem() is now deprecated, use path() instead
+# Klaus EICHNER,  28 Oct 2011, ver 0.39):
+# remove deprecated functions newhd() and rstem()
+
+# sub newhd { new(@_);  } # newhd() is now deprecated, use new()  instead
+# sub rstem { path(@_); } # rstem() is now deprecated, use path() instead
 
 sub new {
     my $class = shift;
@@ -223,9 +226,7 @@ sub path  { $_[0]{path}; }
 
 sub value {
     if ($_[0]{filter} == 5) {
-        ref $_[0]{rvalue} eq 'SCALAR' ? ${$_[0]{rvalue}} :
-        ref $_[0]{rvalue} eq 'ARRAY'  ? @{$_[0]{rvalue}} :
-                                        undef;
+        ref $_[0]{rvalue} eq 'ARRAY' ? @{$_[0]{rvalue}} : $_[0]{rvalue};
     }
     else {
         $_[0]{value};
@@ -425,70 +426,74 @@ sub iterate {
                         }
                     }
                 }
-                else { # here we have branch that is a simple scalar...
+                elsif ($param->{branch} eq '+') { # collect PYX array, addition for ver 0.39 (Klaus Eichner, 28th Oct 2011)
                     if ($twig eq '/' and $self->{is_start}) {
-                        $self->{bush}[$r] = \do{ my $xml = '' };
+                        $self->{bush}[$r] = [];
+                    }
+                    push @{$self->{bush}[$r]}, $self->{pyx};
+                }
+                elsif ($param->{branch} eq '*') { # collect pure XML data, addition for ver 0.34 (Klaus Eichner, 26th Apr 2010)
+                    if ($twig eq '/' and $self->{is_start}) {
+                        $self->{bush}[$r] = '';
                     }
 
-                    if ($param->{branch} eq '*') { # addition for ver 0.34 (Klaus Eichner, 26th Apr 2010)
-                        my $element = '';
-                        if ($self->{is_decl}) {
-                            $element .= '<?';
-                            for my $key (sort keys %{$self->{dec_hash}}) {
-                                my $kval = $self->{dec_hash}{$key};
-                                $kval =~ s{&}'&amp;'xmsg;
-                                $kval =~ s{'}'&apos;'xmsg;
-                                $kval =~ s{<}'&lt;'xmsg;
-                                $kval =~ s{>}'&gt;'xmsg;
-                                $element .= qq{ $key='$kval'};
-                            }
-                            $element .= '?>';
+                    my $element = '';
+                    if ($self->{is_decl}) {
+                        $element .= '<?';
+                        for my $key (sort keys %{$self->{dec_hash}}) {
+                            my $kval = $self->{dec_hash}{$key};
+                            $kval =~ s{&}'&amp;'xmsg;
+                            $kval =~ s{'}'&apos;'xmsg;
+                            $kval =~ s{<}'&lt;'xmsg;
+                            $kval =~ s{>}'&gt;'xmsg;
+                            $element .= qq{ $key='$kval'};
                         }
-                        if ($self->{is_start}) {
-                            $element .= '<'.$self->{tag};
-                            for my $key (sort keys %{$self->{att_hash}}) {
-                                my $kval = $self->{att_hash}{$key};
-                                $kval =~ s{&}'&amp;'xmsg;
-                                $kval =~ s{'}'&apos;'xmsg;
-                                $kval =~ s{<}'&lt;'xmsg;
-                                $kval =~ s{>}'&gt;'xmsg;
-                                $element .= qq{ $key='$kval'};
-                            }
-                            $element .= '>';
+                        $element .= '?>';
+                    }
+                    if ($self->{is_start}) {
+                        $element .= '<'.$self->{tag};
+                        for my $key (sort keys %{$self->{att_hash}}) {
+                            my $kval = $self->{att_hash}{$key};
+                            $kval =~ s{&}'&amp;'xmsg;
+                            $kval =~ s{'}'&apos;'xmsg;
+                            $kval =~ s{<}'&lt;'xmsg;
+                            $kval =~ s{>}'&gt;'xmsg;
+                            $element .= qq{ $key='$kval'};
                         }
-                        if ($self->{is_proc}) {
-                            my $tgt = $self->{proc_tgt};
-                            my $dat = $self->{proc_data};
-                            for ($tgt, $dat) {
-                                s{&}'&amp;'xmsg;
-                                s{'}'&apos;'xmsg;
-                                s{<}'&lt;'xmsg;
-                                s{>}'&gt;'xmsg;
-                            }
-                            $element .= "<?$tgt $dat?>";
+                        $element .= '>';
+                    }
+                    if ($self->{is_proc}) {
+                        my $tgt = $self->{proc_tgt};
+                        my $dat = $self->{proc_data};
+                        for ($tgt, $dat) {
+                            s{&}'&amp;'xmsg;
+                            s{'}'&apos;'xmsg;
+                            s{<}'&lt;'xmsg;
+                            s{>}'&gt;'xmsg;
                         }
-                        if ($self->{is_text}) {
-                            my $tval = $self->{value};
-                            if ($tval ne '') {
-                                $tval =~ s{&}'&amp;'xmsg;
-                                $tval =~ s{<}'&lt;'xmsg;
-                                $tval =~ s{>}'&gt;'xmsg;
-                                $element .= $tval;
-                            }
-                        }
-                        if ($self->{is_comment}) {
-                            my $tval = $self->{comment};
+                        $element .= "<?$tgt $dat?>";
+                    }
+                    if ($self->{is_text}) {
+                        my $tval = $self->{value};
+                        if ($tval ne '') {
                             $tval =~ s{&}'&amp;'xmsg;
                             $tval =~ s{<}'&lt;'xmsg;
                             $tval =~ s{>}'&gt;'xmsg;
-                            $element .= "<!-- $tval -->";
+                            $element .= $tval;
                         }
-                        if ($self->{is_end}) {
-                            $element .= '</'.$self->{tag}.'>';
-                        }
-
-                        ${$self->{bush}[$r]} .= $element;
                     }
+                    if ($self->{is_comment}) {
+                        my $tval = $self->{comment};
+                        $tval =~ s{&}'&amp;'xmsg;
+                        $tval =~ s{<}'&lt;'xmsg;
+                        $tval =~ s{>}'&gt;'xmsg;
+                        $element .= "<!-- $tval -->";
+                    }
+                    if ($self->{is_end}) {
+                        $element .= '</'.$self->{tag}.'>';
+                    }
+
+                    $self->{bush}[$r] .= $element;
                 }
 
                 if ($twig eq '/' and $self->{is_end}) {
@@ -745,7 +750,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.38';
+our $VERSION = '0.39';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -1486,16 +1491,16 @@ replaced by %{$rdr->att_hash} :
   </root>
 
 Finally, we can (and we should) delegate the writing of XML to another module. I would suggest that
-we use L<XML::Writer> for that. Here is the program that uses L<XML::Writer> to output XML:
+we use L<XML::MinWriter> for that. Here is the program that uses L<XML::MinWriter> to output XML:
 
   use XML::Reader;
-  use XML::Writer;
+  use XML::MinWriter;
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
   my $rdr = XML::Reader->new(\$text, {filter => 3}) or die "Error: $!";
-  my $wrt = XML::Writer->new(OUTPUT => \*STDOUT, NEWLINES => 1);
+  my $wrt = XML::MinWriter->new(OUTPUT => \*STDOUT, NEWLINES => 1);
 
   while ($rdr->iterate) {
       if ($rdr->is_start)                          { $wrt->startTag($rdr->tag, %{$rdr->att_hash}); }
@@ -1505,7 +1510,7 @@ we use L<XML::Writer> for that. Here is the program that uses L<XML::Writer> to 
 
   $wrt->end();
 
-Here is the output from L<XML::Writer>:
+Here is the output from L<XML::MinWriter>:
 
   <root
   ><test param="&lt;&gt;v&quot;"
@@ -1519,7 +1524,7 @@ Here is the output from L<XML::Writer>:
   >** x yz **</root
   >
 
-The format written by L<XML::Writer> needs some getting used to, but it is valid XML.
+The format written by L<XML::MinWriter> needs some getting used to, but it is valid XML.
 
 =head2 Option filter 4 mode pyx
 
@@ -1724,7 +1729,11 @@ as pure XML.
 
 Data for our first root ('customer') is identified by $rdr->rx == 0, data for our second root
 ('/data/supplier') is identified by $rdr->rx == 1, data for our third root ('//customer')
-is identified by $rdr->rx == 2, and data for our fourth root ('p') is identified by $rdr-rx == 3.
+is identified by $rdr->rx == 2, data for our fourth root ('p') is identified by $rdr->rx == 3 and
+data for our fifth root ('customer') is identified by $rdr->rx ==4.
+
+Please note in the example below that {branch => '*'} means that the data is returned as pure XML and
+that {branch => '+'} means that the data is returned as an array of PYX elements.
 
 In the following program we will use function rdr->rvalue to obtain the data:
 
@@ -1733,6 +1742,7 @@ In the following program we will use function rdr->rvalue to obtain the data:
     { root => '/data/supplier', branch => ['/']                          },
     { root => '//customer',     branch => '*' },
     { root => 'p',              branch => '*' },
+    { root => '//customer',     branch => '+' },
   );
 
   # the following three alternatives are equivalent:
@@ -1745,6 +1755,7 @@ In the following program we will use function rdr->rvalue to obtain the data:
   my $root1 = '';
   my $root2 = '';
   my $root3 = '';
+  my $root4 = '';
 
   my $path0 = '';
 
@@ -1757,17 +1768,23 @@ In the following program we will use function rdr->rvalue to obtain the data:
       }
       elsif ($rdr->rx == 1) {
           for ($rdr->rvalue) {
-              $root1 .= "  Supp: Name = ".$_->[0]."\n";
+              $root1 .= "  Supp: Name = $_->[0]\n";
           }
       }
       elsif ($rdr->rx == 2) {
           for ($rdr->rvalue) {
-              $root2 .= "  Xml: ".$$_."\n";
+              $root2 .= "  Xml: $_\n";
           }
       }
       elsif ($rdr->rx == 3) {
           for ($rdr->rvalue) {
-              $root3 .= "  P: ".$$_."\n";
+              $root3 .= "  P: $_\n";
+          }
+      }
+      elsif ($rdr->rx == 4) {
+          for ($rdr->rvalue) {
+              local $" = "', '";
+              $root4 .= "  Pyx: '@$_'\n";
           }
       }
   }
@@ -1777,6 +1794,7 @@ In the following program we will use function rdr->rvalue to obtain the data:
   print "root1:\n$root1\n";
   print "root2:\n$root2\n";
   print "root3:\n$root3\n";
+  print "root4:\n$root4\n";
 
 This is the output:
 
@@ -1810,6 +1828,13 @@ This is the output:
   root3:
     P: <p><p>b1</p><p>b2</p></p>
     P: <p>b3</p>
+
+  root4:
+    Pyx: '(customer', 'Aid 444', 'Aname o'rob', '(street', '-pod alley', ')street', '(city', '-no city', ')city', ')customer'
+    Pyx: '(customer', 'Aid 111', 'Aname "sue"', '(street', '-baker street', ')street', '(city', '-sidney', ')city', ')customer'
+    Pyx: '(customer', 'Aid 652', 'Aname <smith>', '(street', '-high street', ')street', '(city', '-boston', ')city', ')customer'
+    Pyx: '(customer', 'Aid 184', 'Aname &jones', '(street', '-maple street', ')street', '(city', '-new york', ')city', ')customer'
+    Pyx: '(customer', 'Aid 520', 'Aname stewart', '(street', '-ring road', ')street', '(city', '-"'&<A>'"', ')city', ')customer'
 
 We can also use function rdr->value to obtain the same data:
 
@@ -2022,7 +2047,7 @@ the path '/data/order/database/customer' and we also want to slurp the supplier 
   print "\n";
 
   for (@{$aref->[1]}) {
-      printf "S: %s\n", $$_;
+      printf "S: %s\n", $_;
   }
 
 The first parameter to slurp_xml is the filename (or scalar reference, or open filehandle) of the XML
@@ -2062,7 +2087,7 @@ see http://www.opensource.org/licenses/artistic-license-2.0.php
 
 =head1 RELATED MODULES
 
-If you also want to write XML, have a look at XML::Writer. This module provides a simple interface for
+If you also want to write XML, have a look at XML::Writer or XML::MinWriter. Both modules provide each a simple interface for
 writing XML. (If you are writing non-mixed content XML, consider setting DATA_MODE=>1 and
 DATA_INDENT=>2, which allows for proper indentation in your XML-Output file)
 
@@ -2073,6 +2098,7 @@ L<XML::Simple>,
 L<XML::Parser>,
 L<XML::Parser::Expat>,
 L<XML::TiePYX>,
-L<XML::Writer>.
+L<XML::Writer>,
+L<XML::MinWriter>.
 
 =cut

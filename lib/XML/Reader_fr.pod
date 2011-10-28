@@ -728,16 +728,16 @@ par %{$rdr->att_hash} :
   </root>
 
 Finalement on pourrait (et on devrait) effectuer l'E<eacute>criture XML par un autre module. Je propose d'utiliser
-le module L<XML::Writer>. Voici un programme qui utilise L<XML::Writer> pour E<eacute>crire du XML:
+le module L<XML::MinWriter>. Voici un programme qui utilise L<XML::MinWriter> pour E<eacute>crire du XML:
 
   use XML::Reader;
-  use XML::Writer;
+  use XML::MinWriter;
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
   my $rdr = XML::Reader->new(\$text, {filter => 3}) or die "Error: $!";
-  my $wrt = XML::Writer->new(OUTPUT => \*STDOUT, NEWLINES => 1);
+  my $wrt = XML::MinWriter->new(OUTPUT => \*STDOUT, NEWLINES => 1);
 
   while ($rdr->iterate) {
       if ($rdr->is_start)                          { $wrt->startTag($rdr->tag, %{$rdr->att_hash}); }
@@ -747,7 +747,7 @@ le module L<XML::Writer>. Voici un programme qui utilise L<XML::Writer> pour E<e
 
   $wrt->end();
 
-Voici le rE<eacute>sultat de L<XML::Writer>:
+Voici le rE<eacute>sultat de L<XML::MinWriter>:
 
   <root
   ><test param="&lt;&gt;v&quot;"
@@ -970,8 +970,12 @@ en format sous-arborescence XML (voir {branch => '*'}). Finalement on veut lire 
 Les donnE<eacute>es pour la premiE<egrave>re racine ('customer') sont identifiable par $rdr->rx ==
 0, les donnE<eacute>es pour la deuxiE<egrave>me racine ('/data/supplier') sont identifiable par
 $rdr->rx == 1, les donnE<eacute>es pour la troisiE<egrave>me racine ('//customer') sont
-identifiable par $rdr->rx == 2, et les donnE<eacute>es pour la quatriE<egrave>me racine ('p')
-sont identifiable par $rdr->rx == 3.
+identifiable par $rdr->rx == 2, les donnE<eacute>es pour la quatriE<egrave>me racine ('p')
+sont identifiable par $rdr->rx == 3 et les donnE<eacute>es pour la cinquiE<egrave>me racine
+('//customer') sont identifiable par $rdr->rx == 4.
+
+Dans l'exemple ci-dessous, le paramE<egrave>tre {branch => '*'} indique que le rE<eacute>sultat sera du XML et
+le paramE<egrave>tre {branch => '+'} indique que le rE<eacute>sultat sera une liste des instructions PYX.
 
 Dans le programme ci-dessus on va utiliser la fonction $rdr->rvalue pour lire les donnees:
 
@@ -980,6 +984,7 @@ Dans le programme ci-dessus on va utiliser la fonction $rdr->rvalue pour lire le
     { root => '/data/supplier', branch => ['/']                          },
     { root => '//customer',     branch => '*' },
     { root => 'p',              branch => '*' },
+    { root => '//customer',     branch => '+' },
   );
 
   # les trois alternatives ci-dessous sont equivalent:
@@ -992,6 +997,7 @@ Dans le programme ci-dessus on va utiliser la fonction $rdr->rvalue pour lire le
   my $root1 = '';
   my $root2 = '';
   my $root3 = '';
+  my $root4 = '';
 
   my $path0 = '';
 
@@ -1004,17 +1010,23 @@ Dans le programme ci-dessus on va utiliser la fonction $rdr->rvalue pour lire le
       }
       elsif ($rdr->rx == 1) {
           for ($rdr->rvalue) {
-              $root1 .= "  Supp: Name = ".$_->[0]."\n";
+              $root1 .= "  Supp: Name = $_->[0]\n";
           }
       }
       elsif ($rdr->rx == 2) {
           for ($rdr->rvalue) {
-              $root2 .= "  Xml: ".$$_."\n";
+              $root2 .= "  Xml: $_\n";
           }
       }
       elsif ($rdr->rx == 3) {
           for ($rdr->rvalue) {
-              $root3 .= "  P: ".$$_."\n";
+              $root3 .= "  P: $_\n";
+          }
+      }
+      elsif ($rdr->rx == 4) {
+          for ($rdr->rvalue) {
+              local $" = "', '";
+              $root4 .= "  Pyx: '@$_'\n";
           }
       }
   }
@@ -1024,6 +1036,7 @@ Dans le programme ci-dessus on va utiliser la fonction $rdr->rvalue pour lire le
   print "root1:\n$root1\n";
   print "root2:\n$root2\n";
   print "root3:\n$root3\n";
+  print "root4:\n$root4\n";
 
 Voici le rE<eacute>sultat:
 
@@ -1057,6 +1070,13 @@ Voici le rE<eacute>sultat:
   root3:
     P: <p><p>b1</p><p>b2</p></p>
     P: <p>b3</p>
+
+  root4:
+    Pyx: '(customer', 'Aid 444', 'Aname o'rob', '(street', '-pod alley', ')street', '(city', '-no city', ')city', ')customer'
+    Pyx: '(customer', 'Aid 111', 'Aname "sue"', '(street', '-baker street', ')street', '(city', '-sidney', ')city', ')customer'
+    Pyx: '(customer', 'Aid 652', 'Aname <smith>', '(street', '-high street', ')street', '(city', '-boston', ')city', ')customer'
+    Pyx: '(customer', 'Aid 184', 'Aname &jones', '(street', '-maple street', ')street', '(city', '-new york', ')city', ')customer'
+    Pyx: '(customer', 'Aid 520', 'Aname stewart', '(street', '-ring road', ')street', '(city', '-"'&<A>'"', ')city', ')customer'
 
 Nous pouvons E<eacute>galement utiliser la fonction $rdr->value pour obtenir les mE<ecirc>mes donnE<eacute>es:
 
@@ -1270,7 +1290,7 @@ le chemin '/data/order/database/customer'. Nous souhaitons aussi d'aspirer le 's
   print "\n";
 
   for (@{$aref->[1]}) {
-      printf "S: %s\n", $$_;
+      printf "S: %s\n", $_;
   }
 
 Le premier paramE<egrave>tre de slurp_xml est ou le nom du fichier (ou une une rE<eacute>fE<eacute>rence E<agrave>
@@ -1314,7 +1334,7 @@ see http://www.opensource.org/licenses/artistic-license-2.0.php
 
 =head1 MODULES ASSOCIES
 
-Si vous souhaitez E<eacute>crire du XML, je propose d'utiliser une autre module "XML::Writer". Ce module
+Si vous souhaitez E<eacute>crire du XML, je propose d'utiliser le module "XML::Writer" ou "XML::MinWriter". Chacun de ces deux modules
 se prE<eacute>sente avec une interface simple pour E<eacute>crire un fichier XML. Si vous ne mE<eacute>langez pas le texte et les
 balises (ce qu'on appelle en Anglais "non-mixed content XML"), je propose de mettre les options DATA_MODE=>1
 et DATA_INDENT=>2, ainsi votre rE<eacute>sultat sera proprement formatE<eacute> selon les rE<egrave>gles XML.
@@ -1326,6 +1346,7 @@ L<XML::Simple>,
 L<XML::Parser>,
 L<XML::Parser::Expat>,
 L<XML::TiePYX>,
-L<XML::Writer>.
+L<XML::Writer>,
+L<XML::MinWriter>.
 
 =cut

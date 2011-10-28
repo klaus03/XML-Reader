@@ -737,17 +737,17 @@ wie schon bemerkt, die %at-Variable wird ersetzt durch %{$rdr->C<att_hash>} :
   </root>
 
 Schliesslich kE<ouml>nnen wir (und sollten wir auch) das schreiben von XML einem anderen Modul E<uuml>berlassen.
-Ich schlage hiermit vor, dass wir das Modul L<XML::Writer> benutzen. Hier ist ein Programm welches
-L<XML::Writer> fE<uuml>r die Ausgabe von XML benutzt:
+Ich schlage hiermit vor, dass wir das Modul L<XML::MinWriter> benutzen. Hier ist ein Programm welches
+L<XML::MinWriter> fE<uuml>r die Ausgabe von XML benutzt:
 
   use XML::Reader;
-  use XML::Writer;
+  use XML::MinWriter;
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
   my $rdr = XML::Reader->new(\$text, {filter => 3}) or die "Error: $!";
-  my $wrt = XML::Writer->new(OUTPUT => \*STDOUT, NEWLINES => 1);
+  my $wrt = XML::MinWriter->new(OUTPUT => \*STDOUT, NEWLINES => 1);
 
   while ($rdr->iterate) {
       if ($rdr->is_start)                          { $wrt->startTag($rdr->tag, %{$rdr->att_hash}); }
@@ -757,7 +757,7 @@ L<XML::Writer> fE<uuml>r die Ausgabe von XML benutzt:
 
   $wrt->end();
 
-Hier ist das Resultat von L<XML::Writer>:
+Hier ist das Resultat von L<XML::MinWriter>:
 
   <root
   ><test param="&lt;&gt;v&quot;"
@@ -771,7 +771,7 @@ Hier ist das Resultat von L<XML::Writer>:
   >** x yz **</root
   >
 
-Das Ausgabeformat von L<XML::Writer> ist anfE<auml>nglich gewE<ouml>hnungsbedE<uuml>rftig, es ist
+Das Ausgabeformat von L<XML::MinWriter> ist anfE<auml>nglich gewE<ouml>hnungsbedE<uuml>rftig, es ist
 jedoch korrektes XML Format.
 
 =head2 Option filter 4 mode pyx
@@ -980,8 +980,13 @@ den XML-Unterbaum fE<uuml>r den relativen Pfad 'p' erhalten.
 
 Die Daten der ersten Wurzel 'customer' erkennt man anhand der Bedingung $rdr->rx == 0, die
 Daten der zweiten Wurzel '/data/supplier' erkennt man anhand der Bedingung $rdr->rx == 1,
-die Daten der dritten Wurzel '//customer' erkennt man anhand der Bedingung $rdr->rx == 2 und
-die Daten der vierten Wurzel 'p' erkennt man anhand der Bedingung $rdr->rx == 3.
+die Daten der dritten Wurzel '//customer' erkennt man anhand der Bedingung $rdr->rx == 2,
+die Daten der vierten Wurzel 'p' erkennt man anhand der Bedingung $rdr->rx == 3 und
+die Daten der fE<uuml>nften Wurzel '//customer' erkennt man anhand der Bedingung $rdr->rx == 4.
+
+Bitte beachten Sie in dem folgenden Beispielprogramm dass der Parameter {branch => '*'} zur Folge hat
+dass eine XML Zeichenkette zurE<uuml>ckgegeben wird und dass der Parameter {branch => '+'} zur Folge
+hat dass eine Liste von PYX Instruktionen zurE<uuml>ckgegeben wird.
 
 Im folgenden Programm benutzen wir die Funktion $rdr->rvalue um die Daten zu erhalten:
 
@@ -990,6 +995,7 @@ Im folgenden Programm benutzen wir die Funktion $rdr->rvalue um die Daten zu erh
     { root => '/data/supplier', branch => ['/']                          },
     { root => '//customer',     branch => '*' },
     { root => 'p',              branch => '*' },
+    { root => '//customer',     branch => '+' },
   );
 
   # Die folgenden drei Alternativen sind gleichwertig:
@@ -1002,6 +1008,7 @@ Im folgenden Programm benutzen wir die Funktion $rdr->rvalue um die Daten zu erh
   my $root1 = '';
   my $root2 = '';
   my $root3 = '';
+  my $root4 = '';
 
   my $path0 = '';
 
@@ -1014,17 +1021,23 @@ Im folgenden Programm benutzen wir die Funktion $rdr->rvalue um die Daten zu erh
       }
       elsif ($rdr->rx == 1) {
           for ($rdr->rvalue) {
-              $root1 .= "  Supp: Name = ".$_->[0]."\n";
+              $root1 .= "  Supp: Name = $_->[0]\n";
           }
       }
       elsif ($rdr->rx == 2) {
           for ($rdr->rvalue) {
-              $root2 .= "  Xml: ".$$_."\n";
+              $root2 .= "  Xml: $_\n";
           }
       }
       elsif ($rdr->rx == 3) {
           for ($rdr->rvalue) {
-              $root3 .= "  P: ".$$_."\n";
+              $root3 .= "  P: $_\n";
+          }
+      }
+      elsif ($rdr->rx == 4) {
+          for ($rdr->rvalue) {
+              local $" = "', '";
+              $root4 .= "  Pyx: '@$_'\n";
           }
       }
   }
@@ -1034,6 +1047,7 @@ Im folgenden Programm benutzen wir die Funktion $rdr->rvalue um die Daten zu erh
   print "root1:\n$root1\n";
   print "root2:\n$root2\n";
   print "root3:\n$root3\n";
+  print "root4:\n$root4\n";
 
 Hier ist das Ergebnis:
 
@@ -1067,6 +1081,13 @@ Hier ist das Ergebnis:
   root3:
     P: <p><p>b1</p><p>b2</p></p>
     P: <p>b3</p>
+
+  root4:
+    Pyx: '(customer', 'Aid 444', 'Aname o'rob', '(street', '-pod alley', ')street', '(city', '-no city', ')city', ')customer'
+    Pyx: '(customer', 'Aid 111', 'Aname "sue"', '(street', '-baker street', ')street', '(city', '-sidney', ')city', ')customer'
+    Pyx: '(customer', 'Aid 652', 'Aname <smith>', '(street', '-high street', ')street', '(city', '-boston', ')city', ')customer'
+    Pyx: '(customer', 'Aid 184', 'Aname &jones', '(street', '-maple street', ')street', '(city', '-new york', ')city', ')customer'
+    Pyx: '(customer', 'Aid 520', 'Aname stewart', '(street', '-ring road', ')street', '(city', '-"'&<A>'"', ')city', ')customer'
 
 Wir kE<ouml>nnen ebenso die Funktion $rdr->value benutzen um die gleichen Daten zu erhalten:
 
@@ -1282,7 +1303,7 @@ ein Beispiel in dem wir den Namen, die Strasse und die Stadt fE<uuml>r alle Kund
   print "\n";
 
   for (@{$aref->[1]}) {
-      printf "S: %s\n", $$_;
+      printf "S: %s\n", $_;
   }
 
 Der erste Parameter in slurp_xml ist entweder der Dateiname (oder eine Skalar Referenz, oder ein offenes
@@ -1324,8 +1345,8 @@ see http://www.opensource.org/licenses/artistic-license-2.0.php
 
 =head1 VERWANDTE MODULE
 
-Falls Sie vorhaben XML auch ausgeben zu wollen, dann schlage ich vor das Modul XML::Writer zu
-benutzen. Dieses Modul bietet ein einfach zu handhabendes Interface zur Ausgabe von XML-Dateien.
+Falls Sie vorhaben XML auch ausgeben zu wollen, dann schlage ich vor eines der zwei Module XML::Writer oder XML::MinWriter zu
+benutzen. Beide Module bieten ein einfach zu handhabendes Interface zur Ausgabe von XML-Dateien.
 (Falls sie non-mixed content XML ausgeben, wE<uuml>rde ich empfehlen die Optionen DATA_MODE=>1 und
 DATA_INDENT=>2 zu setzen, das erlaubt die korrekte Formatierung und EinrE<uuml>ckung in Ihrer XML
 Ausgabe-Datei).
@@ -1337,6 +1358,7 @@ L<XML::Simple>,
 L<XML::Parser>,
 L<XML::Parser::Expat>,
 L<XML::TiePYX>,
-L<XML::Writer>.
+L<XML::Writer>,
+L<XML::MinWriter>.
 
 =cut

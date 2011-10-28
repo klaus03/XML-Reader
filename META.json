@@ -29,11 +29,11 @@
    "provides" : {
       "XML::Reader" : {
          "file" : "lib/XML/Reader.pm",
-         "version" : "0.38"
+         "version" : "0.39"
       },
       "XML::Reader::Token" : {
          "file" : "lib/XML/Reader.pm",
-         "version" : "0.38"
+         "version" : "0.39"
       }
    },
    "release_status" : "stable",
@@ -42,5 +42,5 @@
          "http://dev.perl.org/licenses/"
       ]
    },
-   "version" : "0.38"
+   "version" : "0.39"
 }

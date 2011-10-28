@@ -184,3 +184,11 @@ Revision history for XML-Reader
 0.38    18 Oct 2011
         For PYX output, replace a single \ by a double \\ and replace tabs by a literal "\t"
         Remove META.yml from MANIFEST
+
+0.39    28 Oct 2011
+        For filter => 5, add a new option '+' : {root => '/path1/path2', branch => '+'}
+          that allows to return an array of PYX-elements.
+        For filter => 5, existing option '*' : {root => '/path1/path2', branch => '*'}
+          replace reference to scalar in $self->{rvalue} by a plain scalar.
+        Remove deprecated functions newhd() and rstem()
+        Introduce XML::MinWriter
