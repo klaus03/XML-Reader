@@ -4,15 +4,53 @@ use strict;
 use warnings;
 use Carp;
 
-use XML::Parser;
-
 require Exporter;
 
 our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.39';
+our $VERSION     = '0.40';
+
+my $use_module;
+
+sub import {
+    my $calling_module = shift;
+
+    my @plist;
+
+    my $act_module;
+
+    for my $sub (@_) {
+        if ($sub eq 'XML::Parser' or $sub eq 'XML::Parsepp') {
+            if (defined $act_module) {
+                die "Duplicate module ('$act_module' and '$sub')";
+            }
+            $act_module = $sub;
+        }
+        else {
+            push @plist, $sub;
+        }
+    }
+
+    unless (defined $act_module) {
+        $act_module = 'XML::Parser';
+    }
+
+    if ($act_module eq 'XML::Parser') {
+        require XML::Parser;
+    }
+    elsif ($act_module eq 'XML::Parsepp') {
+        require XML::Parsepp;
+    }
+    else {
+        die "Can't identify act_module = '$act_module'";
+    }
+
+    $use_module = $act_module;
+
+    XML::Reader->export_to_level(1, $calling_module, @plist);
+}
 
 # deprecated functions (Klaus EICHNER, 28 Apr 2010, ver. 0.35):
 # only for backward compatibility
@@ -59,11 +97,11 @@ sub new {
         croak "Failed assertion #0030 in XML::Reader->new: filter is set to '$opt{filter}', but must be 2, 3, 4 or 5";
     }
 
-    my $XmlParser = XML::Parser->new
-      or croak "Failed assertion #0040 in XML::Reader->new: Can't create XML::Parser->new";
+    my $XmlParser = $use_module->new
+      or croak "Failed assertion #0040 in XML::Reader->new: Can't create $use_module -> new";
 
-    # The following references to the handler-functions from the XML::Parser object will be 
-    # copied into the ExpatNB object during the later call to XML::Parser->parse_start.
+    # The following references to the handler-functions from the XML::Parser/XML::Parsepp object will be 
+    # copied into the ExpatNB object during the later call to XML::Parser/XML::Parsepp->parse_start.
 
     $XmlParser->setHandlers(
         Start   => \&handle_start,
@@ -92,16 +130,16 @@ sub new {
     # Now we bless into XML::Reader, and we bless *before* creating the ExpatNB-object.
     # Thereby, to avoid a memory leak, we ensure that for each ExpatNB-object we call
     # XML::Reader->DESTROY when the object goes away. (-- by the way, we create that
-    # ExpatNB-object by calling the XML::Parser->parse_start method --)
+    # ExpatNB-object by calling the XML::Parser/XML::Parsepp->parse_start method --)
 
     bless $self, $class;
 
-    # Now we are ready to call XML::Parser->parse_start -- XML::Parser->parse_start()
-    # returns an object of type XML::Parser::ExpatNB. The XML::Parser::ExpatNB object
+    # Now we are ready to call XML::Parser/XML::Parsepp->parse_start -- XML::Parser/XML::Parsepp->parse_start()
+    # returns an object of type XML::Parser/XML::Parsepp::ExpatNB. The XML::Parser/XML::Parsepp::ExpatNB object
     # is where all the heavy lifting happens.
 
-    # By calling the XML::Parser::Expat->new method (-- XML::Parser::Expat is a super-class
-    # of XML::Parser::ExpatNB --) we will have created a circular reference in
+    # By calling the XML::Parser/XML::Parsepp::Expat->new method (-- XML::Parser/XML::Parsepp::Expat is a super-class
+    # of XML::Parser/XML::Parsepp::ExpatNB --) we will have created a circular reference in
     # $self->{ExpatNB}{parser}.
     #
     # (-- unfortunately, the circular reference does not show up in Data::Dumper, there
@@ -114,10 +152,10 @@ sub new {
     
     # This means that, in order to avoid a memory leak, we have to break this circular
     # reference when we are done with the processing. The breaking of the circular reference
-    # will be performed in XML::Reader->DESTROY, which calls XML::Parser::Expat->release.
+    # will be performed in XML::Reader->DESTROY, which calls XML::Parser/XML::Parsepp::Expat->release.
 
     # This is an important moment (-- in terms of memory management, at least --).
-    # XML::Parser->parse_start creates an XML::Parser::ExpatNB-object, which in turn generates
+    # XML::Parser/XML::Parsepp->parse_start creates an XML::Parser/XML::Parsepp::ExpatNB-object, which in turn generates
     # a circular reference (invisible with Data::Dumper). That circular reference will have to
     # be cleaned up when the XML::Reader-object goes away (see XML::Reader->DESTROY).
 
@@ -135,7 +173,7 @@ sub new {
         XR_Strip     => $opt{strip},
         XR_ParseInst => $opt{parse_pi},
         XR_ParseComm => $opt{parse_ct},
-      ) or croak "Failed assertion #0050 in subroutine XML::Reader->new: Can't create XML::Parser->parse_start";
+      ) or croak "Failed assertion #0050 in subroutine XML::Reader->new: Can't create $use_module -> parse_start";
 
     # for XML::Reader, version 0.21 (12-Sep-2009):
     # inject an {XR_debug} into $self->{ExpatNB}, if so requested by $opt{debug}
@@ -143,7 +181,7 @@ sub new {
     if (exists $opt{debug}) { $self->{ExpatNB}{XR_debug} = $opt{debug}; }
 
     # The instruction "XR_Data => []" (-- the 'XR_...' prefix stands for 'Xml::Reader...' --)
-    # inside XML::Parser->parse_start() creates an empty array $ExpatNB{XR_Data} = []
+    # inside XML::Parser/XML::Parsepp->parse_start() creates an empty array $ExpatNB{XR_Data} = []
     # inside the ExpatNB object. This array is the place where the handlers put their data.
     #
     # Likewise, the instructions "XR_Text => ''", "XR_Comment => ''", and "XR_fh => $fh" , etc...
@@ -704,27 +742,27 @@ sub convert_structure {
 sub DESTROY {
     my $self = shift;
 
-    # There are circular references inside an XML::Parser::ExpatNB-object
-    # which need to be cleaned up by calling XML::Parser::Expat->release.
+    # There are circular references inside an XML::Parser/XML::Parsepp::ExpatNB-object
+    # which need to be cleaned up by calling XML::Parser/XML::Parsepp::Expat->release.
 
-    # I quote from the documentation of 'XML::Parser::Expat' (-- XML::Parser::Expat
-    # is a super-class of XML::Parser::ExpatNB --)
+    # I quote from the documentation of 'XML::Parser/XML::Parsepp::Expat' (-- XML::Parser/XML::Parsepp::Expat
+    # is a super-class of XML::Parser/XML::Parsepp::ExpatNB --)
     #
     # >> ------------------------------------------------------------------------
     # >> =item release
     # >>
-    # >> There are data structures used by XML::Parser::Expat that have circular
+    # >> There are data structures used by XML::Parser/XML::Parsepp::Expat that have circular
     # >> references. This means that these structures will never be garbage
     # >> collected unless these references are explicitly broken. Calling this
     # >> method breaks those references (and makes the instance unusable.)
     # >>
     # >> Normally, higher level calls handle this for you, but if you are using
-    # >> XML::Parser::Expat directly, then it's your responsibility to call it.
+    # >> XML::Parser/XML::Parsepp::Expat directly, then it's your responsibility to call it.
     # >> ------------------------------------------------------------------------
 
-    # There is a possibility that the XML::Parser::ExpatNB-object did not get
+    # There is a possibility that the XML::Parser/XML::Parsepp::ExpatNB-object did not get
     # created, while still blessing the XML::Reader object. Therefore we have to
-    # test for this case before calling XML::Parser::ExpatNB->release.
+    # test for this case before calling XML::Parser/XML::Parsepp::ExpatNB->release.
 
     if ($self->{ExpatNB}) {
         $self->{ExpatNB}->release; # ...and not $self->{ExpatNB}->parse_done;
@@ -750,7 +788,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.39';
+our $VERSION = '0.40';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -797,14 +835,33 @@ This program produces the following output:
   Path: /init/page         , Value: m r
   Path: /init              , Value:
 
+=head1 USAGE
+
+XML::Reader uses XML::Parser as the underlying Parser module. That works very well, except for cases where
+people don't have a C-compiler available to install XML::Parser. In those cases, XML::Parsepp can be used
+as a pure Perl alternative to XML::Parser. Here is an example:
+
+  use XML::Reader qw(XML::Parsepp);
+
+  my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
+
+  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  while ($rdr->iterate) {
+      printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
+  }
+
+The only thing to remember is that XML::Reader has dependencies on both XML::Parser and XML::Parsepp, which
+means that if you can't (for whatever reason) install XML::Parser, you can still install XML::Reader, you
+just don't run the tests.
+
 =head1 DESCRIPTION
 
 XML::Reader provides a simple and easy to use interface for sequentially parsing XML
 files (so called "pull-mode" parsing) and at the same time keeps track of the complete XML-path.
 
-It was developped as a wrapper on top of XML::Parser (while, at the same time, some basic functions
-have been copied from XML::TokeParser). Both XML::Parser and XML::TokeParser allow pull-mode
-parsing, but do not keep track of the complete XML-Path. Also, the interfaces to XML::Parser and
+It was developped as a wrapper on top of XML::Parser or XML::Parsepp (while, at the same time, some basic functions
+have been copied from XML::TokeParser). all modules, XML::Parser, XML::Parsepp and XML::TokeParser allow pull-mode
+parsing, but do not keep track of the complete XML-Path. Also, the interfaces to XML::Parser, XML::Parsepp and
 XML::TokeParser require you to distinguish between start-tags, end-tags and text on seperate lines,
 which, in my view, complicates the interface (although, XML::Reader allows option {filter => 4, mode => 'pyx'} which
 emulates start-tags, end-tags and text on separate lines, if that's what you want).
@@ -2096,6 +2153,7 @@ DATA_INDENT=>2, which allows for proper indentation in your XML-Output file)
 L<XML::TokeParser>,
 L<XML::Simple>,
 L<XML::Parser>,
+L<XML::Parsepp>,
 L<XML::Parser::Expat>,
 L<XML::TiePYX>,
 L<XML::Writer>,

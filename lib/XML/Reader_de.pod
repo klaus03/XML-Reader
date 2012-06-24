@@ -28,15 +28,34 @@ Dieses Programm erzeugt folgendes Resultat:
   Path: /init/page         , Value: m r
   Path: /init              , Value:
 
+=head1 BENUTZUNG
+
+XML::Reader benutzt XML::Parser als Parser Modul. Das funktioniert sehr gut, ausser in den FE<auml>llen in denen kein
+C-compiler zur verfE<uuml>gung steht um XML::Parser zu installieren. In diesen FE<auml>llen kann XML::Parsepp 
+als eine Perl Alternative zu XML::Parser benutzt werden. Hier ist ein Beispiel:
+
+  use XML::Reader qw(XML::Parsepp);
+
+  my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
+
+  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  while ($rdr->iterate) {
+      printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
+  }
+
+Das einzige was man beachten muss ist dass XML::Reader auf beiden Modulen, XML::Parser und XML::Parsepp, basiert.
+Das bedeutet konkret dass wenn man XML::Reader ohne XML::Parser installieren will, dann darf man einfach nicht
+die Tests laufen lassen.
+
 =head1 BESCHREIBUNG
 
 XML::Reader stellt ein einfach zu bedienendes Interface zur VerfE<uuml>gung mit dem man XML-Dateien
 sequentiell lesen kann (sogenanntes "pull-mode" parsing). Der aktuelle XML-Pfad wird ebenfalls gepflegt.
 
-XML::Reader wurde als eine HE<uuml>lle E<uuml>ber dem bestehenden Modul XML::Parser entwickelt (ausserdem wurden
-einige Grundfunktionen des Moduls XML::TokeParser mit E<uuml>bernommen). Die bestehenden Module XML::Parser und
+XML::Reader wurde als eine HE<uuml>lle E<uuml>ber dem bestehenden Modul XML::Parser/XML::Parsepp entwickelt (ausserdem wurden
+einige Grundfunktionen des Moduls XML::TokeParser mit E<uuml>bernommen). Die bestehenden Module XML::Parser, XML::Parsepp und
 XML::TokeParser ermE<ouml>glichen beide das sequentielle Verarbeiten von XML-Dateien, jedoch wird in diesen
-Modulen der XML-Pfad nicht gepflegt. Ausserdem muss man mit den Modulen XML::Parser und XML::TokeParser
+Modulen der XML-Pfad nicht gepflegt. Ausserdem muss man mit den Modulen XML::Parser, XML::Parsepp und XML::TokeParser
 die Unterscheidung zwischen Start-Tags, End-Tags und Text machen, was meiner Meinung nach die Sache
 verkompliziert (obwohl man auch dieselbe Situation in XML::Reader simulieren kann, und zwar durch die
 Option {filter => 4, mode => 'pyx'}, wenn es das ist was man will).
@@ -1356,6 +1375,7 @@ Ausgabe-Datei).
 L<XML::TokeParser>,
 L<XML::Simple>,
 L<XML::Parser>,
+L<XML::Parsepp>,
 L<XML::Parser::Expat>,
 L<XML::TiePYX>,
 L<XML::Writer>,

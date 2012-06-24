@@ -4,7 +4,7 @@
       "unknown"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "Module::Build version 0.38, CPAN::Meta::Converter version 2.110930",
+   "generated_by" : "Module::Build version 0.38, CPAN::Meta::Converter version 2.112150",
    "license" : [
       "perl_5"
    ],
@@ -22,6 +22,7 @@
       "runtime" : {
          "requires" : {
             "Carp" : 0,
+            "XML::Parsepp" : 0,
             "XML::Parser" : "1"
          }
       }
@@ -29,11 +30,11 @@
    "provides" : {
       "XML::Reader" : {
          "file" : "lib/XML/Reader.pm",
-         "version" : "0.39"
+         "version" : "0.40"
       },
       "XML::Reader::Token" : {
          "file" : "lib/XML/Reader.pm",
-         "version" : "0.39"
+         "version" : "0.40"
       }
    },
    "release_status" : "stable",
@@ -42,5 +43,5 @@
          "http://dev.perl.org/licenses/"
       ]
    },
-   "version" : "0.39"
+   "version" : "0.40"
 }

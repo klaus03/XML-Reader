@@ -3,7 +3,7 @@ use warnings;
 
 use Test::More tests => 271;
 
-use_ok('XML::Reader', qw(slurp_xml));
+use_ok('XML::Reader', qw(XML::Parsepp slurp_xml));
 
 {
     my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
@@ -61,8 +61,6 @@ use_ok('XML::Reader', qw(slurp_xml));
 }
 
 {
-  use XML::Reader;
-
   my $line2 = q{
     <data>
       <order>

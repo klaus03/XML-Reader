@@ -7,8 +7,11 @@ README
 lib/XML/Reader.pm
 lib/XML/Reader_fr.pod
 lib/XML/Reader_de.pod
-t/0010_test.t
-t/0020_test.t
-t/0030_test.t
+t/0010_test_Parsepp.t
+t/0011_test_Parser.t
+t/0020_test_Parsepp.t
+t/0021_test_Parser.t
+t/0030_test_Parsepp.t
+t/0031_test_Parser.t
 META.yml
 META.json

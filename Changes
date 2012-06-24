@@ -192,3 +192,7 @@ Revision history for XML-Reader
           replace reference to scalar in $self->{rvalue} by a plain scalar.
         Remove deprecated functions newhd() and rstem()
         Introduce XML::MinWriter
+
+0.40    24 Jun 2012
+        Allow XML::Reader to use the pure perl parser XML::Parsepp as an alternative to the
+        usual XML::Parser.

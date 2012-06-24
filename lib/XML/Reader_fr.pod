@@ -28,16 +28,34 @@ Ce programme crE<eacute>e le rE<eacute>sultat suivant:
   Path: /init/page         , Value: m r
   Path: /init              , Value:
 
+=head1 UTILISATION
+
+XML::Reader utilise XML::Parser comme sous-module. Cette configuration marche trE<egrave>s bien, sauf dans le cas oE<ugrave>
+il n'y a pas de compilateur C disponible pour installer XML::Parser. Dans ce cas, XML::Parsepp peut remplacer XML::Parser.
+Voici un exemple:
+
+  use XML::Reader qw(XML::Parsepp);
+
+  my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
+
+  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  while ($rdr->iterate) {
+      printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
+  }
+
+La seule chose est que XML::Reader dE<eacute>pend des deux modules XML::Parser et XML::Parsepp. En consE<eacute>quence,
+si vous ne pouvez pas installer XML::Parser, vous pouvez quand mE<ecirc>me installer XML::Reader, mais vous ne lancez pas les tests.
+
 =head1 DESCRIPTION
 
 XML::Reader est un module simple et facile E<agrave> utiliser pour parser des fichiers XML de maniE<egrave>re sE<eacute>quentielle
 (aussi appellE<eacute> parseur guidE<eacute> par l'extraction) et, en mE<ecirc>me temps, il enregistre le chemin complet du XML.
 
-Il a E<eacute>tE<eacute> dE<eacute>veloppE<eacute> comme une couche sur XML::Parser (quelques fonctionalitE<eacute>s basiques ont E<eacute>tE<eacute> copiE<eacute> de
-XML::TokeParser). XML::Parser et XML::TokeParser utilisent chacun une mE<eacute>thode d'extraction sE<eacute>quentielle,
+Il a E<eacute>tE<eacute> dE<eacute>veloppE<eacute> comme une couche sur XML::Parser/XML::Parsepp (quelques fonctionalitE<eacute>s basiques ont E<eacute>tE<eacute> copiE<eacute> de
+XML::TokeParser). XML::Parser, XML::Parsepp et XML::TokeParser utilisent chacun une mE<eacute>thode d'extraction sE<eacute>quentielle,
 mais ils n'enregistrent pas le chemin du XML.
 
-De plus, avec les interfaces de XML::Parser et XML::TokeParser, on est obligE<eacute> de sE<eacute>parer les balises de dE<eacute>but,
+De plus, avec les interfaces de XML::Parser, XML::Parsepp et XML::TokeParser, on est obligE<eacute> de sE<eacute>parer les balises de dE<eacute>but,
 les balises de fin et du texte, ce qui, E<agrave> mon avis, rend l'utilisation assez compliquE<eacute>. (par contre, si on le
 souhaite, XML::Reader peut agir d'une maniE<egrave>re E<agrave> ce que les balises de dE<eacute>but, les balises de fin et du texte
 sont sE<eacute>parE<eacute>s, par l'option {filter => 4, mode => 'pyx'}).
@@ -1344,6 +1362,7 @@ et DATA_INDENT=>2, ainsi votre rE<eacute>sultat sera proprement formatE<eacute> 
 L<XML::TokeParser>,
 L<XML::Simple>,
 L<XML::Parser>,
+L<XML::Parsepp>,
 L<XML::Parser::Expat>,
 L<XML::TiePYX>,
 L<XML::Writer>,
