@@ -16,7 +16,7 @@ den Perl Quelltext des Moduls zu lesen, gehen Sie bitte zur Datei XML/Reader.pm
 
   my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
-  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text);
   while ($rdr->iterate) {
       printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
   }
@@ -28,6 +28,20 @@ Dieses Programm erzeugt folgendes Resultat:
   Path: /init/page         , Value: m r
   Path: /init              , Value:
 
+Man kann den Aufruf von XML::Reader->new(...) mit einem eval {...} verpacken um zu testen
+ob der Aufruf erfolgreich war:
+
+  my $rdr = eval{ XML::Reader->new('test.xml') }
+    or warn "Can't XML::Reader->new() because $@";
+
+  if ($rdr) {
+      # ... do something with $rdr ...
+  }
+  else {
+      # ... do some error handling ...
+  }
+
+
 =head1 BENUTZUNG
 
 XML::Reader benutzt XML::Parser als Parser Modul. Das funktioniert sehr gut, ausser in den FE<auml>llen in denen kein
@@ -38,7 +52,7 @@ als eine Perl Alternative zu XML::Parser benutzt werden. Hier ist ein Beispiel:
 
   my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
-  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text);
   while ($rdr->iterate) {
       printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
   }
@@ -106,7 +120,7 @@ XML-Datei in '$line1' einliest...
 
   use XML::Reader;
 
-  my $rdr = XML::Reader->new(\$line1) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$line1);
   my $i = 0;
   while ($rdr->iterate) { $i++;
       printf "%3d. pat=%-22s, val=%-9s, s=%-1s, e=%-1s, tag=%-6s, atr=%-6s, t=%-1s, lvl=%2d\n", $i,
@@ -134,8 +148,7 @@ XML-Datei in '$line1' einliest...
 Um ein Objekt vom Typ XML::Reader zu erstellen, wird folgende Syntax verwendet:
 
   my $rdr = XML::Reader->new($data,
-    {strip => 1, filter => 2, using => ['/path1', '/path2']})
-    or die "Error: $!";
+    {strip => 1, filter => 2, using => ['/path1', '/path2']});
 
 Der Parameter $data (welcher immer mit angegeben werden muss) ist entweder der Name einer
 XML-Datei, oder eine Referenz auf eine Zeichenkette (sodass der Inhalt dieser Zeichenkette
@@ -145,12 +158,12 @@ Fall wird einfach das Filehandle benutzt um die XML-Daten zu lesen).
 Hier ist ein Beispiel um ein Objekt des Typs XML::Reader mit einem einfachen Datei-Namen zu
 erzeugen:
 
-  my $rdr = XML::Reader->new('input.xml') or die "Error: $!";
+  my $rdr = XML::Reader->new('input.xml');
 
 Hier ist ein weiteres Beispiel um ein Objekt des Typs XML::Reader mit einer Referenz
 auf eine Zeichenkette zu erzeugen:
 
-  my $rdr = XML::Reader->new(\'<data>abc</data>') or die "Error: $!";
+  my $rdr = XML::Reader->new(\'<data>abc</data>');
 
 Hier ist noch ein weiteres Beispiel um ein Objekt des Typs XML::Reader mit einem
 zuvor geE<ouml>ffneneten Dateihandle zu erzeugen:
@@ -208,6 +221,11 @@ in Kommentaren. (Attributen bleiben hiervon unberE<uuml>hrt). {strip => 0} lE<au
 Kommentare so wie sie in der XML-Datei existieren, mit alle Leerzeichen.
 
 Die Syntax hierfE<uuml>r lautet {strip => 0|1}, die Voreinstellung ist {strip => 1}
+
+=item Option {dupatt => }
+
+Die Option {dupatt => '*'} ermE<ouml>glicht Attribute, die mehrfach Auftreten, zu verarbeiten. Die verschiedenen Werte werden dann
+mit dem '*'-Zeichen zu einem einzelnen Wert verbunden.
 
 =back
 
@@ -478,7 +496,7 @@ Hier ist ein Beispiel wo Kommentare, wie voreingestellt, ignoriert werden:
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
-  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text);
 
   while ($rdr->iterate) {
       if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
@@ -499,7 +517,7 @@ Jetzt ein Beispiel mit den selben XML-Daten und dem selben Algorithmus, ausser d
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
-  my $rdr = XML::Reader->new(\$text, {parse_ct => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {parse_ct => 1});
 
   while ($rdr->iterate) {
       if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
@@ -528,7 +546,7 @@ Option {parse_pi => 1} aktiviert ist (zusammen mit der schon aktivierten Option 
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
-  my $rdr = XML::Reader->new(\$text, {parse_ct => 1, parse_pi => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {parse_ct => 1, parse_pi => 1});
 
   while ($rdr->iterate) {
       if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
@@ -574,7 +592,7 @@ Hier ist ein Beispiel...
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text);
 
   # Die folgenden vier Alternativen sind gleichwertig:
   # --------------------------------------------------
@@ -615,7 +633,7 @@ und auch keine Attribute) mit den Zeichen "** **" markiert werden.
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text);
 
   # Die folgenden vier Alternativen sind gleichwertig:
   # --------------------------------------------------
@@ -699,7 +717,7 @@ wie schon bemerkt, die %at-Variable wird ersetzt durch %{$rdr->C<att_hash>} :
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 3}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 3});
 
   # Die folgenden drei Alternativen sind gleichwertig:
   # --------------------------------------------------
@@ -765,7 +783,7 @@ L<XML::MinWriter> fE<uuml>r die Ausgabe von XML benutzt:
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 3}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 3});
   my $wrt = XML::MinWriter->new(OUTPUT => \*STDOUT, NEWLINES => 1);
 
   while ($rdr->iterate) {
@@ -814,7 +832,7 @@ Hier ist ein Beispiel:
       dskjfh <!-- remark --> uuu
     </delta>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_pi => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_pi => 1});
 
   # Die folgenden drei Alternativen sind gleichwertig:
   # --------------------------------------------------
@@ -853,7 +871,7 @@ erzugt welches nicht in der PYX-Spezifikation existiert. Das folgende Beispiel d
       <!-- remark -->
     </delta>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_ct => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_ct => 1});
 
   # Die folgenden drei Alternativen sind gleichwertig:
   # --------------------------------------------------
@@ -883,7 +901,7 @@ C<is_value>, C<comment>, C<proc_tgt>, C<proc_data>, C<dec_hash> und C<att_hash>)
       <child>ghi</child>
     </parent>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_pi => 1, parse_ct => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_pi => 1, parse_ct => 1});
 
   # Die folgenden drei Alternativen sind gleichwertig:
   # --------------------------------------------------
@@ -1155,6 +1173,33 @@ grE<ouml>sst mE<ouml>glichste XML-Baum fE<uuml>r einen relativen Pfad gewE<auml>
 ausgedrE<uuml>ckt: die Ausgabe von "P: <p>b1</p>" and "P: <p>b2</p>" auf separaten Zeilen ist nicht mE<ouml>glich
 da diese UnterbE<auml>me schon in dem grE<ouml>sseren Baum "P: <p><p>b1</p><p>b2</p></p>" enthalten sind.
 
+=head1 OPTION DUPATT
+
+Die Option dupatt erlaubt es mehrere Attribute mit gleichem Namen zu einem einzigen Ergebnis zusammenzufassen.
+Um dieses zu ermE<ouml>glichen, werden die verschiedenen Werte zu einem einzigen Wert und durch ein
+spezielles Trennzeichen verbunden. Die Attributliste wird in diesem Falle alphabetisch sortiert ausgegeben.
+
+Die Option dupatt ist nur dann mE<ouml>glich wenn XML::Reader mit der Option XML::Parsepp eingebunden wurde.
+
+Das folgende Beispiel zeigt die Verwendung der Option dupatt:
+
+  use XML::Reader qw(XML::Parsepp);
+
+  my $text = q{<data><item a2="abc" a1="def" a2="ghi"></item></data>}
+
+  my $rdr = XML::Reader->new(\$text, {dupatt => '|'});
+  while ($rdr->iterate) {
+      printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
+  }
+
+Dieses Programm erzeugt die folgende Ausgabe:
+
+  Path: /data              , Value:
+  Path: /data/item/@a1     , Value: def
+  Path: /data/item/@a2     , Value: abc|ghi
+  Path: /data/item         , Value:
+  Path: /data              , Value:
+
 =head1 BEISPIELE
 
 Betrachten wir nun folgende XML-Datei, von der wir die Werte innerhalb der Tags E<lt>itemE<gt> (dabei meine
@@ -1196,7 +1241,7 @@ um die Parameter in '/@p1' und '/@p3' aufzunehmen und sie in den Programmteil
 $rdr->is_start zu E<uuml>bertragen, wo sie dann ausgegeben werden kE<ouml>nnen.
 
   my $rdr = XML::Reader->new(\$text,
-    {mode => 'attr-bef-start', using => '/start/param/data/item'}) or die "Error: $!";
+    {mode => 'attr-bef-start', using => '/start/param/data/item'});
 
   my ($p1, $p3);
 
@@ -1216,7 +1261,7 @@ Mit {filter => 3, mode => 'attr-in-hash'} kE<ouml>nnen wir auf die zwei scalar V
 Programm vereinfacht sich wie folgt:
 
   my $rdr = XML::Reader->new(\$text,
-    {mode => 'attr-in-hash', using => '/start/param/data/item'}) or die "Error: $!";
+    {mode => 'attr-in-hash', using => '/start/param/data/item'});
 
   while ($rdr->iterate) {
       if ($rdr->path eq '/' and $rdr->is_start) {
@@ -1235,7 +1280,7 @@ sodass wir zwischen dem ersten Wert 'start...' (welchen wir ausgeben wollen) und
 Wert 'end...' (welchen wir nicht ausgeben wollen) unterscheiden kE<ouml>nnen.
 
   my $rdr = XML::Reader->new(\$text,
-    {mode => 'pyx', using => '/start/param/data/item'}) or die "Error: $!";
+    {mode => 'pyx', using => '/start/param/data/item'});
 
   my ($count, $p1, $p3);
 
@@ -1259,8 +1304,7 @@ Wert 'end...' (welchen wir nicht ausgeben wollen) unterscheiden kE<ouml>nnen.
 Sie kE<ouml>nnen {filter => 5, mode => 'branches'} und regulE<auml>re AusdrE<uuml>cke lombinieren:
 
   my $rdr = XML::Reader->new(\$text, {mode => branches},
-    { root => '/start/param/data/item', branch => '*' },
-  ) or die "Error: $!";
+    { root => '/start/param/data/item', branch => '*' });
 
   while ($rdr->iterate) {
       if ($rdr->value =~ m{\A <item

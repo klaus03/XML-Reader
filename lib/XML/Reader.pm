@@ -10,7 +10,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.40';
+our $VERSION     = '0.41';
 
 my $use_module;
 
@@ -37,19 +37,25 @@ sub import {
         $act_module = 'XML::Parser';
     }
 
-    if ($act_module eq 'XML::Parser') {
+    activate($act_module);
+
+    XML::Reader->export_to_level(1, $calling_module, @plist);
+}
+
+sub activate {
+    my ($mod) = @_;
+
+    if ($mod eq 'XML::Parser') {
         require XML::Parser;
     }
-    elsif ($act_module eq 'XML::Parsepp') {
+    elsif ($mod eq 'XML::Parsepp') {
         require XML::Parsepp;
     }
     else {
-        die "Can't identify act_module = '$act_module'";
+        die "Can't identify module = '$mod'";
     }
 
-    $use_module = $act_module;
-
-    XML::Reader->export_to_level(1, $calling_module, @plist);
+    $use_module = $mod;
 }
 
 # deprecated functions (Klaus EICHNER, 28 Apr 2010, ver. 0.35):
@@ -97,8 +103,17 @@ sub new {
         croak "Failed assertion #0030 in XML::Reader->new: filter is set to '$opt{filter}', but must be 2, 3, 4 or 5";
     }
 
-    my $XmlParser = $use_module->new
-      or croak "Failed assertion #0040 in XML::Reader->new: Can't create $use_module -> new";
+    my @parser_opt;
+
+    if (defined $opt{dupatt} and $opt{dupatt} ne '') {
+        unless ($use_module eq 'XML::Parsepp') {
+            croak "Failed assertion #0035 in XML::Reader->new: expected use qw(XML::Parsepp), but found use qw($use_module)";
+        }
+        @parser_opt = (dupatt => $opt{dupatt});
+    }
+
+    my $XmlParser = $use_module->new(@parser_opt)
+      or croak "Failed assertion #0040 in XML::Reader->new: Can't create $use_module -> new(@parser_opt)";
 
     # The following references to the handler-functions from the XML::Parser/XML::Parsepp object will be 
     # copied into the ExpatNB object during the later call to XML::Parser/XML::Parsepp->parse_start.
@@ -124,7 +139,7 @@ sub new {
         $fh = $_[0];
     }
     else {
-        open $fh, '<', $_[0] or return;
+        open $fh, '<', $_[0] or croak "Failed assertion #0045 in XML::Reader->new: Can't open < '$_[0]' because $!";
     }
 
     # Now we bless into XML::Reader, and we bless *before* creating the ExpatNB-object.
@@ -774,7 +789,7 @@ sub slurp_xml {
 
     my @tree = map {[]} @_; # start with as many empty lists as there are roots 
 
-    my $rdr = XML::Reader->new($data, {filter => 5}, @_) or die "Error: $!";
+    my $rdr = XML::Reader->new($data, {filter => 5}, @_);
 
     while ($rdr->iterate) {
         push @{$tree[$rdr->rx]}, $rdr->rvalue;
@@ -788,7 +803,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.40';
+our $VERSION = '0.41';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -823,7 +838,7 @@ XML::Reader - Reading XML and providing path information based on a pull-parser.
 
   my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
-  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text);
   while ($rdr->iterate) {
       printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
   }
@@ -835,6 +850,18 @@ This program produces the following output:
   Path: /init/page         , Value: m r
   Path: /init              , Value:
 
+You can also wrap the call to XML::Reader->new(...) into an eval {...} to check if it succeeded, as follows:
+
+  my $rdr = eval{ XML::Reader->new('test.xml') }
+    or warn "Can't XML::Reader->new() because $@";
+
+  if ($rdr) {
+      # ... do something with $rdr ...
+  }
+  else {
+      # ... do some error handling ...
+  }
+
 =head1 USAGE
 
 XML::Reader uses XML::Parser as the underlying Parser module. That works very well, except for cases where
@@ -845,7 +872,7 @@ as a pure Perl alternative to XML::Parser. Here is an example:
 
   my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
-  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text);
   while ($rdr->iterate) {
       printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
   }
@@ -907,7 +934,7 @@ Here is a sample program which parses the XML in '$line1' from above to demonstr
 
   use XML::Reader;
 
-  my $rdr = XML::Reader->new(\$line1) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$line1);
   my $i = 0;
   while ($rdr->iterate) { $i++;
       printf "%3d. pat=%-22s, val=%-9s, s=%-1s, e=%-1s, tag=%-6s, atr=%-6s, t=%-1s, lvl=%2d\n", $i,
@@ -935,8 +962,7 @@ Here is a sample program which parses the XML in '$line1' from above to demonstr
 To create an XML::Reader object, the following syntax is used:
 
   my $rdr = XML::Reader->new($data,
-    {strip => 1, filter => 2, using => ['/path1', '/path2']})
-    or die "Error: $!";
+    {strip => 1, filter => 2, using => ['/path1', '/path2']});
 
 The element $data (which is mandatory) is the name of the XML-file, or a
 reference to a string, in which case the content of that string is taken as the
@@ -947,11 +973,11 @@ that filehandle is used to read the XML.
 
 Here is an example to create an XML::Reader object with a file-name:
 
-  my $rdr = XML::Reader->new('input.xml') or die "Error: $!";
+  my $rdr = XML::Reader->new('input.xml');
 
 Here is another example to create an XML::Reader object with a reference:
 
-  my $rdr = XML::Reader->new(\'<data>abc</data>') or die "Error: $!";
+  my $rdr = XML::Reader->new(\'<data>abc</data>');
 
 Here is an example to create an XML::Reader object with an open filehandle:
 
@@ -1007,6 +1033,11 @@ Option {strip => 1} strips all leading and trailing spaces from text and comment
 (attributes are never stripped). {strip => 0} leaves text and comments unmodified.
 
 The syntax is {strip => 0|1}, default is {strip => 1}
+
+=item option {dupatt => }
+
+Option {dupatt => '*'} allows for duplicate attributes to be read. Multiple attributes
+are then concatenated by '*'.
 
 =back
 
@@ -1271,7 +1302,7 @@ Here is an example where comments are ignored by default:
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
-  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text);
 
   while ($rdr->iterate) {
       if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
@@ -1292,7 +1323,7 @@ activated:
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
-  my $rdr = XML::Reader->new(\$text, {parse_ct => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {parse_ct => 1});
 
   while ($rdr->iterate) {
       if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
@@ -1320,7 +1351,7 @@ option {parse_pi => 1}, which is now activated (together with option {parse_ct =
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
-  my $rdr = XML::Reader->new(\$text, {parse_ct => 1, parse_pi => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {parse_ct => 1, parse_pi => 1});
 
   while ($rdr->iterate) {
       if ($rdr->is_decl)    { my %h = %{$rdr->dec_hash};
@@ -1365,7 +1396,7 @@ Here is an example...
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text);
 
   # the following four alternatives are equivalent:
   # -----------------------------------------------
@@ -1407,7 +1438,7 @@ inside "** **":
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text);
 
   # the following four alternatives are equivalent:
   # -----------------------------------------------
@@ -1491,7 +1522,7 @@ replaced by %{$rdr->att_hash} :
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 3}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 3});
 
   # the following three alternatives are equivalent:
   # ------------------------------------------------
@@ -1556,7 +1587,7 @@ we use L<XML::MinWriter> for that. Here is the program that uses L<XML::MinWrite
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 3}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 3});
   my $wrt = XML::MinWriter->new(OUTPUT => \*STDOUT, NEWLINES => 1);
 
   while ($rdr->iterate) {
@@ -1604,7 +1635,7 @@ Here is an example:
       dskjfh <!-- remark --> uuu
     </delta>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_pi => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_pi => 1});
 
   # the following three alternatives are equivalent:
   # ------------------------------------------------
@@ -1643,7 +1674,7 @@ as can be seen by the following example:
       <!-- remark -->
     </delta>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_ct => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_ct => 1});
 
   # the following three alternatives are equivalent:
   # ------------------------------------------------
@@ -1673,7 +1704,7 @@ C<proc_data>, C<dec_hash> or C<att_hash>) remain operational. Here is an example
       <child>ghi</child>
     </parent>};
 
-  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_ct => 1, parse_pi => 1}) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text, {filter => 4, parse_ct => 1, parse_pi => 1});
 
   # the following three alternatives are equivalent:
   # ------------------------------------------------
@@ -1940,6 +1971,35 @@ biggest possible XML subtree is matched for relative roots. In other words, the 
 <p>b2</p>" on its own line is not possible, because they are already part of the bigger line
 "P: <p><p>b1</p><p>b2</p></p>".
 
+=head1 OPTION DUPATT
+
+Option dupatt allows for multiple attributes to be presented in one single result. To
+achieve this, the duplicates are concatenated using a special concatenation character.
+The list of attributes is then sorted alphabetically.
+
+Option dupatt is only available if XML::Reader has been used with the XML::Parsepp
+option.
+
+For example, the following code allows for duplicate attributes concatenated by character
+"|":
+
+  use XML::Reader qw(XML::Parsepp);
+
+  my $text = q{<data><item a2="abc" a1="def" a2="ghi"></item></data>}
+
+  my $rdr = XML::Reader->new(\$text, {dupatt => '|'});
+  while ($rdr->iterate) {
+      printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
+  }
+
+This program produces the following output:
+
+  Path: /data              , Value:
+  Path: /data/item/@a1     , Value: def
+  Path: /data/item/@a2     , Value: abc|ghi
+  Path: /data/item         , Value:
+  Path: /data              , Value:
+
 =head1 EXAMPLES
 
 Let's look at the following piece of XML from which we want to extract the values in <item>
@@ -1980,7 +2040,7 @@ scalars ('$p1' and '$p3') to hold the parameters in '/@p1' and in '/@p3' and car
 them over to the $rdr->is_start section, where they can be printed.
 
   my $rdr = XML::Reader->new(\$text,
-    {mode => 'attr-bef-start', using => '/start/param/data/item'}) or die "Error: $!";
+    {mode => 'attr-bef-start', using => '/start/param/data/item'});
 
   my ($p1, $p3);
 
@@ -2000,7 +2060,7 @@ With {filter => 3, mode => 'attr-in-hash'} we can dispense with the two scalars 
 becomes very simple:
 
   my $rdr = XML::Reader->new(\$text,
-    {mode => 'attr-in-hash', using => '/start/param/data/item'}) or die "Error: $!";
+    {mode => 'attr-in-hash', using => '/start/param/data/item'});
 
   while ($rdr->iterate) {
       if ($rdr->path eq '/' and $rdr->is_start) {
@@ -2018,7 +2078,7 @@ text-values (see scalar '$count'), so that we can distinguish between the first 
 (that we want to print) and the second value 'end...' (that we do not want to print).
 
   my $rdr = XML::Reader->new(\$text,
-    {mode => 'pyx', using => '/start/param/data/item'}) or die "Error: $!";
+    {mode => 'pyx', using => '/start/param/data/item'});
 
   my ($count, $p1, $p3);
 
@@ -2042,8 +2102,7 @@ text-values (see scalar '$count'), so that we can distinguish between the first 
 You could combine {mode => 'branches'} and regular expressions to parse the XML:
 
   my $rdr = XML::Reader->new(\$text, {mode => 'branches'},
-    { root => '/start/param/data/item', branch => '*' },
-  ) or die "Error: $!";
+    { root => '/start/param/data/item', branch => '*' });
 
   while ($rdr->iterate) {
       if ($rdr->value =~ m{\A <item

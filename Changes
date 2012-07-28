@@ -196,3 +196,10 @@ Revision history for XML-Reader
 0.40    24 Jun 2012
         Allow XML::Reader to use the pure perl parser XML::Parsepp as an alternative to the
         usual XML::Parser.
+
+0.41    28 Jul 2012
+        Change the way XML::Reader->new is used: (XML::Reader->new() now throws an
+        exception)
+        Old way: my $rdr = XML::Reader->new('test.xml') or die "Error: $!";
+        New way: my $rdr = eval{ XML::Reader->new('test.xml') } or die "Error: $@";
+        or new : my $rdr = XML::Reader->new('test.xml');
