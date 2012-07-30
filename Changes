@@ -203,3 +203,6 @@ Revision history for XML-Reader
         Old way: my $rdr = XML::Reader->new('test.xml') or die "Error: $!";
         New way: my $rdr = eval{ XML::Reader->new('test.xml') } or die "Error: $@";
         or new : my $rdr = XML::Reader->new('test.xml');
+
+0.42    30 Jul 2012
+        Add test file 0040_test_Module.t

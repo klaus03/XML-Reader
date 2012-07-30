@@ -10,5 +10,6 @@ lib/XML/Reader_de.pod
 t/0010_test_Module.t
 t/0020_test_Module.t
 t/0030_test_Module.t
+t/0040_test_Module.t
 META.yml
 META.json
