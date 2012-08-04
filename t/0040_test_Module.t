@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 10;
+use Test::More tests => 18;
 
 use_ok('XML::Reader');
 
@@ -17,6 +17,42 @@ use_ok('XML::Reader');
     is($result[ 2], '<@a2:abc|ghi>',    'Test-D010-0050: Check element');
     is($result[ 3], '<item:>',          'Test-D010-0060: Check element');
     is($result[ 4], '<data:>',          'Test-D010-0070: Check element');
+}
+
+{
+    XML::Reader::activate('XML::Parsepp');
+
+    my ($errflag, @result) = test_func(q{<data><item a2="abc" a1="def" a2="ghi"></item></data>}, {dupatt => 'é'});
+
+    like($errflag, qr{invalid \s dupatt}xms, 'Test-D012-0010: error');
+    is(scalar(@result), 0,                       'Test-D012-0020: Find 0 elements');
+}
+
+{
+    XML::Reader::activate('XML::Parsepp');
+
+    my ($errflag, @result) = test_func(q{<data><item a2="abc" a1="def" a2="ghi"></item></data>}, {dupatt => 'a'});
+
+    like($errflag, qr{invalid \s dupatt}xms, 'Test-D013-0010: error');
+    is(scalar(@result), 0,                       'Test-D013-0020: Find 0 elements');
+}
+
+{
+    XML::Reader::activate('XML::Parsepp');
+
+    my ($errflag, @result) = test_func(q{<data><item a2="abc" a1="def" a2="ghi"></item></data>}, {dupatt => q{'}});
+
+    like($errflag, qr{invalid \s dupatt}xms, 'Test-D014-0010: error');
+    is(scalar(@result), 0,                       'Test-D014-0020: Find 0 elements');
+}
+
+{
+    XML::Reader::activate('XML::Parsepp');
+
+    my ($errflag, @result) = test_func(q{<data><item a2="abc" a1="def" a2="ghi"></item></data>}, {dupatt => q{"}});
+
+    like($errflag, qr{invalid \s dupatt}xms, 'Test-D015-0010: error');
+    is(scalar(@result), 0,                       'Test-D015-0020: Find 0 elements');
 }
 
 {

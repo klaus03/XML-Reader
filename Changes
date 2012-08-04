@@ -206,3 +206,10 @@ Revision history for XML-Reader
 
 0.42    30 Jul 2012
         Add test file 0040_test_Module.t
+
+0.43    04 Aug 2012
+        Add a new option "dupatt" to XML::Reader->new() to allow for duplicate
+        attributes: (only valid when used in conjunction with "use XML::Reader qw(XML::Parsepp);")
+        my $rdr = XML::Reader->new('test.xml', {dupatt => '|'});
+        The concatenation string {dupatt => $str} is restricted to printable ascii excluding alphanumeric, " and '
+        Include explicit dependency on version 0.04 of XML::Parsepp

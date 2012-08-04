@@ -1181,7 +1181,8 @@ spezielles Trennzeichen verbunden. Die Attributliste wird in diesem Falle alphab
 
 Die Option dupatt ist nur dann mE<ouml>glich wenn XML::Reader mit der Option XML::Parsepp eingebunden wurde.
 
-Das folgende Beispiel zeigt die Verwendung der Option dupatt:
+Das folgende Beispiel zeigt die Verwendung der Option dupatt: (Der Verbindungs String {dupatt => $str} ist
+begrenzt auf druckbare Ascii-Zeichen ausser alphanumerische Zeichen, " oder ')
 
   use XML::Reader qw(XML::Parsepp);
 

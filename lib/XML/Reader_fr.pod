@@ -1171,6 +1171,8 @@ L'option dupatt est valable uniquement si XML::Reader a E<eacute>tE<eacute> util
 XML::Parsepp.
 
 Par exemple, le code suivant concatE<egrave>ne les attribut doublons avec le caractE<egrave>re "|":
+(La chaE<icirc>ne de caractE<egrave>res ($str) {dupatt => $str} est limitE<eacute> E<agrave> des
+caractE<egrave>res Ascii visibles, sauf les caractE<egrave>res alpha-numE<eacute>riques, ' ou ")
 
   use XML::Reader qw(XML::Parsepp);
 

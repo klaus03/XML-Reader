@@ -1,4 +1,4 @@
-XML-Reader Version 0.42
+XML-Reader Version 0.43
 
 Reading XML and providing path information based on a pull-parser.
 
@@ -8,7 +8,7 @@ SYNOPSIS
 
   my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
-  my $rdr = XML::Reader->new(\$text) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$text);
   while ($rdr->iterate) {
       printf "Path: %-19s, Value: %s\n", $rdr->path, $rdr->value;
   }
@@ -73,7 +73,7 @@ DESCRIPTION
 
   use XML::Reader;
 
-  my $rdr = XML::Reader->new(\$line1) or die "Error: $!";
+  my $rdr = XML::Reader->new(\$line1);
   my $i = 0;
   while ($rdr->iterate) { $i++;
       printf "%3d. pat=%-22s, val=%-9s, s=%-1s, e=%-1s, tag=%-6s, atr=%-6s, t=%-1s, lvl=%2d\n", $i,
