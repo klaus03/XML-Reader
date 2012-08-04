@@ -1383,6 +1383,24 @@ donnE<eacute>es dans un seul coup dans une structure en mE<eacute>moire. En reva
 est que slurp_xml permet de spE<eacute>cifier les donnE<eacute>es qu'on veut avant de faire l'aspiration, ce qui
 rE<eacute>sulte dans une structure en mE<eacute>moire souvent plus petite et moins compliquE<eacute>e.
 
+On peut utiliser slurp_xml() avec des attributs doublons. Dans ce cas il faut faire deux choses: PremiE<egrave>rement
+il faut faire un "use XML::Reader" avec "qw(XML::Parsepp slurp_xml)". DeuxiE<egrave>mement il faut faire appel
+E<agrave> slurp_xml avec l'option { dupatt => '|' }, comme dans l'exemple ci-dessous:
+
+  use XML::Reader qw(XML::Parsepp slurp_xml);
+
+  my $line3 = q{<data atr1='abc' atr2='def' atr1='ghi'></data>};
+
+  my $aref = slurp_xml(\$line3,
+    { dupatt => '|' },
+    { root => '/', branch => '*' });
+
+  print $aref->[0][0], "\n";
+
+Voici le rE<eacute>sultat:
+
+  <data atr1='abc|ghi' atr2='def'></data>
+
 =head1 AUTEUR
 
 Klaus Eichner, Mars 2009

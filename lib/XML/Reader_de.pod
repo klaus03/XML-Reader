@@ -1393,6 +1393,24 @@ in einem Rutsch in einer Speicherstruktur abgelegt werden. Der Unterschied jedoc
 spezifische Daten zu selektieren bevor das Einlesen beginnt. Dieses hat zur Folge dass die sich ergebende
 Speicherstruktur meistens kleiner ist, und damit auch weniger kompliziert.
 
+Man kann slurp_xml auch beauftragen doppelte Attribute zu verwalten. In diesem Falle muss man zwei Dinge beachten:
+Erstens muss man ein "use XML::Reader" mit folgenden optionen: "qw(XML::Parsepp slurp_xml)" ausfuehren. Zum zweiten
+muss man slurp_xml mit der option { dupatt => '|' } aufrufen, wie das folgende Beispiel belegt:
+
+  use XML::Reader qw(XML::Parsepp slurp_xml);
+
+  my $line3 = q{<data atr1='abc' atr2='def' atr1='ghi'></data>};
+
+  my $aref = slurp_xml(\$line3,
+    { dupatt => '|' },
+    { root => '/', branch => '*' });
+
+  print $aref->[0][0], "\n";
+
+Hier ist das Ergebnis:
+
+  <data atr1='abc|ghi' atr2='def'></data>
+
 =head1 AUTOR
 
 Klaus Eichner, March 2009

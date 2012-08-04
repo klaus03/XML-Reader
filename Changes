@@ -213,3 +213,7 @@ Revision history for XML-Reader
         my $rdr = XML::Reader->new('test.xml', {dupatt => '|'});
         The concatenation string {dupatt => $str} is restricted to printable ascii excluding alphanumeric, " and '
         Include explicit dependency on version 0.04 of XML::Parsepp
+
+0.44    04 Aug 2012
+        Allow { dupatt => '|' } with slurp_xml()
+        Allow { root => '/' } with { filter => 5 } / slurp_xml()

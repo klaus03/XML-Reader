@@ -10,7 +10,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.43';
+our $VERSION     = '0.44';
 
 my $use_module;
 
@@ -331,6 +331,25 @@ sub iterate {
 
         if ($token->found_start_tag) {
             push @{$self->{plist}}, $token->extract_tag;
+
+            # addition for XML::Reader ver 0.44 (04 Aug 2012)
+            # Allow { root => '/' } with { filter => 5 } / slurp_xml()
+            # ... that means we manipulate $self->{rlist}[...]{root} to
+            # transform '/' into '/root' as soon as we encounter the start-
+            # tag of the root:
+
+            if (@{$self->{plist}} == 1) {
+                for my $r (0..$#{$self->{rlist}}) {
+                    my $param = $self->{rlist}[$r];
+
+                    if (defined $param->{root} and $param->{root} eq '/') {
+                        $param->{root} = '/'.$token->extract_tag;
+                    }
+                }
+            }
+
+            # end of addition for XML::Reader ver 0.44 (04 Aug 2012)
+
             redo;
         }
 
@@ -787,9 +806,21 @@ sub DESTROY {
 sub slurp_xml {
     my $data = shift;
 
-    my @tree = map {[]} @_; # start with as many empty lists as there are roots 
+    my @roots;
+    my $filter = { filter => 5 };
 
-    my $rdr = XML::Reader->new($data, {filter => 5}, @_);
+    for my $r (@_) {
+        if (defined $r->{dupatt}) {
+            $filter->{dupatt} = $r->{dupatt};
+        }
+        else {
+            push @roots, $r;
+        }
+    }
+
+    my @tree = map {[]} @roots; # start with as many empty lists as there are roots 
+
+    my $rdr = XML::Reader->new($data, $filter, @roots);
 
     while ($rdr->iterate) {
         push @{$tree[$rdr->rx]}, $rdr->rvalue;
@@ -803,7 +834,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.43';
+our $VERSION = '0.44';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -2188,6 +2219,24 @@ slurp_xml works similar to L<XML::Simple>, in that it reads all required informa
 an in-memory data structure. The difference, however, is that slurp_xml lets you be specific in what
 you actually want before you do the slurping, so that in most cases your in-memory data structure is
 smaller and less complicated.
+
+You can instruct slurp_xml to allow duplicate attributes. In this case you need to do two things:
+One, you need to use XML::Reader with both qw(XML::Parsepp slurp_xml). Two, you need to call
+slurp_xml with option { dupatt => '|' }, like so:
+
+  use XML::Reader qw(XML::Parsepp slurp_xml);
+
+  my $line3 = q{<data atr1='abc' atr2='def' atr1='ghi'></data>};
+
+  my $aref = slurp_xml(\$line3,
+    { dupatt => '|' },
+    { root => '/', branch => '*' });
+
+  print $aref->[0][0], "\n";
+
+Here is the output:
+
+  <data atr1='abc|ghi' atr2='def'></data>
 
 =head1 AUTHOR
 

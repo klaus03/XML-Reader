@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 18;
+use Test::More tests => 22;
 
 use_ok('XML::Reader');
 
@@ -25,7 +25,7 @@ use_ok('XML::Reader');
     my ($errflag, @result) = test_func(q{<data><item a2="abc" a1="def" a2="ghi"></item></data>}, {dupatt => 'é'});
 
     like($errflag, qr{invalid \s dupatt}xms, 'Test-D012-0010: error');
-    is(scalar(@result), 0,                       'Test-D012-0020: Find 0 elements');
+    is(scalar(@result), 0,                   'Test-D012-0020: Find 0 elements');
 }
 
 {
@@ -34,7 +34,7 @@ use_ok('XML::Reader');
     my ($errflag, @result) = test_func(q{<data><item a2="abc" a1="def" a2="ghi"></item></data>}, {dupatt => 'a'});
 
     like($errflag, qr{invalid \s dupatt}xms, 'Test-D013-0010: error');
-    is(scalar(@result), 0,                       'Test-D013-0020: Find 0 elements');
+    is(scalar(@result), 0,                   'Test-D013-0020: Find 0 elements');
 }
 
 {
@@ -43,7 +43,7 @@ use_ok('XML::Reader');
     my ($errflag, @result) = test_func(q{<data><item a2="abc" a1="def" a2="ghi"></item></data>}, {dupatt => q{'}});
 
     like($errflag, qr{invalid \s dupatt}xms, 'Test-D014-0010: error');
-    is(scalar(@result), 0,                       'Test-D014-0020: Find 0 elements');
+    is(scalar(@result), 0,                   'Test-D014-0020: Find 0 elements');
 }
 
 {
@@ -52,7 +52,7 @@ use_ok('XML::Reader');
     my ($errflag, @result) = test_func(q{<data><item a2="abc" a1="def" a2="ghi"></item></data>}, {dupatt => q{"}});
 
     like($errflag, qr{invalid \s dupatt}xms, 'Test-D015-0010: error');
-    is(scalar(@result), 0,                       'Test-D015-0020: Find 0 elements');
+    is(scalar(@result), 0,                   'Test-D015-0020: Find 0 elements');
 }
 
 {
@@ -61,7 +61,49 @@ use_ok('XML::Reader');
     my ($errflag, @result) = test_func(q{<data><item a2="abc" a1="def" a2="ghi"></item></data>}, {dupatt => '|'});
 
     like($errflag, qr{Failed \s assertion \s \#0035 \s in \s XML::Reader->new:}xms,    'Test-D020-0010: error');
-    is(scalar(@result), 0,                         'Test-D020-0020: Find 0 elements');
+    is(scalar(@result), 0,                                                             'Test-D020-0020: Find 0 elements');
+}
+
+{
+    XML::Reader::activate('XML::Parsepp');
+
+    my $line3 = q{<data atr1='abc' atr2='def' atr1='ghi'></data>};
+
+    my $aref = eval{ XML::Reader::slurp_xml(\$line3,
+      { dupatt => '|' },
+      { root => '/', branch => '*' }) };
+
+    my $errflag = $@ ? $@ : '';
+
+    is($errflag, '',                                              'Test-D030-0010: no error');
+    is($aref->[0][0], q{<data atr1='abc|ghi' atr2='def'></data>}, 'Test-D030-0020: result');
+}
+
+{
+    XML::Reader::activate('XML::Parsepp');
+
+    my $line3 = q{<data atr1='abc' atr2='def' atr1='ghi'></data>};
+
+    my $aref = eval{ XML::Reader::slurp_xml(\$line3,
+      { root => '/', branch => '*' }) };
+
+    my $errflag = $@ ? $@ : '';
+
+    like($errflag, qr{duplicate \s attribute}xms,    'Test-D032-0010: error');
+}
+
+{
+    XML::Reader::activate('XML::Parser');
+
+    my $line3 = q{<data atr1='abc' atr2='def' atr1='ghi'></data>};
+
+    my $aref = eval{ XML::Reader::slurp_xml(\$line3,
+      { dupatt => '|' },
+      { root => '/', branch => '*' }) };
+
+    my $errflag = $@ ? $@ : '';
+
+    like($errflag, qr{Failed \s assertion \s \#0035 \s in \s XML::Reader->new:}xms,    'Test-D034-0010: error');
 }
 
 sub test_func {
