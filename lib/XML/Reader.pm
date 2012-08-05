@@ -10,7 +10,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.44';
+our $VERSION     = '0.45';
 
 my $use_module;
 
@@ -153,8 +153,8 @@ sub new {
     # returns an object of type XML::Parser/XML::Parsepp::ExpatNB. The XML::Parser/XML::Parsepp::ExpatNB object
     # is where all the heavy lifting happens.
 
-    # By calling the XML::Parser/XML::Parsepp::Expat->new method (-- XML::Parser/XML::Parsepp::Expat is a super-class
-    # of XML::Parser/XML::Parsepp::ExpatNB --) we will have created a circular reference in
+    # By calling the XML::Parser/XML::Parsepp::Expat->new method (-- XML::Parser::Expat is a super-class
+    # of XML::Parser::ExpatNB --) we will have created a circular reference in
     # $self->{ExpatNB}{parser}.
     #
     # (-- unfortunately, the circular reference does not show up in Data::Dumper, there
@@ -167,7 +167,7 @@ sub new {
     
     # This means that, in order to avoid a memory leak, we have to break this circular
     # reference when we are done with the processing. The breaking of the circular reference
-    # will be performed in XML::Reader->DESTROY, which calls XML::Parser/XML::Parsepp::Expat->release.
+    # will be performed in XML::Reader->DESTROY, which calls XML::Parser::Expat->release.
 
     # This is an important moment (-- in terms of memory management, at least --).
     # XML::Parser/XML::Parsepp->parse_start creates an XML::Parser/XML::Parsepp::ExpatNB-object, which in turn generates
@@ -338,15 +338,15 @@ sub iterate {
             # transform '/' into '/root' as soon as we encounter the start-
             # tag of the root:
 
-            if (@{$self->{plist}} == 1) {
-                for my $r (0..$#{$self->{rlist}}) {
-                    my $param = $self->{rlist}[$r];
+            #~ if (@{$self->{plist}} == 1) {
+                #~ for my $r (0..$#{$self->{rlist}}) {
+                    #~ my $param = $self->{rlist}[$r];
 
-                    if (defined $param->{root} and $param->{root} eq '/') {
-                        $param->{root} = '/'.$token->extract_tag;
-                    }
-                }
-            }
+                    #~ if (defined $param->{root} and $param->{root} eq '/') {
+                        #~ $param->{root} = '/'.$token->extract_tag;
+                    #~ }
+                #~ }
+            #~ }
 
             # end of addition for XML::Reader ver 0.44 (04 Aug 2012)
 
@@ -474,11 +474,21 @@ sub iterate {
                 }
 
                 if (defined $root) {
-                    if ($self->{path} eq $root) {
-                        $twig = '/';
+                    if ($root eq '/') {
+                        if (@{$self->{plist}} == 1) {
+                            $twig = '/';
+                        }
+                        elsif (@{$self->{plist}} > 1) {
+                            $twig = substr($self->{path}, length('/'.$self->{plist}[0]));
+                        }
                     }
-                    elsif (substr($self->{path}, 0, length($root) + 1) eq $root.'/') {
-                        $twig = substr($self->{path}, length($root));
+                    else {
+                        if ($self->{path} eq $root) {
+                            $twig = '/';
+                        }
+                        elsif (substr($self->{path}, 0, length($root) + 1) eq $root.'/') {
+                            $twig = substr($self->{path}, length($root));
+                        }
                     }
                 }
 
@@ -776,27 +786,27 @@ sub convert_structure {
 sub DESTROY {
     my $self = shift;
 
-    # There are circular references inside an XML::Parser/XML::Parsepp::ExpatNB-object
-    # which need to be cleaned up by calling XML::Parser/XML::Parsepp::Expat->release.
+    # There are circular references inside an XML::Parser::ExpatNB-object
+    # which need to be cleaned up by calling XML::Parser::Expat->release.
 
-    # I quote from the documentation of 'XML::Parser/XML::Parsepp::Expat' (-- XML::Parser/XML::Parsepp::Expat
-    # is a super-class of XML::Parser/XML::Parsepp::ExpatNB --)
+    # I quote from the documentation of 'XML::Parser::Expat' (-- XML::Parser::Expat
+    # is a super-class of XML::Parser::ExpatNB --)
     #
     # >> ------------------------------------------------------------------------
     # >> =item release
     # >>
-    # >> There are data structures used by XML::Parser/XML::Parsepp::Expat that have circular
+    # >> There are data structures used by XML::Parser::Expat that have circular
     # >> references. This means that these structures will never be garbage
     # >> collected unless these references are explicitly broken. Calling this
     # >> method breaks those references (and makes the instance unusable.)
     # >>
     # >> Normally, higher level calls handle this for you, but if you are using
-    # >> XML::Parser/XML::Parsepp::Expat directly, then it's your responsibility to call it.
+    # >> XML::Parser::Expat directly, then it's your responsibility to call it.
     # >> ------------------------------------------------------------------------
 
-    # There is a possibility that the XML::Parser/XML::Parsepp::ExpatNB-object did not get
+    # There is a possibility that the XML::Parser::ExpatNB-object did not get
     # created, while still blessing the XML::Reader object. Therefore we have to
-    # test for this case before calling XML::Parser/XML::Parsepp::ExpatNB->release.
+    # test for this case before calling XML::Parser::ExpatNB->release.
 
     if ($self->{ExpatNB}) {
         $self->{ExpatNB}->release; # ...and not $self->{ExpatNB}->parse_done;
@@ -834,7 +844,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.44';
+our $VERSION = '0.45';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
