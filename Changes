@@ -220,3 +220,6 @@ Revision history for XML-Reader
 
 0.45    05 Aug 2012
         Refactor the code that allows { root => '/' } with { filter => 5 } / slurp_xml()
+
+0.46    06 Aug 2012
+        Error correction in the code that allows { root => '/' } with { filter => 5 } / slurp_xml()

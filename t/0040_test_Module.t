@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 22;
+use Test::More tests => 24;
 
 use_ok('XML::Reader');
 
@@ -104,6 +104,21 @@ use_ok('XML::Reader');
     my $errflag = $@ ? $@ : '';
 
     like($errflag, qr{Failed \s assertion \s \#0035 \s in \s XML::Reader->new:}xms,    'Test-D034-0010: error');
+}
+
+{
+    XML::Reader::activate('XML::Parsepp');
+
+    my $line3 = q{<data><test1>abc</test1><test2>def</test2></data>};
+
+    my $aref = eval{ XML::Reader::slurp_xml(\$line3,
+      { dupatt => '|' },
+      { root => '/', branch => ['/does/not/exist', '/data/test1', '/does/not/exist/either'] }) };
+
+    my $errflag = $@ ? $@ : '';
+
+    is($errflag, '',             'Test-D040-0010: no error');
+    is($aref->[0][0][1], q{abc}, 'Test-D040-0020: result');
 }
 
 sub test_func {

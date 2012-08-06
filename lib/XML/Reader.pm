@@ -10,7 +10,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.45';
+our $VERSION     = '0.46';
 
 my $use_module;
 
@@ -479,7 +479,7 @@ sub iterate {
                             $twig = '/';
                         }
                         elsif (@{$self->{plist}} > 1) {
-                            $twig = substr($self->{path}, length('/'.$self->{plist}[0]));
+                            $twig = $self->{path};
                         }
                     }
                     else {
@@ -844,7 +844,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.45';
+our $VERSION = '0.46';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
