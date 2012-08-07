@@ -10,7 +10,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.46';
+our $VERSION     = '0.47';
 
 my $use_module;
 
@@ -331,25 +331,6 @@ sub iterate {
 
         if ($token->found_start_tag) {
             push @{$self->{plist}}, $token->extract_tag;
-
-            # addition for XML::Reader ver 0.44 (04 Aug 2012)
-            # Allow { root => '/' } with { filter => 5 } / slurp_xml()
-            # ... that means we manipulate $self->{rlist}[...]{root} to
-            # transform '/' into '/root' as soon as we encounter the start-
-            # tag of the root:
-
-            #~ if (@{$self->{plist}} == 1) {
-                #~ for my $r (0..$#{$self->{rlist}}) {
-                    #~ my $param = $self->{rlist}[$r];
-
-                    #~ if (defined $param->{root} and $param->{root} eq '/') {
-                        #~ $param->{root} = '/'.$token->extract_tag;
-                    #~ }
-                #~ }
-            #~ }
-
-            # end of addition for XML::Reader ver 0.44 (04 Aug 2012)
-
             redo;
         }
 
@@ -458,6 +439,7 @@ sub iterate {
                 my $param = $self->{rlist}[$r];
 
                 my $twig;
+                my $border;
 
                 my $root;
                 if (defined $param->{root}) {
@@ -476,18 +458,22 @@ sub iterate {
                 if (defined $root) {
                     if ($root eq '/') {
                         if (@{$self->{plist}} == 1) {
-                            $twig = '/';
+                            $twig = $self->{path};
+                            $border = 1;
                         }
                         elsif (@{$self->{plist}} > 1) {
                             $twig = $self->{path};
+                            $border = 0;
                         }
                     }
                     else {
                         if ($self->{path} eq $root) {
                             $twig = '/';
+                            $border = 1;
                         }
                         elsif (substr($self->{path}, 0, length($root) + 1) eq $root.'/') {
                             $twig = substr($self->{path}, length($root));
+                            $border = 0;
                         }
                     }
                 }
@@ -495,7 +481,7 @@ sub iterate {
                 next unless defined $twig;
 
                 if (ref $param->{branch}) { # here we have an array of branches...
-                    if ($twig eq '/' and $self->{is_start}) {
+                    if ($border and $self->{is_start}) {
                         $self->{bush}[$r] = [];
                     }
 
@@ -509,13 +495,13 @@ sub iterate {
                     }
                 }
                 elsif ($param->{branch} eq '+') { # collect PYX array, addition for ver 0.39 (Klaus Eichner, 28th Oct 2011)
-                    if ($twig eq '/' and $self->{is_start}) {
+                    if ($border and $self->{is_start}) {
                         $self->{bush}[$r] = [];
                     }
                     push @{$self->{bush}[$r]}, $self->{pyx};
                 }
                 elsif ($param->{branch} eq '*') { # collect pure XML data, addition for ver 0.34 (Klaus Eichner, 26th Apr 2010)
-                    if ($twig eq '/' and $self->{is_start}) {
+                    if ($border and $self->{is_start}) {
                         $self->{bush}[$r] = '';
                     }
 
@@ -578,7 +564,7 @@ sub iterate {
                     $self->{bush}[$r] .= $element;
                 }
 
-                if ($twig eq '/' and $self->{is_end}) {
+                if ($border and $self->{is_end}) {
                     push @{$self->{rresult}}, [$r, $self->{bush}[$r]];
                     $param->{qrfix} = undef;
                 }
@@ -844,7 +830,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.46';
+our $VERSION = '0.47';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -904,6 +890,11 @@ You can also wrap the call to XML::Reader->new(...) into an eval {...} to check 
   }
 
 =head1 USAGE
+
+Normally, you don't use XML::Reader directly, you use either XML::Reader::RS (which uses XML::Parser) or
+you use XML::Reader::PP (which uses XML::Parsepp).
+
+However, if you use XML::Reader directly, here is how you switch between XML::Parser and XML::Parsepp:
 
 XML::Reader uses XML::Parser as the underlying Parser module. That works very well, except for cases where
 people don't have a C-compiler available to install XML::Parser. In those cases, XML::Parsepp can be used
@@ -2272,6 +2263,8 @@ L<XML::TokeParser>,
 L<XML::Simple>,
 L<XML::Parser>,
 L<XML::Parsepp>,
+L<XML::Reader::RS>,
+L<XML::Reader::PP>,
 L<XML::Parser::Expat>,
 L<XML::TiePYX>,
 L<XML::Writer>,

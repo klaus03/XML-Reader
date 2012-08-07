@@ -223,3 +223,10 @@ Revision history for XML-Reader
 
 0.46    06 Aug 2012
         Error correction in the code that allows { root => '/' } with { filter => 5 } / slurp_xml()
+
+0.47    07 Aug 2012
+        Remove the dependencies on XML::Parser and XML::Parsepp and refactor/move the tests
+        out into XML::Reader::Testcases. The tests will later be called by the new modules
+        XML::Reader::PP and by XML::Reader::RS
+        Yet more error correction in the code that allows { root => '/' } with { filter => 5 }
+        / slurp_xml()

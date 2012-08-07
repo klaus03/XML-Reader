@@ -41,8 +41,13 @@ ob der Aufruf erfolgreich war:
       # ... do some error handling ...
   }
 
-
 =head1 BENUTZUNG
+
+Normalerweise benutzt man XML::Reader nicht direkt, sondern man benutzt entweder XML::Reader::RS (welches XML::Parser
+benutzt) oder man benutzt XML::Reader::PP (welches XML::Parsepp benutzt).
+
+Falls man dennoch XML::Reader direkt benutzen will, hier ist die Beschreibung wie man zwischen XML::Parser und XML::Parsepp
+auswE<auml>hlt:
 
 XML::Reader benutzt XML::Parser als Parser Modul. Das funktioniert sehr gut, ausser in den FE<auml>llen in denen kein
 C-compiler zur verfE<uuml>gung steht um XML::Parser zu installieren. In diesen FE<auml>llen kann XML::Parsepp 
@@ -1439,6 +1444,8 @@ L<XML::TokeParser>,
 L<XML::Simple>,
 L<XML::Parser>,
 L<XML::Parsepp>,
+L<XML::Reader::RS>,
+L<XML::Reader::PP>,
 L<XML::Parser::Expat>,
 L<XML::TiePYX>,
 L<XML::Writer>,

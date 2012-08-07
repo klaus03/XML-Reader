@@ -7,9 +7,7 @@ README
 lib/XML/Reader.pm
 lib/XML/Reader_fr.pod
 lib/XML/Reader_de.pod
-t/0010_test_Module.t
-t/0020_test_Module.t
-t/0030_test_Module.t
-t/0040_test_Module.t
+lib/XML/Reader/Testcases.pm
+t/0010_test_functions.t
 META.yml
 META.json
