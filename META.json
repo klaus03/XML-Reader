@@ -32,15 +32,15 @@
       },
       "XML::Reader" : {
          "file" : "lib/XML/Reader.pm",
-         "version" : "0.47"
+         "version" : "0.48"
       },
       "XML::Reader::Testcases" : {
          "file" : "lib/XML/Reader/Testcases.pm",
-         "version" : "0.47"
+         "version" : "0.48"
       },
       "XML::Reader::Token" : {
          "file" : "lib/XML/Reader.pm",
-         "version" : "0.47"
+         "version" : "0.48"
       }
    },
    "release_status" : "stable",
@@ -49,5 +49,5 @@
          "http://dev.perl.org/licenses/"
       ]
    },
-   "version" : "0.47"
+   "version" : "0.48"
 }

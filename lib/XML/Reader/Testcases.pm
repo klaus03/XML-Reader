@@ -9,16 +9,11 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(Get_TestCntr Get_TestProg) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.47';
+our $VERSION     = '0.48';
 
-my %TestCntr;
-my %TestProg;
+our %TestProg;
 
-sub Get_TestCntr { $TestCntr{$_[0]} }
-sub Get_TestProg { $TestProg{$_[0]} }
-
-$TestCntr{'0010_test_Module.t'} = 67;
-$TestProg{'0010_test_Module.t'} = sub {
+$TestProg{'0010_test_Module.t'} = [67, sub {
     my ($XML_Reader_Any) = @_;
 
     Test::More::use_ok($XML_Reader_Any);
@@ -504,10 +499,9 @@ $TestProg{'0010_test_Module.t'} = sub {
         Test::More::is(substr($v_pi1,      0, 3).'...'.substr($v_pi1,      -3), 'z01...123', 'content of variable $v_pi1');
         Test::More::is(substr($v_pi2,      0, 3).'...'.substr($v_pi2,      -3), '456...678', 'content of variable $v_pi2');
     }
-};
+}];
 
-$TestCntr{'0020_test_Module.t'} = 273;
-$TestProg{'0020_test_Module.t'} = sub {
+$TestProg{'0020_test_Module.t'} = [273, sub {
     my ($XML_Reader_Any) = @_;
 
     Test::More::use_ok($XML_Reader_Any, qw(slurp_xml));
@@ -1624,10 +1618,9 @@ $TestProg{'0020_test_Module.t'} = sub {
         Test::More::is($lines[ 0], q{<p><p>b1</p><p>b2</p></p>}, 'Pod-Test case no 22: line  0');
         Test::More::is($lines[ 1], q{<p>b3</p>},                 'Pod-Test case no 22: line  1');
     }
-};
+}];
 
-$TestCntr{'0030_test_Module.t'} = 29;
-$TestProg{'0030_test_Module.t'} = sub {
+$TestProg{'0030_test_Module.t'} = [29, sub {
     my ($XML_Reader_Any) = @_;
 
     Test::More::use_ok($XML_Reader_Any);
@@ -1731,7 +1724,7 @@ $TestProg{'0030_test_Module.t'} = sub {
         my %d; while ($rdr->iterate) { %d = (%d, %{$rdr->dec_hash}); }
         Test::More::is(join(' ', map {"$_='$d{$_}'"} sort keys %d), q{encoding='iso-8859-1' standalone='yes' version='1.0'}, 'test-decl-004: <?xml version="1.0" encoding="iso-8859-1" standalone="yes"?>');
     }
-};
+}];
 
 {
     package DebCnt;

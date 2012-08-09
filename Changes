@@ -230,3 +230,6 @@ Revision history for XML-Reader
         XML::Reader::PP and by XML::Reader::RS
         Yet more error correction in the code that allows { root => '/' } with { filter => 5 }
         / slurp_xml()
+
+0.48    09 Aug 2012
+        Refactor Test cases in XML::Reader::Testcases.
