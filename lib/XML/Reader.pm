@@ -10,7 +10,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.48';
+our $VERSION     = '0.49';
 
 my $use_module;
 
@@ -33,11 +33,9 @@ sub import {
         }
     }
 
-    unless (defined $act_module) {
-        $act_module = 'XML::Parser';
+    if (defined $act_module) {
+        activate($act_module);
     }
-
-    activate($act_module);
 
     XML::Reader->export_to_level(1, $calling_module, @plist);
 }
@@ -830,7 +828,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.48';
+our $VERSION = '0.49';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }

@@ -233,3 +233,7 @@ Revision history for XML-Reader
 
 0.48    09 Aug 2012
         Refactor Test cases in XML::Reader::Testcases.
+
+0.49    09 Aug 2012
+        Make "use XML::Reader" (without any arguments) not load any of the modules "XML::Parser"
+        or "XML::Parsepp".
