@@ -156,7 +156,7 @@ Um ein Objekt vom Typ XML::Reader zu erstellen, wird folgende Syntax verwendet:
     {strip => 1, filter => 2, using => ['/path1', '/path2']});
 
 Der Parameter $data (welcher immer mit angegeben werden muss) ist entweder der Name einer
-XML-Datei, oder eine Referenz auf eine Zeichenkette (sodass der Inhalt dieser Zeichenkette
+XML-Datei, oder eine URL die mit 'http://...' beginnt, oder eine Referenz auf eine Zeichenkette (sodass der Inhalt dieser Zeichenkette
 als XML verarbeitet werden kann), oder ein zuvor geE<ouml>ffnetes Dateihandle, z.B. \*STDIN, (in diesem
 Fall wird einfach das Filehandle benutzt um die XML-Daten zu lesen).
 

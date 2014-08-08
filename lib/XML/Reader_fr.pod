@@ -150,8 +150,9 @@ Pour crE<eacute>er un objet, on utilise la syntaxe suivante:
   my $rdr = XML::Reader->new($data,
     {strip => 1, filter => 2, using => ['/path1', '/path2']});
 
-L'E<eacute>lE<eacute>ment $data est obligatoire, il est le nom d'un fichier XML, ou la rE<eacute>fE<eacute>rence E<agrave> une chaE<icirc>ne de
-caractE<egrave>res, dans ce cas le contenu de cette chaE<icirc>ne de caractE<egrave>res est acceptE<eacute> comme XML.
+L'E<eacute>lE<eacute>ment $data est obligatoire, il est le nom d'un fichier XML, ou une URL qui commence par 'http://...', ou
+la rE<eacute>fE<eacute>rence E<agrave> une chaE<icirc>ne de caractE<egrave>res, dans ce cas le contenu de cette chaE<icirc>ne
+de caractE<egrave>res est acceptE<eacute> comme XML.
 
 Sinon, $data peut E<eacute>galement E<ecirc>tre une rE<eacute>fE<eacute>rence E<agrave> un fichier, comme par exemple \*STDIN. Dans ce cas,
 la rE<eacute>fE<eacute>rence de fichier est utiliser pour lire le XML.

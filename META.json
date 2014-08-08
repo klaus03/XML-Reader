@@ -1,10 +1,8 @@
 {
    "abstract" : "Reading XML and providing path information based on a pull-parser",
-   "author" : [
-      "unknown"
-   ],
+   "author" : [],
    "dynamic_config" : 1,
-   "generated_by" : "Module::Build version 0.3901, CPAN::Meta::Converter version 2.120630",
+   "generated_by" : "Module::Build version 0.4205",
    "license" : [
       "perl_5"
    ],
@@ -21,26 +19,26 @@
       },
       "runtime" : {
          "requires" : {
-            "Carp" : "0"
+            "Carp" : "0",
+            "Net::HTTP" : "0"
          }
       }
    },
    "provides" : {
       "DebCnt" : {
-         "file" : "lib/XML/Reader/Testcases.pm",
-         "version" : 0
+         "file" : "lib/XML/Reader/Testcases.pm"
       },
       "XML::Reader" : {
          "file" : "lib/XML/Reader.pm",
-         "version" : "0.49"
+         "version" : "0.50"
       },
       "XML::Reader::Testcases" : {
          "file" : "lib/XML/Reader/Testcases.pm",
-         "version" : "0.49"
+         "version" : "0.50"
       },
       "XML::Reader::Token" : {
          "file" : "lib/XML/Reader.pm",
-         "version" : "0.49"
+         "version" : "0.50"
       }
    },
    "release_status" : "stable",
@@ -49,5 +47,5 @@
          "http://dev.perl.org/licenses/"
       ]
    },
-   "version" : "0.49"
+   "version" : "0.50"
 }

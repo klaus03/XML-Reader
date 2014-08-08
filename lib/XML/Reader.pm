@@ -3,6 +3,7 @@ package XML::Reader;
 use strict;
 use warnings;
 use Carp;
+use Net::HTTP;
 
 require Exporter;
 
@@ -10,7 +11,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.49';
+our $VERSION     = '0.50';
 
 my $use_module;
 
@@ -133,11 +134,24 @@ sub new {
     # we use that filehandle directly
 
     my $fh;
+
     if (ref($_[0]) eq 'GLOB') {
         $fh = $_[0];
     }
     else {
-        open $fh, '<', $_[0] or croak "Failed assertion #0045 in XML::Reader->new: Can't open < '$_[0]' because $!";
+        if ($_[0] =~ m{\A http:}xms) {
+            my ($host, $get) = $_[0] =~ m{\A http:// ([^/]+) (/ .*) \z}xms ? ($1, $2) :
+              croak "Failed assertion #0041 in XML::Reader->new: Can't parse /http://.../.../ from '$_[0]'";
+
+            $fh = Net::HTTP->new(Host => $host)
+              or croak "Failed assertion #0042 in XML::Reader->new: Can't Net::HTTP->new(Host => '$host') because $@";
+
+            $fh->write_request(GET => $get, 'User-Agent' => 'Mozilla/5.0');
+            $fh->read_response_headers; # this function returns: $code, $msg, %h
+        }
+        else {
+            open $fh, '<', $_[0] or croak "Failed assertion #0045 in XML::Reader->new: Can't open < '$_[0]' because $!";
+        }
     }
 
     # Now we bless into XML::Reader, and we bless *before* creating the ExpatNB-object.
@@ -605,7 +619,16 @@ sub get_token {
     until (@{$self->NB_data}) {
 
         # Here is the all important reading of a chunk of XML-data from the filehandle...
-        read($self->NB_fh, my $buf, 4096);
+
+        my $buf;
+
+        if (ref($self->NB_fh) eq 'Net::HTTP') {
+            my $ct = $self->NB_fh->read_entity_body($buf, 4096); # returns number of bytes read, or undef if IO-Error
+            last unless $ct;
+        }
+        else {
+            read($self->NB_fh, $buf, 4096);
+        }
 
         # We leave immediately as soon as there is no more data left (EOF)
         last if $buf eq '';
@@ -828,7 +851,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.49';
+our $VERSION = '0.50';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -994,7 +1017,7 @@ To create an XML::Reader object, the following syntax is used:
   my $rdr = XML::Reader->new($data,
     {strip => 1, filter => 2, using => ['/path1', '/path2']});
 
-The element $data (which is mandatory) is the name of the XML-file, or a
+The element $data (which is mandatory) is the name of the XML-file, or an URL that starts with 'http://...', or a
 reference to a string, in which case the content of that string is taken as the
 text of the XML.
 
