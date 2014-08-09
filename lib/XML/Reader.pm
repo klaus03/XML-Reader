@@ -11,7 +11,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.50';
+our $VERSION     = '0.51';
 
 my $use_module;
 
@@ -851,7 +851,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.50';
+our $VERSION = '0.51';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -1017,7 +1017,7 @@ To create an XML::Reader object, the following syntax is used:
   my $rdr = XML::Reader->new($data,
     {strip => 1, filter => 2, using => ['/path1', '/path2']});
 
-The element $data (which is mandatory) is the name of the XML-file, or an URL that starts with 'http://...', or a
+The element $data (which is mandatory) is the name of the XML-file, or a URL that starts with 'http://...', or a
 reference to a string, in which case the content of that string is taken as the
 text of the XML.
 

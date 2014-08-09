@@ -240,3 +240,7 @@ Revision history for XML-Reader
 
 0.50    08 Aug 2014
         Add the possibility of reading http (using Net::HTTP)
+
+0.51    09 Aug 2014
+        Fix a typing error in the POD documentation:
+        "...an URL..." ==> "...a URL..."
