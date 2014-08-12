@@ -12,7 +12,7 @@ den Perl Quelltext des Moduls zu lesen, gehen Sie bitte zur Datei XML/Reader.pm
 
 =head1 SYNOPSIS
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
@@ -53,7 +53,7 @@ XML::Reader benutzt XML::Parser als Parser Modul. Das funktioniert sehr gut, aus
 C-compiler zur verfE<uuml>gung steht um XML::Parser zu installieren. In diesen FE<auml>llen kann XML::Parsepp 
 als eine Perl Alternative zu XML::Parser benutzt werden. Hier ist ein Beispiel:
 
-  use XML::Reader qw(XML::Parsepp);
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
@@ -123,7 +123,7 @@ C<level> liefert die im Moment aktive Verschachtelungstiefe (das ist ein numeris
 Hier folgend wird, um das Prinzip zu erklE<auml>ren, ein Beispielprogramm aufgefE<uuml>hrt, welches die vorangegangene
 XML-Datei in '$line1' einliest...
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $rdr = XML::Reader->new(\$line1);
   my $i = 0;
@@ -405,7 +405,7 @@ abgeschlossen wird.
 Das folgende Programm liest eine XML-Datei und parst sie mit XML::Reader, die Option 'using'
 selektiert dabei nur einen Teil des XML-Baumes:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $line2 = q{
   <data>
@@ -451,7 +451,7 @@ Das ist das Ergebnis dieses Programms:
 
 Das folgende Programm liest eine XML-Datei und parst sie mit XML::Reader, jedoch ohne Option 'using'.
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $rdr = XML::Reader->new(\$line2);
   my $i = 0;
@@ -497,7 +497,7 @@ XML::Reader ignoriert, d.h. {parse_ct => 0} ist die Voreinstellung).
 
 Hier ist ein Beispiel wo Kommentare, wie voreingestellt, ignoriert werden:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
@@ -518,7 +518,7 @@ Hier ist das Ergebnis:
 Jetzt ein Beispiel mit den selben XML-Daten und dem selben Algorithmus, ausser dass die Option
 {parse_ct => 1} jetzt aktiviert ist:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
@@ -547,7 +547,7 @@ Voreinstellung).
 Als Beispiel benutzen wir hier die selben XML-Daten und den selben Algorithmus wie zuvor, ausser dass die
 Option {parse_pi => 1} aktiviert ist (zusammen mit der schon aktivierten Option {parse_ct => 1}):
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
@@ -592,7 +592,7 @@ Option {filter => 2, mode => 'attr-bef-start'} ist die Voreinstellung.
 
 Hier ist ein Beispiel...
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
@@ -633,7 +633,7 @@ Betrachten wir jetzt das selbe Beispiel (mit der Option {filter => 2, mode => 'a
 um die originale XML-Struktur wieder herzustellen. Ausserdem verlangen wir das normale Zeichenketten (also keine Tags
 und auch keine Attribute) mit den Zeichen "** **" markiert werden.
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
@@ -717,7 +717,7 @@ Hier ist ein neuer Algorithmus fE<uuml>r {filter => 3}, wir brauchen uns nicht m
 Attribut-Zeilen zu kE<uuml>mmern (d.h. wir brauchen nicht mehr abzufragen ob $rdr->C<type> eq '@') und,
 wie schon bemerkt, die %at-Variable wird ersetzt durch %{$rdr->C<att_hash>} :
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
@@ -782,7 +782,7 @@ Schliesslich kE<ouml>nnen wir (und sollten wir auch) das schreiben von XML einem
 Ich schlage hiermit vor, dass wir das Modul L<XML::MinWriter> benutzen. Hier ist ein Programm welches
 L<XML::MinWriter> fE<uuml>r die Ausgabe von XML benutzt:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
   use XML::MinWriter;
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
@@ -824,7 +824,7 @@ XML-Declarations. Der Sinn ist eine PYX-kompatible Ausgabe-Zeichenkette zur weit
 
 Hier ist ein Beispiel:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0" encoding="iso-8859-1"?>
     <delta>
@@ -869,7 +869,7 @@ Bitte berE<uuml>cksichtigen Sie dass, falls {parse_ct => 1} gesetzt ist, Komment
 nicht-standardisierten Format erzeugt werden. Die Kommentare werden dann mit einem fE<uuml>hrenden Doppelkreuz
 erzugt welches nicht in der PYX-Spezifikation existiert. Das folgende Beispiel demonstriert diesen Fall:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{
     <delta>
@@ -898,7 +898,7 @@ Ausserdem, falls {filter => 4, mode => 'pyx'} gesetzt ist, bleiben folgende Meth
 C<path>, C<is_start>, C<is_end>, C<is_decl>, C<is_proc>, C<is_comment>, C<is_attr>, C<is_text>,
 C<is_value>, C<comment>, C<proc_tgt>, C<proc_data>, C<dec_hash> und C<att_hash>). Hier ist ein Beispiel:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0"?>
     <parent abc="def"> <?pt hmf?>
@@ -961,7 +961,7 @@ $rdr->rvalue benutzen.
 
 Am einfachsten lE<auml>sst sich dieses an einem Beispiel erklE<auml>ren:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $line2 = q{
   <data>
@@ -1189,7 +1189,7 @@ Die Option dupatt ist nur dann mE<ouml>glich wenn XML::Reader mit der Option XML
 Das folgende Beispiel zeigt die Verwendung der Option dupatt: (Der Verbindungs String {dupatt => $str} ist
 begrenzt auf druckbare Ascii-Zeichen ausser alphanumerische Zeichen, " oder ')
 
-  use XML::Reader qw(XML::Parsepp);
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<data><item a2="abc" a1="def" a2="ghi"></item></data>}
 
@@ -1332,7 +1332,7 @@ ein Beispiel in dem wir den Namen, die Strasse und die Stadt fE<uuml>r alle Kund
 '/data/order/database/customer' erhalten wollen. Wir wollen ausserdem alle Supplier im Pfad
 '/data/supplier' erhalten:
 
-  use XML::Reader qw(slurp_xml);
+  use XML::Reader qw(XML::Parser slurp_xml);
 
   my $line2 = q{
   <data>
@@ -1402,7 +1402,7 @@ Man kann slurp_xml auch beauftragen doppelte Attribute zu verwalten. In diesem F
 Erstens muss man ein "use XML::Reader" mit folgenden optionen: "qw(XML::Parsepp slurp_xml)" ausfuehren. Zum zweiten
 muss man slurp_xml mit der option { dupatt => '|' } aufrufen, wie das folgende Beispiel belegt:
 
-  use XML::Reader qw(XML::Parsepp slurp_xml);
+  use XML::Reader qw(XML::Parser slurp_xml);
 
   my $line3 = q{<data atr1='abc' atr2='def' atr1='ghi'></data>};
 

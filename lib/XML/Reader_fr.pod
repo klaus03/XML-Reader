@@ -12,7 +12,7 @@ obtenir la source Perl du module, consultez le fichier XML/Reader.pm
 
 =head1 SYNOPSIS
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
@@ -52,7 +52,7 @@ XML::Reader utilise XML::Parser comme sous-module. Cette configuration marche tr
 il n'y a pas de compilateur C disponible pour installer XML::Parser. Dans ce cas, XML::Parsepp peut remplacer XML::Parser.
 Voici un exemple:
 
-  use XML::Reader qw(XML::Parsepp);
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
@@ -118,7 +118,7 @@ a des attributs et C<level> indique le niveau de cascadage (un nombre >= 0)
 
 Voici un programme qui lit le XML dans la variable '$line1' (voir ci-dessus) pour montrer le principe...
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $rdr = XML::Reader->new(\$line1);
   my $i = 0;
@@ -398,7 +398,7 @@ la derniE<egrave>re partie 'chemin3' (ou 'chemin6') sera suivi implicitement par
 Le programme suivant prend un fichier XML et le parse avec XML::Reader, y compris l'option 'using' pour
 cibler des E<eacute>lE<eacute>ments spE<eacute>cifiques:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $line2 = q{
   <data>
@@ -444,7 +444,7 @@ Voici le rE<eacute>sultat de ce programme:
 
 Le programme suivant prend un fichier XML et le parse avec XML::Reader, mais sans option 'using':
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $rdr = XML::Reader->new(\$line2);
   my $i = 0;
@@ -490,7 +490,7 @@ pas pris en compte par XML::Reader, le dE<eacute>faut est {parse_ct => 0}.
 
 Voici un exemple oE<ugrave> les commentaires ne sont pas pris en compte par dE<eacute>faut:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
@@ -510,7 +510,7 @@ Voici le rE<eacute>sultat:
 
 Ensuite, les mE<ecirc>mes donnE<eacute>es XML et le mE<ecirc>me algorithme, sauf l'option {parse_ct => 1}, qui est maintenant active:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
@@ -539,7 +539,7 @@ est {parse_pi => 0}.
 Comme exemple, on prend exactement les mE<ecirc>mes donnE<eacute>es XML et le mE<ecirc>me algorithme du paragraphe prE<eacute>cE<eacute>dent, sauf
 l'option {parse_pi => 1}, qui est maintenant active (avec l'option {parse_ct => 1}):
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
@@ -583,7 +583,7 @@ Option {filter => 2, mode => 'attr-bef-start'} est le dE<eacute>faut.
 
 Voici un exemple...
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
@@ -623,7 +623,7 @@ Prenons-nous le mE<ecirc>me exemple {filter => 2, mode => 'attr-bef-start'} avec
 du XML. En plus, on exige de rajouter des caractE<egrave>res "** **" pour chaque texte (mais pas les balises
 et pas non plus les attributs):
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
@@ -707,7 +707,7 @@ Voici un nouveau algorithme avec {filter => 3, mode => 'attr-in-hash'}, on ne s'
 on ne verifie pas $rdr->type eq '@') et (comme dE<acute>jE<agrave> mentionnE<eacute> ci-dessus) la variable %at est remplacE<eacute>e
 par %{$rdr->att_hash} :
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
@@ -771,7 +771,7 @@ par %{$rdr->att_hash} :
 Finalement on pourrait (et on devrait) effectuer l'E<eacute>criture XML par un autre module. Je propose d'utiliser
 le module L<XML::MinWriter>. Voici un programme qui utilise L<XML::MinWriter> pour E<eacute>crire du XML:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
   use XML::MinWriter;
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
@@ -813,7 +813,7 @@ Le but est de gE<eacute>nE<eacute>rer une chaE<icirc>ne de caractE<egrave>res du
 
 Voici un exemple:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0" encoding="iso-8859-1"?>
     <delta>
@@ -857,7 +857,7 @@ et voici le rE<eacute>sultat:
 Il faut dire que les commentaires, qui sont gE<eacute>nE<eacute>rE<eacute>s avec l'option {parse_ct => 1}, ne font pas partie du standard "PYX".
 En fait, les commentaires sont gE<eacute>nE<eacute>rE<eacute>s avec un caractE<egrave>re '#' qui n'existe pas dans le standard. Voici un exemple:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{
     <delta>
@@ -886,7 +886,7 @@ Avec l'option {filter => 4, mode => 'pyx'}, les mE<eacute>thodes habituelles res
 C<is_end>, C<is_decl>, C<is_proc>, C<is_comment>, C<is_attr>, C<is_text>, C<is_value>, C<comment>, C<proc_tgt>,
 C<proc_data>, C<dec_hash> or C<att_hash>. Voici un exemple:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0"?>
     <parent abc="def"> <?pt hmf?>
@@ -949,7 +949,7 @@ $rdr->rvalue.
 
 Voici un exemple:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $line2 = q{
   <data>
@@ -1179,7 +1179,7 @@ Par exemple, le code suivant concatE<egrave>ne les attribut doublons avec le car
 (La chaE<icirc>ne de caractE<egrave>res ($str) {dupatt => $str} est limitE<eacute> E<agrave> des
 caractE<egrave>res Ascii visibles, sauf les caractE<egrave>res alpha-numE<eacute>riques, ' ou ")
 
-  use XML::Reader qw(XML::Parsepp);
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<data><item a2="abc" a1="def" a2="ghi"></item></data>}
 
@@ -1320,7 +1320,7 @@ liste. Voici un exemple oE<ugrave> nous souhaitons aspirer le nom, la rue et la 
 le chemin '/data/order/database/customer'. Nous souhaitons aussi d'aspirer le 'supplier' dans le chemin
 '/data/supplier'.
 
-  use XML::Reader qw(slurp_xml);
+  use XML::Reader qw(XML::Parser slurp_xml);
 
   my $line2 = q{
   <data>
@@ -1392,7 +1392,7 @@ On peut utiliser slurp_xml() avec des attributs doublons. Dans ce cas il faut fa
 il faut faire un "use XML::Reader" avec "qw(XML::Parsepp slurp_xml)". DeuxiE<egrave>mement il faut faire appel
 E<agrave> slurp_xml avec l'option { dupatt => '|' }, comme dans l'exemple ci-dessous:
 
-  use XML::Reader qw(XML::Parsepp slurp_xml);
+  use XML::Reader qw(XML::Parser slurp_xml);
 
   my $line3 = q{<data atr1='abc' atr2='def' atr1='ghi'></data>};
 

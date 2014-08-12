@@ -11,7 +11,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.51';
+our $VERSION     = '0.52';
 
 my $use_module;
 
@@ -851,7 +851,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.51';
+our $VERSION = '0.52';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -882,7 +882,7 @@ XML::Reader - Reading XML and providing path information based on a pull-parser.
 
 =head1 SYNOPSIS
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
@@ -921,7 +921,7 @@ XML::Reader uses XML::Parser as the underlying Parser module. That works very we
 people don't have a C-compiler available to install XML::Parser. In those cases, XML::Parsepp can be used
 as a pure Perl alternative to XML::Parser. Here is an example:
 
-  use XML::Reader qw(XML::Parsepp);
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<init>n <?test pi?> t<page node="400">m <!-- remark --> r</page></init>};
 
@@ -985,7 +985,7 @@ C<level> indicates the current nesting-level (a number >= 0).
 
 Here is a sample program which parses the XML in '$line1' from above to demonstrate the principle...
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $rdr = XML::Reader->new(\$line1);
   my $i = 0;
@@ -1259,7 +1259,7 @@ item in path 'path3' (or 'path6', for that matter) will be completed internally 
 The following program takes this XML and parses it with XML::Reader, including the option 'using'
 to target specific elements:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $line2 = q{
   <data>
@@ -1305,7 +1305,7 @@ This is the output of that program:
 
 The following program takes the same XML and parses it with XML::Reader, but without the option 'using'.
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $rdr = XML::Reader->new(\$line2);
   my $i = 0;
@@ -1351,7 +1351,7 @@ that is {parse_ct => 0} is the default.
 
 Here is an example where comments are ignored by default:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
@@ -1372,7 +1372,7 @@ Here is the output:
 Now, the very same XML data, and the same algorithm, except for the option {parse_ct => 1}, which is now
 activated:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
@@ -1400,7 +1400,7 @@ processing-instructions and XML-Declarations are ignored by XML::Reader, that is
 As an example, we use the very same XML data, and the same algorithm from the above paragraph, except for the
 option {parse_pi => 1}, which is now activated (together with option {parse_ct => 1}):
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0"?><dummy>xyz <!-- remark --> stu <?ab cde?> test</dummy>};
 
@@ -1444,7 +1444,7 @@ Option {filter => 2, mode => 'attr-bef-start'} is the default.
 
 Here is an example...
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
@@ -1486,7 +1486,7 @@ Let us now look at the same example (with option {filter => 2, mode => 'attr-bef
 reconstruct the original XML plus the additional requirement to wrap text (but not tags and not attributes)
 inside "** **":
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
@@ -1570,7 +1570,7 @@ Here is the new algorithm for {filter => 3, mode => 'attr-in-hash'}, we don't ne
 we don't need to check for $rdr->type eq '@') and, as already mentioned, the %at variable is
 replaced by %{$rdr->att_hash} :
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
              q{f</b></a></test>x <!-- remark --> yz</root>};
@@ -1634,7 +1634,7 @@ replaced by %{$rdr->att_hash} :
 Finally, we can (and we should) delegate the writing of XML to another module. I would suggest that
 we use L<XML::MinWriter> for that. Here is the program that uses L<XML::MinWriter> to output XML:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
   use XML::MinWriter;
 
   my $text = q{<root><test param='&lt;&gt;v"'><a><b>"e"<data id="&lt;&gt;z'">'g'&amp;&lt;&gt;</data>}.
@@ -1675,7 +1675,7 @@ a pyx string for further processing and analysis.
 
 Here is an example:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0" encoding="iso-8859-1"?>
     <delta>
@@ -1720,7 +1720,7 @@ Be aware that comments can be produced by C<pyx> in a non-standard way if reques
 comments are produced with a leading hash symbol which is not part of the pyx specification,
 as can be seen by the following example:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{
     <delta>
@@ -1749,7 +1749,7 @@ Finally, when operating with {filter => 4, mode => 'pyx'}, the usual methods (C<
 C<is_end>, C<is_decl>, C<is_proc>, C<is_comment>, C<is_attr>, C<is_text>, C<is_value>, C<comment>, C<proc_tgt>,
 C<proc_data>, C<dec_hash> or C<att_hash>) remain operational. Here is an example:
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $text = q{<?xml version="1.0"?>
     <parent abc="def"> <?pt hmf?>
@@ -1809,7 +1809,7 @@ To obtain the elements that have been specified in the branches, you can use fun
 
 The easiest way to explain its effect is to show an example.
 
-  use XML::Reader;
+  use XML::Reader qw(XML::Parser);
 
   my $line2 = q{
   <data>
