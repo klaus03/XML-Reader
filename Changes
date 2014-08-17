@@ -252,3 +252,6 @@ Revision history for XML-Reader
 0.53    13 Aug 2014
         This entry (0.53) only exists because I have forgotten to put in a changes entry
         in the previous version (0.52)
+
+0.54    17 Aug 2014
+        introduce Acme::HTTP
