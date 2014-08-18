@@ -9,7 +9,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(Get_TestCntr Get_TestProg) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.56';
+our $VERSION     = '0.57';
 
 our %TestProg;
 
@@ -501,7 +501,7 @@ $TestProg{'0010_test_Module.t'} = [67, sub {
     }
 }];
 
-$TestProg{'0020_test_Module.t'} = [274, sub {
+$TestProg{'0020_test_Module.t'} = [277, sub {
     my ($XML_Reader_Any) = @_;
 
     Test::More::use_ok($XML_Reader_Any, qw(slurp_xml));
@@ -1074,6 +1074,86 @@ $TestProg{'0020_test_Module.t'} = [274, sub {
         Test::More::is($lines[ 7], "Root: Data = aabb",                                          'Pod-Test case no 19: output line  7');
         Test::More::is($lines[ 8], "Root: Ordr = ccdd",                                          'Pod-Test case no 19: output line  8');
         Test::More::is($lines[ 9], "Root: Ord2 = ccdd",                                          'Pod-Test case no 19: output line  9');
+    }
+
+    {
+        my $line2 = q{
+        <data>
+          aa
+          <supplier>ggg</supplier>
+          <supplier>hhh</supplier>
+          <order no="A">
+            cc
+            <database loc='alpha'>
+              <item>
+                <customer name="smith" id="652">
+                  <street>high street</street>
+                  <city>boston</city>
+                </customer>
+                <customer name="jones" id="184">
+                  <street>maple street</street>
+                  <city>new york</city>
+                </customer>
+                <customer name="stewart" id="520">
+                  <street>ring road</street>
+                  <city>dallas</city>
+                </customer>
+              </item>
+              <item>
+                <customer name="smith" id="444">
+                  <street>upton way</street>
+                  <city>motown</city>
+                </customer>
+                <customer name="gates" id="959">
+                  <street>leave me thhis way</street>
+                  <city>cambridge</city>
+                </customer>
+                <customer name="stewart" id="914">
+                  <street>impossible way</street>
+                  <city>chicago</city>
+                </customer>
+              </item>
+            </database>
+            <database loc='beta'>
+              <item>
+                <customer name="smith" id="211">
+                  <street>place republique</street>
+                  <city>paris</city>
+                </customer>
+                <customer name="smith" id="123">
+                  <street>test drive</street>
+                  <city>Moscow</city>
+                </customer>
+                <customer name="stewart" id="999">
+                  <street>subway</street>
+                  <city>london</city>
+                </customer>
+              </item>
+            </database>
+          </order>
+          <dummy value="ttt">test</dummy>
+          <supplier>iii</supplier>
+          <supplier>jjj</supplier>
+          bb
+        </data>
+        };
+
+        my $aref = slurp_xml(\$line2,
+          { root => '/data/order/database[@loc="alpha"]/item', branch => [
+            'customer[@name="smith"]/street',
+            'customer[@name="stewart"]/street',
+          ] },
+        );
+
+        my @lines;
+
+        for (@{$aref->[0]}) {
+            push @lines, sprintf("Test2: smith = %-15s stewart = %s", $_->[0], $_->[1]);
+        }
+
+        Test::More::is(scalar(@lines),   2,                                                      'Pod-Test case no 19a: number of output lines');
+        Test::More::is($lines[ 0], "Test2: smith = high street     stewart = ring road",         'Pod-Test case no 19a: output line  0');
+        Test::More::is($lines[ 1], "Test2: smith = upton way       stewart = impossible way",    'Pod-Test case no 19a: output line  1');
     }
 
     {

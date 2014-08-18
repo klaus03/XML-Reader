@@ -10,7 +10,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.56';
+our $VERSION     = '0.57';
 
 my $use_module;
 
@@ -229,9 +229,42 @@ sub new {
 
     if ($self->{filter} == 5) {
         for my $object (@_[2..$#_]) {
+            $object->{brna} = [];
+
             if (ref($object->{branch}) eq 'ARRAY') {
-                for (@{$object->{branch}}) {
-                    s{\A ([^/\s])}{/$1}xms;
+                for my $j (0..$#{$object->{branch}}) {
+                    $object->{branch}[$j] =~ s{\A ([^/\s])}{/$1}xms;
+
+                    $object->{brna}[$j] = [];
+
+                    my $b_level = 0;
+                    my $b_branch = $object->{branch}[$j];
+                    $object->{branch}[$j] =~ s{\[ [^/\]]* \]}''xmsg;
+
+                    $b_branch =~ s{\A /+}''xms;
+
+                    for my $ele (split(m{/}xms, $b_branch)) {
+                        $b_level++;
+
+                        if ($ele =~ m{\[ \@ ([^\[\]=\s]+) = ['"] ([^'"]*) ['"] \]}xms) {
+                            push @{$object->{brna}[$j]}, [ $b_level - 1, $1, $2 ];
+                        }
+                    }
+                }
+            }
+
+            $object->{rota} = [];
+
+            my $a_level = 0;
+            my $a_root = $object->{root};
+            $object->{root} =~ s{\[ [^/\]]* \]}''xmsg;
+            $a_root =~ s{\A /+}''xms;
+
+            for my $ele (split(m{/}xms, $a_root)) {
+                $a_level++;
+
+                if ($ele =~ m{\[ \@ ([^\[\]=\s]+) = ['"] ([^'"]*) ['"] \]}xms) {
+                    push @{$object->{rota}}, [ $a_level - 1, $1, $2 ];
                 }
             }
 
@@ -240,23 +273,31 @@ sub new {
                 my $chunk = $1;
                 push @{$self->{rlist}}, {
                     root   => undef,
-                    qr1    => qr{ / \Q$chunk\E \z}xms,
+                    qr1    => qr{\A (.*) / \Q$chunk\E \z}xms,
+                    rota   => $object->{rota},
                     qrfix  => undef,
                     branch => $object->{branch},
+                    brna   => $object->{brna},
                   };
             }
             else {
                 push @{$self->{rlist}}, {
                     root   => $object->{root},
+                    rota   => $object->{rota},
                     qr1    => undef,
                     qrfix  => undef,
                     branch => $object->{branch},
+                    brna   => $object->{brna},
                   };
             }
         }
+
+        #~ use Data::Dump;
+        #~ dd \@_;
     }
 
     $self->{plist}        = [];
+    $self->{alist}        = [];
     $self->{path}         = '/';
     $self->{prefix}       = '';
     $self->{tag}          = '';
@@ -343,11 +384,13 @@ sub iterate {
 
         if ($token->found_start_tag) {
             push @{$self->{plist}}, $token->extract_tag;
+            push @{$self->{alist}}, {};
             redo;
         }
 
         if ($token->found_end_tag) {
             pop @{$self->{plist}};
+            pop @{$self->{alist}};
             redo;
         }
 
@@ -388,6 +431,10 @@ sub iterate {
             $self->{type}         = 'T';
             $self->{att_hash}     = {@{$token->extract_attr}};
             $self->{dec_hash}     = {@{$token->extract_decl}};
+
+            for (keys %{$self->{att_hash}}) {
+                $self->{alist}[-1]{$_} = $self->{att_hash}{$_};
+            }
         }
         elsif ($token->found_attr) {
             my $key = $token->extract_attkey;
@@ -413,6 +460,8 @@ sub iterate {
             $self->{type}         = '@';
             $self->{att_hash}     = {};
             $self->{dec_hash}     = {};
+
+            $self->{alist}[-1]{$key} = $val;
         }
         else {
             croak "Failed assertion #0060 in subroutine XML::Reader->iterate: Found data type '".$token->[0]."'";
@@ -454,6 +503,8 @@ sub iterate {
                 my $border;
 
                 my $root;
+                my $rotn = 0;
+
                 if (defined $param->{root}) {
                     $root = $param->{root};
                 }
@@ -461,7 +512,8 @@ sub iterate {
                     $root = $param->{qrfix};
                 }
                 elsif (defined $param->{qr1}) {
-                    if ($self->{path} =~ $param->{qr1}) {
+                    if ($self->{path} =~ $param->{qr1}) { my $prf = $1;
+                        $rotn = () = $prf =~ m{/}xmsg;
                         $root = $self->{path};
                         $param->{qrfix} = $root;
                     }
@@ -492,6 +544,57 @@ sub iterate {
 
                 next unless defined $twig;
 
+                my $block = 0;
+
+                #~ if (@{$param->{rota}}) {
+                    #~ use Data::Dump;
+                    #~ print "\nDeb-0010: param->{rota}:\n";
+                    #~ dd $param->{rota};
+                    #~ print "\nDeb-0020: self->{alist}:\n";
+                    #~ dd $self->{alist};
+                #~ }
+
+                for (@{$param->{rota}}) {
+                    my ($offset, $attr, $val) = ($_->[0] + $rotn, $_->[1], $_->[2]);
+
+                    #~ print "Deb-0030: offset = $offset ($_->[0] + $rotn), attr = '$attr', val = '$val'\n";
+
+                    my $e = $self->{alist}[$offset];
+
+                    unless ($e) {
+                        #~ print "Deb-0100: Block-01\n";
+                        $block++;
+                        next;
+                    }
+
+                    my $v = $e->{$attr};
+
+                    unless (defined $v) {
+                        #~ print "Deb-0110: Block-02\n";
+                        $block++;
+                        next;
+                    }
+
+                    unless ($v eq $val) {
+                        #~ print "Deb-0120: Block-03\n";
+                        $block++;
+                        next;
+                    }
+
+                    #~ print "Deb-0150: Good...\n";
+                }
+
+                next if $block;
+
+                my $bran;
+
+                if ($root eq '/') {
+                    $bran = 0;
+                }
+                else {
+                    $bran = () = $root =~ m{/}xmsg;
+                }
+
                 if (ref $param->{branch}) { # here we have an array of branches...
                     if ($border and $self->{is_start}) {
                         $self->{bush}[$r] = [];
@@ -500,8 +603,51 @@ sub iterate {
                     if ($self->{is_value}) {
                         for my $i (0..$#{$param->{branch}}) {
                             if ($param->{branch}[$i] eq $twig) {
-                                my $ref = \$self->{bush}[$r][$i];
-                                $$ref .= (defined $$ref ? $self->{sepchar} : '').$self->{value};
+
+                                my $block = 0;
+
+                                #~ if (@{$param->{brna}[$i]}) {
+                                    #~ use Data::Dump;
+                                    #~ print "\nDeb-0010: param->{brna}[$i]:\n";
+                                    #~ dd $param->{brna}[$i];
+                                    #~ print "\nDeb-0020: self->{alist}:\n";
+                                    #~ dd $self->{alist};
+                                #~ }
+
+                                for (@{$param->{brna}[$i]}) {
+                                    my ($offset, $attr, $val) = ($_->[0] + $bran, $_->[1], $_->[2]);
+
+                                    #~ print "Deb-0030: offset = $offset ($_->[0] + $bran), attr = '$attr', val = '$val'\n";
+
+                                    my $e = $self->{alist}[$offset];
+
+                                    unless ($e) {
+                                        #~ print "Deb-0100: Block-01\n";
+                                        $block++;
+                                        next;
+                                    }
+
+                                    my $v = $e->{$attr};
+
+                                    unless (defined $v) {
+                                        #~ print "Deb-0110: Block-02\n";
+                                        $block++;
+                                        next;
+                                    }
+
+                                    unless ($v eq $val) {
+                                        #~ print "Deb-0120: Block-03\n";
+                                        $block++;
+                                        next;
+                                    }
+
+                                    #~ print "Deb-0150: Good...\n";
+                                }
+
+                                unless ($block) {
+                                    my $ref = \$self->{bush}[$r][$i];
+                                    $$ref .= (defined $$ref ? $self->{sepchar} : '').$self->{value};
+                                }
                             }
                         }
                     }
@@ -851,7 +997,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.56';
+our $VERSION = '0.57';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
