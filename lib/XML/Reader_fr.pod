@@ -46,7 +46,7 @@ que l'appel a rE<eacute>ussi:
 Normalement, on n'utilise pas XML::Reader tout seul, on utilise plutE<ocirc>t XML::Reader::RS (qui utilise XML::Parser) ou
 on utilise XML::Reader::PP (qui utilise XML::Parsepp).
 
-Par contre, si on veut utiliser XML::Reader directement, voici la procédure pour choisir entre XML::Parser et XML::Parsepp:
+Par contre, si on veut utiliser XML::Reader directement, voici la procE<eacute>dure pour choisir entre XML::Parser et XML::Parsepp:
 
 XML::Reader utilise XML::Parser comme sous-module. Cette configuration marche trE<egrave>s bien, sauf dans le cas oE<ugrave>
 il n'y a pas de compilateur C disponible pour installer XML::Parser. Dans ce cas, XML::Parsepp peut remplacer XML::Parser.
@@ -1021,8 +1021,8 @@ le paramE<egrave>tre {branch => '+'} indique que le rE<eacute>sultat sera une li
 Dans le programme ci-dessus on va utiliser la fonction $rdr->rvalue pour lire les donnees:
 
   my $rdr = XML::Reader->new(\$line2, {filter => 5},
-    { root => 'customer',       branch => ['/@name', '/street', '/city'] },
-    { root => '/data/supplier', branch => ['/']                          },
+    { root => 'customer',       branch => ['@name', 'street', 'city'] },
+    { root => '/data/supplier', branch => ['/']                       },
     { root => '//customer',     branch => '*' },
     { root => 'p',              branch => '*' },
     { root => '//customer',     branch => '+' },
@@ -1122,7 +1122,7 @@ Voici le rE<eacute>sultat:
 Nous pouvons E<eacute>galement utiliser la fonction $rdr->value pour obtenir les mE<ecirc>mes donnE<eacute>es:
 
   my $rdr = XML::Reader->new(\$line2, {filter => 5},
-    { root => 'customer',       branch => ['/@name', '/street', '/city'] },
+    { root => 'customer',       branch => ['@name', 'street', 'city'] },
     { root => 'p',              branch => '*' },
   );
 
@@ -1349,8 +1349,8 @@ le chemin '/data/order/database/customer'. Nous souhaitons aussi d'aspirer le 's
   };
 
   my $aref = slurp_xml(\$line2,
-    { root => '/data/order/database/customer', branch => ['/@name', '/street', '/city'] },
-    { root => '/data/supplier',                branch => '*'                            },
+    { root => '/data/order/database/customer', branch => ['@name', 'street', 'city'] },
+    { root => '/data/supplier',                branch => '*'                         },
   );
 
   for (@{$aref->[0]}) {
@@ -1368,7 +1368,7 @@ un scalaire, ou une rE<eacute>fE<eacute>rence E<agrave> un fichier ouvert) du XM
 Dans notre cas nous avons une rE<eacute>fE<eacute>rence E<agrave> un scalaire \$line2. Le paramE<egrave>tre suivant
 est la racine de l'arbre qu'on veut aspirer (dans notre cas c'est '/data/order/database/customer') et
 nous donnons une liste des E<eacute>lE<eacute>ments que nous souhaitons sE<eacute>lectionner, relative
-E<agrave> la racine. Dans notre cas c'est ['/@name', '/street', '/city']. Le paramE<egrave>tre suivant est
+E<agrave> la racine. Dans notre cas c'est ['@name', 'street', 'city']. Le paramE<egrave>tre suivant est
 la deuxiE<egrave>me racine (dE<eacute>finition root/branch), dans ce cas c'est root => '/data/supplier' avec
 branch => ['/'].
 

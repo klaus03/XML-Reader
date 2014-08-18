@@ -258,3 +258,12 @@ Revision history for XML-Reader
 
 0.55    18 Aug 2014
         replace the comple time "use Acme::HTTP" by the run time "require Acme::HTTP"
+
+0.56    18 Aug 2014
+        allow the branch section to contain sub-paths that don't start with slash
+
+        before:
+        { root => '/abs/sub1/sub2', branch => [ '/path3/path4', '/path5/path6' ] }
+
+        after:
+        { root => '/abs/sub1/sub2', branch => [ 'path3/path4', 'path5/path6' ] }

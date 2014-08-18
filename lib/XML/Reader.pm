@@ -10,7 +10,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.55';
+our $VERSION     = '0.56';
 
 my $use_module;
 
@@ -229,6 +229,12 @@ sub new {
 
     if ($self->{filter} == 5) {
         for my $object (@_[2..$#_]) {
+            if (ref($object->{branch}) eq 'ARRAY') {
+                for (@{$object->{branch}}) {
+                    s{\A ([^/\s])}{/$1}xms;
+                }
+            }
+
             if ($object->{root} =~ m{\A // ([^/] .*) \z}xms
             or  $object->{root} =~ m{\A    ([^/] .*) \z}xms) {
                 my $chunk = $1;
@@ -845,7 +851,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.55';
+our $VERSION = '0.56';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -1873,8 +1879,8 @@ that {branch => '+'} means that the data is returned as an array of PYX elements
 In the following program we will use function rdr->rvalue to obtain the data:
 
   my $rdr = XML::Reader->new(\$line2, {filter => 5},
-    { root => 'customer',       branch => ['/@name', '/street', '/city'] },
-    { root => '/data/supplier', branch => ['/']                          },
+    { root => 'customer',       branch => ['@name', 'street', 'city'] },
+    { root => '/data/supplier', branch => ['/']                       },
     { root => '//customer',     branch => '*' },
     { root => 'p',              branch => '*' },
     { root => '//customer',     branch => '+' },
@@ -1974,7 +1980,7 @@ This is the output:
 We can also use function rdr->value to obtain the same data:
 
   my $rdr = XML::Reader->new(\$line2, {filter => 5},
-    { root => 'customer',       branch => ['/@name', '/street', '/city'] },
+    { root => 'customer',       branch => ['@name', 'street', 'city'] },
     { root => 'p',              branch => '*' },
   );
 
@@ -2199,8 +2205,8 @@ the path '/data/order/database/customer' and we also want to slurp the supplier 
   };
 
   my $aref = slurp_xml(\$line2,
-    { root => '/data/order/database/customer', branch => ['/@name', '/street', '/city'] },
-    { root => '/data/supplier',                branch => '*'                            },
+    { root => '/data/order/database/customer', branch => ['@name', 'street', 'city'] },
+    { root => '/data/supplier',                branch => '*'                         },
   );
 
   for (@{$aref->[0]}) {
@@ -2217,7 +2223,7 @@ The first parameter to slurp_xml is the filename (or scalar reference, or open f
 that will be slurped. In this case we read from a scalar ref \$line2. The next parameter is a hash-ref
 with the root of the sub-tree that we want to slurp (in our case that's '/data/order/database/customer')
 and the branches, a list of the elements that we want to slurp, relative to the sub-tree. In this
-case it is ['/@name', '/street', '/city']. The next parameter is our second root/branch definition, in
+case it is ['@name', 'street', 'city']. The next parameter is our second root/branch definition, in
 this case it is root => '/data/supplier' with branch => ['/'].
 
 Here is the output:

@@ -1033,8 +1033,8 @@ hat dass eine Liste von PYX Instruktionen zurE<uuml>ckgegeben wird.
 Im folgenden Programm benutzen wir die Funktion $rdr->rvalue um die Daten zu erhalten:
 
   my $rdr = XML::Reader->new(\$line2, {filter => 5},
-    { root => 'customer',       branch => ['/@name', '/street', '/city'] },
-    { root => '/data/supplier', branch => ['/']                          },
+    { root => 'customer',       branch => ['@name', 'street', 'city'] },
+    { root => '/data/supplier', branch => ['/']                       },
     { root => '//customer',     branch => '*' },
     { root => 'p',              branch => '*' },
     { root => '//customer',     branch => '+' },
@@ -1134,7 +1134,7 @@ Hier ist das Ergebnis:
 Wir kE<ouml>nnen ebenso die Funktion $rdr->value benutzen um die gleichen Daten zu erhalten:
 
   my $rdr = XML::Reader->new(\$line2, {filter => 5},
-    { root => 'customer',       branch => ['/@name', '/street', '/city'] },
+    { root => 'customer',       branch => ['@name', 'street', 'city'] },
     { root => 'p',              branch => '*' },
   );
 
@@ -1361,8 +1361,8 @@ ein Beispiel in dem wir den Namen, die Strasse und die Stadt fE<uuml>r alle Kund
   };
 
   my $aref = slurp_xml(\$line2,
-    { root => '/data/order/database/customer', branch => ['/@name', '/street', '/city'] },
-    { root => '/data/supplier',                branch => '*'                            },
+    { root => '/data/order/database/customer', branch => ['@name', 'street', 'city'] },
+    { root => '/data/supplier',                branch => '*'                         },
   );
 
   for (@{$aref->[0]}) {
@@ -1379,7 +1379,7 @@ Der erste Parameter in slurp_xml ist entweder der Dateiname (oder eine Skalar Re
 Dateihandle) der XML Datei die wir einlesen wollen. In diesem Fall lesen wir von der Skalar Referenz \$line2.
 Der nE<auml>chste Parameter ist die Wurzel des Baumes den wir einlesen wollen (in diesem Falle wE<auml>re das
 '/data/order/database/customer') mit einer Liste von Elementen die wir, relativ zur Wurzel, selektieren
-wollen, in diesem Falle wE<auml>re das ['/@name', '/street', '/city']. Der darauffolgende Parameter ist eine
+wollen, in diesem Falle wE<auml>re das ['@name', 'street', 'city']. Der darauffolgende Parameter ist eine
 zweite Wurzel (root/branch Definition), in diesem Falle ist es root => '/data/supplier' mit branch => ['/'].
 
 Hier ist das Resultat:

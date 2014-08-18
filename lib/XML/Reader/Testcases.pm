@@ -9,7 +9,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(Get_TestCntr Get_TestProg) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.55';
+our $VERSION     = '0.56';
 
 our %TestProg;
 
@@ -501,7 +501,7 @@ $TestProg{'0010_test_Module.t'} = [67, sub {
     }
 }];
 
-$TestProg{'0020_test_Module.t'} = [273, sub {
+$TestProg{'0020_test_Module.t'} = [274, sub {
     my ($XML_Reader_Any) = @_;
 
     Test::More::use_ok($XML_Reader_Any, qw(slurp_xml));
@@ -1038,6 +1038,7 @@ $TestProg{'0020_test_Module.t'} = [273, sub {
           { root => '/data/supplier',                branch => ['/']                          },
           { root => '/',                             branch => ['/data']                      },
           { root => '/',                             branch => ['/data/order']                },
+          { root => '/',                             branch => ['data/order']                 },
         );
 
         my @lines;
@@ -1058,7 +1059,11 @@ $TestProg{'0020_test_Module.t'} = [273, sub {
             push @lines, sprintf("Root: Ordr = %s", $_->[0]);
         }
 
-        Test::More::is(scalar(@lines),   9,                                                      'Pod-Test case no 19: number of output lines');
+        for (@{$aref->[4]}) {
+            push @lines, sprintf("Root: Ord2 = %s", $_->[0]);
+        }
+
+        Test::More::is(scalar(@lines),  10,                                                      'Pod-Test case no 19: number of output lines');
         Test::More::is($lines[ 0], "Cust: Name = smith   Street = high street  City = boston",   'Pod-Test case no 19: output line  0');
         Test::More::is($lines[ 1], "Cust: Name = jones   Street = maple street City = new york", 'Pod-Test case no 19: output line  1');
         Test::More::is($lines[ 2], "Cust: Name = stewart Street = ring road    City = dallas",   'Pod-Test case no 19: output line  2');
@@ -1068,6 +1073,7 @@ $TestProg{'0020_test_Module.t'} = [273, sub {
         Test::More::is($lines[ 6], "Supp: Name = jjj",                                           'Pod-Test case no 19: output line  6');
         Test::More::is($lines[ 7], "Root: Data = aabb",                                          'Pod-Test case no 19: output line  7');
         Test::More::is($lines[ 8], "Root: Ordr = ccdd",                                          'Pod-Test case no 19: output line  8');
+        Test::More::is($lines[ 9], "Root: Ord2 = ccdd",                                          'Pod-Test case no 19: output line  9');
     }
 
     {
