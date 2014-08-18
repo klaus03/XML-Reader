@@ -3,7 +3,6 @@ package XML::Reader;
 use strict;
 use warnings;
 use Carp;
-use Acme::HTTP;
 
 require Exporter;
 
@@ -11,7 +10,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.54';
+our $VERSION     = '0.55';
 
 my $use_module;
 
@@ -140,6 +139,7 @@ sub new {
     }
     else {
         if ($_[0] =~ m{\A https?:}xms) {
+            require Acme::HTTP;
             $fh = Acme::HTTP->new($_[0])
               or croak "Failed assertion #0042 in XML::Reader->new: Can't Acme::HTTP->new('$_[0]') because $@";
         }
@@ -845,7 +845,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.54';
+our $VERSION = '0.55';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }

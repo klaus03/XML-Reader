@@ -255,3 +255,6 @@ Revision history for XML-Reader
 
 0.54    17 Aug 2014
         introduce Acme::HTTP
+
+0.55    18 Aug 2014
+        replace the comple time "use Acme::HTTP" by the run time "require Acme::HTTP"
