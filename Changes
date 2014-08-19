@@ -272,3 +272,12 @@ Revision history for XML-Reader
         Allow a simple conditional [@attr="value"] inside a path expression, for example
         { root => '/abs/sub1[@name="alpha"]/sub2',
         branch => [ 'path3[@id="t1"]/path4', 'path5/path6/@code="data"' ] }
+
+0.58    19 Aug 2014
+        Error correction in get_token(): Change the existing if-statement:
+        if (ref($self->NB_fh) eq 'Net::HTTP')
+        into
+        if (ref($self->NB_fh) eq 'Net::HTTP' or ref($self->NB_fh) eq 'Net::HTTPS')
+
+        update the documentation
+        update test cases

@@ -10,7 +10,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.57';
+our $VERSION     = '0.58';
 
 my $use_module;
 
@@ -768,7 +768,7 @@ sub get_token {
 
         my $buf;
 
-        if (ref($self->NB_fh) eq 'Net::HTTP') {
+        if (ref($self->NB_fh) eq 'Net::HTTP' or ref($self->NB_fh) eq 'Net::HTTPS') {
             my $ct = $self->NB_fh->read_entity_body($buf, 4096); # returns number of bytes read, or undef if IO-Error
             last unless $ct;
         }
@@ -997,7 +997,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.57';
+our $VERSION = '0.58';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
@@ -2312,6 +2312,100 @@ You could combine {mode => 'branches'} and regular expressions to parse the XML:
           printf "item = '%s', p1 = '%s', p3 = '%s'\n", $4, $1, $3;
       }
   }
+
+=head2 Example Attribut conditions
+
+Let's also consider a different example ($text3):
+
+  my $text3 = q{
+    <data>
+      <database loc="alpha">
+        <item>
+          <customer name="smith" id="652">
+            <street>high street</street>
+            <city>rio</city>
+          </customer>
+          <customer name="jones" id="184">
+            <street>maple street</street>
+            <city>new york</city>
+          </customer>
+          <customer name="gates" id="520">
+            <street>ring road</street>
+            <city>dallas</city>
+          </customer>
+          <customer name="smith" id="800">
+            <street>which way</street>
+            <city>ny</city>
+          </customer>
+        </item>
+      </database>
+      <database loc="beta">
+        <item>
+          <customer name="smith" id="001">
+            <street>nowhere</street>
+            <city>st malo</city>
+          </customer>
+          <customer name="jones" id="002">
+            <street>all the way</street>
+            <city>leeds</city>
+          </customer>
+          <customer name="gates" id="003">
+            <street>bypass</street>
+            <city>rome</city>
+          </customer>
+        </item>
+      </database>
+      <database loc="alpha">
+        <item>
+          <customer name="peter" id="444">
+            <street>upton way</street>
+            <city>motown</city>
+          </customer>
+          <customer name="gates" id="959">
+            <street>don't leave me this way</street>
+            <city>cambridge</city>
+          </customer>
+        </item>
+      </database>
+      <database loc="alpha">
+        <item>
+          <customer name="smith" id="881">
+            <street>anyway</street>
+            <city>big apple</city>
+          </customer>
+          <customer name="thatcher" id="504">
+            <street>baker street</street>
+            <city>oxford</city>
+          </customer>
+        </item>
+      </database>
+    </data>
+  };
+
+You can also use attribute conditions ('/path1[@attr="val"]/...') inside the path statements
+(root => ... and branch => ...) like so:
+
+  my $rdr = XML::Reader->new(\$text3, {mode => 'branches', sepchar => '|'}, {
+    root   => '/data/database[@loc="alpha"]',
+    branch => [
+      'item/customer[@name="smith"]/city',
+      'item/customer[@name="gates"]/city',
+    ]});
+
+  while ($rdr->iterate) {
+      my ($smith, $gates) = $rdr->value;
+
+      $smith = defined($smith) ? "'$smith'" : 'undef';
+      $gates = defined($gates) ? "'$gates'" : 'undef';
+
+      printf "smith = %-12s, gates = %s\n", $smith, $gates;
+  }
+
+The output is as follows:
+
+  smith = 'rio|ny'    , gates = 'dallas'
+  smith = undef       , gates = 'cambridge'
+  smith = 'big apple' , gates = undef
 
 =head1 FUNCTIONS
 

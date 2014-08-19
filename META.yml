@@ -17,16 +17,16 @@ provides:
     file: lib/XML/Reader/Testcases.pm
   XML::Reader:
     file: lib/XML/Reader.pm
-    version: '0.57'
+    version: '0.58'
   XML::Reader::Testcases:
     file: lib/XML/Reader/Testcases.pm
-    version: '0.57'
+    version: '0.58'
   XML::Reader::Token:
     file: lib/XML/Reader.pm
-    version: '0.57'
+    version: '0.58'
 requires:
   Acme::HTTP: '0'
   Carp: '0'
 resources:
   license: http://dev.perl.org/licenses/
-version: '0.57'
+version: '0.58'

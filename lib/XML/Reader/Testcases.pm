@@ -9,7 +9,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(Get_TestCntr Get_TestProg) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.57';
+our $VERSION     = '0.58';
 
 our %TestProg;
 
@@ -501,7 +501,7 @@ $TestProg{'0010_test_Module.t'} = [67, sub {
     }
 }];
 
-$TestProg{'0020_test_Module.t'} = [277, sub {
+$TestProg{'0020_test_Module.t'} = [281, sub {
     my ($XML_Reader_Any) = @_;
 
     Test::More::use_ok($XML_Reader_Any, qw(slurp_xml));
@@ -1154,6 +1154,96 @@ $TestProg{'0020_test_Module.t'} = [277, sub {
         Test::More::is(scalar(@lines),   2,                                                      'Pod-Test case no 19a: number of output lines');
         Test::More::is($lines[ 0], "Test2: smith = high street     stewart = ring road",         'Pod-Test case no 19a: output line  0');
         Test::More::is($lines[ 1], "Test2: smith = upton way       stewart = impossible way",    'Pod-Test case no 19a: output line  1');
+    }
+
+    {
+        my $line2 = q{
+          <data>
+            <database loc="alpha">
+              <item>
+                <customer name="smith" id="652">
+                  <street>high street</street>
+                  <city>rio</city>
+                </customer>
+                <customer name="jones" id="184">
+                  <street>maple street</street>
+                  <city>new york</city>
+                </customer>
+                <customer name="gates" id="520">
+                  <street>ring road</street>
+                  <city>dallas</city>
+                </customer>
+                <customer name="smith" id="800">
+                  <street>which way</street>
+                  <city>ny</city>
+                </customer>
+              </item>
+            </database>
+            <database loc="beta">
+              <item>
+                <customer name="smith" id="001">
+                  <street>nowhere</street>
+                  <city>st malo</city>
+                </customer>
+                <customer name="jones" id="002">
+                  <street>all the way</street>
+                  <city>leeds</city>
+                </customer>
+                <customer name="gates" id="003">
+                  <street>bypass</street>
+                  <city>rome</city>
+                </customer>
+              </item>
+            </database>
+            <database loc="alpha">
+              <item>
+                <customer name="peter" id="444">
+                  <street>upton way</street>
+                  <city>motown</city>
+                </customer>
+                <customer name="gates" id="959">
+                  <street>don't leave me this way</street>
+                  <city>cambridge</city>
+                </customer>
+              </item>
+            </database>
+            <database loc="alpha">
+              <item>
+                <customer name="smith" id="881">
+                  <street>anyway</street>
+                  <city>big apple</city>
+                </customer>
+                <customer name="thatcher" id="504">
+                  <street>baker street</street>
+                  <city>oxford</city>
+                </customer>
+              </item>
+            </database>
+          </data>
+        };
+
+        my @lines;
+
+        my $rdr = $XML_Reader_Any->new(\$line2, { mode => 'branches', sepchar => '|' }, {
+          root   => '/data/database[@loc="alpha"]',
+          branch => [
+            'item/customer[@name="smith"]/city',
+            'item/customer[@name="gates"]/city',
+        ]});
+
+        while ($rdr->iterate) {
+            my ($smith, $gates) = $rdr->value;
+
+            $smith = defined($smith) ? "($smith)" : 'undef';
+            $gates = defined($gates) ? "($gates)" : 'undef';
+
+            push @lines, sprintf("smith = %-12s, gates = %s", $smith, $gates);
+        }
+
+        Test::More::is(scalar(@lines),   3,                                                      'Pod-Test case no 19b: number of output lines');
+        Test::More::is($lines[ 0], "smith = (rio|ny)    , gates = (dallas)",                     'Pod-Test case no 19b: output line  0');
+        Test::More::is($lines[ 1], "smith = undef       , gates = (cambridge)",                  'Pod-Test case no 19b: output line  1');
+        Test::More::is($lines[ 2], "smith = (big apple) , gates = undef",                        'Pod-Test case no 19b: output line  2');
     }
 
     {

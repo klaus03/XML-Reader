@@ -1311,6 +1311,100 @@ On peut combiner {filter => 5, mode => 'branches'} avec des expressions rE<eacut
       }
   }
 
+=head2 Exemple condition d'attribut
+
+Ci-dessous un autre document XML ($text3):
+
+  my $text3 = q{
+    <data>
+      <database loc="alpha">
+        <item>
+          <customer name="smith" id="652">
+            <street>high street</street>
+            <city>rio</city>
+          </customer>
+          <customer name="jones" id="184">
+            <street>maple street</street>
+            <city>new york</city>
+          </customer>
+          <customer name="gates" id="520">
+            <street>ring road</street>
+            <city>dallas</city>
+          </customer>
+          <customer name="smith" id="800">
+            <street>which way</street>
+            <city>ny</city>
+          </customer>
+        </item>
+      </database>
+      <database loc="beta">
+        <item>
+          <customer name="smith" id="001">
+            <street>nowhere</street>
+            <city>st malo</city>
+          </customer>
+          <customer name="jones" id="002">
+            <street>all the way</street>
+            <city>leeds</city>
+          </customer>
+          <customer name="gates" id="003">
+            <street>bypass</street>
+            <city>rome</city>
+          </customer>
+        </item>
+      </database>
+      <database loc="alpha">
+        <item>
+          <customer name="peter" id="444">
+            <street>upton way</street>
+            <city>motown</city>
+          </customer>
+          <customer name="gates" id="959">
+            <street>don't leave me this way</street>
+            <city>cambridge</city>
+          </customer>
+        </item>
+      </database>
+      <database loc="alpha">
+        <item>
+          <customer name="smith" id="881">
+            <street>anyway</street>
+            <city>big apple</city>
+          </customer>
+          <customer name="thatcher" id="504">
+            <street>baker street</street>
+            <city>oxford</city>
+          </customer>
+        </item>
+      </database>
+    </data>
+  };
+
+En utilisant des chemins (root => ... and branch => ...) on peut rajouter des conditions d'attribut
+('/path1[@attr="val"]/...'), par ex.:
+
+  my $rdr = XML::Reader->new(\$text3, {mode => 'branches', sepchar => '|'}, {
+    root   => '/data/database[@loc="alpha"]',
+    branch => [
+      'item/customer[@name="smith"]/city',
+      'item/customer[@name="gates"]/city',
+    ]});
+
+  while ($rdr->iterate) {
+      my ($smith, $gates) = $rdr->value;
+
+      $smith = defined($smith) ? "'$smith'" : 'undef';
+      $gates = defined($gates) ? "'$gates'" : 'undef';
+
+      printf "smith = %-12s, gates = %s\n", $smith, $gates;
+  }
+
+Voici le rE<eacute>sultat:
+
+  smith = 'rio|ny'    , gates = 'dallas'
+  smith = undef       , gates = 'cambridge'
+  smith = 'big apple' , gates = undef
+
 =head1 FONCTIONS
 
 =head2 Fonction slurp_xml
