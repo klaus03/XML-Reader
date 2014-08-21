@@ -10,7 +10,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.58';
+our $VERSION     = '0.59';
 
 my $use_module;
 
@@ -768,7 +768,13 @@ sub get_token {
 
         my $buf;
 
-        if (ref($self->NB_fh) eq 'Net::HTTP' or ref($self->NB_fh) eq 'Net::HTTPS') {
+        if (ref($self->NB_fh) eq 'Net::HTTP::NB' or ref($self->NB_fh) eq 'Net::HTTPS::NB') {
+            use IO::Select;
+            my $sel = IO::Select->new($self->NB_fh);
+
+            # we allow 15 seconds before timeout
+            croak "Failed assertion #0062 in subroutine XML::Reader->get_token: timeout 15 seconds" unless $sel->can_read(15);
+
             my $ct = $self->NB_fh->read_entity_body($buf, 4096); # returns number of bytes read, or undef if IO-Error
             last unless $ct;
         }
@@ -997,7 +1003,7 @@ sub slurp_xml {
 
 package XML::Reader::Token;
 
-our $VERSION = '0.58';
+our $VERSION = '0.59';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }

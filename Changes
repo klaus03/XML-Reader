@@ -281,3 +281,6 @@ Revision history for XML-Reader
 
         update the documentation
         update test cases
+
+0.59    21 Aug 2014
+        Reflect latest changes in Acme::HTTP that allows non-blocking read
