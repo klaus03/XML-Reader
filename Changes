@@ -289,3 +289,7 @@ Revision history for XML-Reader
         Reflect latest changes in Acme::HTTP that returns a correctly blessed
         Acme::HTTP object, also there is now more data abstraction in Acme::HTTP using
         getter and setter subroutines
+
+0.61    22 Aug 2014
+        Reflect latest changes in Acme::HTTP that make Acme::HTTP require
+        Net::HTTP/S::NB dynamically
