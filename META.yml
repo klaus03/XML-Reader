@@ -1,32 +1,25 @@
 ---
-abstract: 'Reading XML and providing path information based on a pull-parser'
+abstract: 'Reading XML and providing path information based on a pull-parser.'
 author:
-  - unknown
-build_requires: {}
+  - 'Klaus Eichner <klaus03@gmail.com>'
+build_requires:
+  ExtUtils::MakeMaker: '0'
 configure_requires:
-  Module::Build: '0.3'
+  ExtUtils::MakeMaker: '0'
 dynamic_config: 1
-generated_by: 'Module::Build version 0.4205, CPAN::Meta::Converter version 2.141170'
+generated_by: 'ExtUtils::MakeMaker version 6.98, CPAN::Meta::Converter version 2.141170'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
   version: '1.4'
 name: XML-Reader
-provides:
-  DebCnt:
-    file: lib/XML/Reader/Testcases.pm
-  XML::Reader:
-    file: lib/XML/Reader.pm
-    version: '0.61'
-  XML::Reader::Testcases:
-    file: lib/XML/Reader/Testcases.pm
-    version: '0.61'
-  XML::Reader::Token:
-    file: lib/XML/Reader.pm
-    version: '0.61'
+no_index:
+  directory:
+    - t
+    - inc
 requires:
   Acme::HTTP: '0'
   Carp: '0'
 resources:
-  license: http://dev.perl.org/licenses/
-version: '0.61'
+  repository: https://github.com/klaus03/XML-Reader.git
+version: '0.62'
