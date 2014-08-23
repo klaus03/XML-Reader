@@ -22,4 +22,4 @@ requires:
   Carp: '0'
 resources:
   repository: https://github.com/klaus03/XML-Reader.git
-version: '0.62'
+version: '0.63'

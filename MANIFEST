@@ -2,7 +2,6 @@ Changes
 MANIFEST
 LICENCE
 Makefile.PL
-Build.PL
 README
 lib/XML/Reader.pm
 lib/XML/Reader_fr.pod
