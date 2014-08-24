@@ -18,8 +18,8 @@ no_index:
     - t
     - inc
 requires:
-  Acme::HTTP: '0'
+  Acme::HTTP: '0.08'
   Carp: '0'
 resources:
   repository: https://github.com/klaus03/XML-Reader.git
-version: '0.63'
+version: '0.64'
