@@ -15,7 +15,6 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw(slurp_xml) ] );
 our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT      = qw();
-our $VERSION     = '0.64';
 
 my $use_module;
 
@@ -808,12 +807,12 @@ sub get_token {
     bless $token, 'XML::Reader::Token';
 }
 sub handle_decl {
-    my ($ExpatNB, $version, $encoding, $standalone) = @_;
+    my ($ExpatNB, $ver, $encoding, $standalone) = @_;
 
     return unless $ExpatNB->{XR_ParseInst};
 
     convert_structure($ExpatNB, 'D');
-    $ExpatNB->{XR_Decl} = [(defined $version    ? (version    => $version)                     : ()),
+    $ExpatNB->{XR_Decl} = [(defined $ver        ? (version    => $ver)                         : ()),
                            (defined $encoding   ? (encoding   => $encoding)                    : ()),
                            (defined $standalone ? (standalone => ($standalone ? 'yes' : 'no')) : ()),
                           ];
@@ -999,8 +998,6 @@ sub slurp_xml {
 # has been inspired by    XML::TokeParser::Token
 
 package XML::Reader::Token;
-
-our $VERSION = '0.64';
 
 sub found_start_tag   { $_[0][0] eq '<'; }
 sub found_end_tag     { $_[0][0] eq '>'; }
