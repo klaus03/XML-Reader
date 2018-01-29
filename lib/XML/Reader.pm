@@ -37,9 +37,7 @@ sub import {
         }
     }
 
-    if (defined $act_module) {
-        activate($act_module);
-    }
+    activate($act_module);
 
     XML::Reader->export_to_level(1, $calling_module, @plist);
 }
@@ -47,14 +45,27 @@ sub import {
 sub activate {
     my ($mod) = @_;
 
-    if ($mod eq 'XML::Parser') {
-        require XML::Parser;
+    if (defined $mod) {
+        if ($mod eq 'XML::Parser') {
+            require XML::Parser;
+        }
+        elsif ($mod eq 'XML::Parsepp') {
+            require XML::Parsepp;
+        }
+        else {
+            die "Can't identify module = '$mod'";
+        }
     }
-    elsif ($mod eq 'XML::Parsepp') {
-        require XML::Parsepp;
-    }
-    else {
-        die "Can't identify module = '$mod'";
+    else { # No backend provided - try to do the right thing
+        $mod = 'XML::Parser';
+        eval { require XML::Parser; };
+        if ($@) {
+            $mod = 'XML::Parsepp';
+            eval { require XML::Parsepp; };
+            if ($@) {
+                die "Error: Either XML::Parser or XML::Parsepp must be installed to run XML::Reader";
+            }
+        }
     }
 
     $use_module = $mod;
