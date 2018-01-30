@@ -7,6 +7,10 @@ Revision history for XML-Reader
   - 'use' this module now defaults to using XML::Parser, and only if
     this fails, fallback to XML::Parsepp.
 
+  [DOCUMENTATION]
+
+  - Add META.json to the package
+
 0.65 - 2014-12-28T09:24:30+01:00
 
   [DOCUMENTATION]
