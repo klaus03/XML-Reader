@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 1;
 use File::Temp ('tempdir');
 
 # This test verifies that XML::Reader throws an error at compile time
@@ -24,5 +24,3 @@ use lib $lib;
 
 eval "use XML::Reader;";
 like($@,qr/^Error:/,'No backend gives failure at compile time');
-
-done_testing;

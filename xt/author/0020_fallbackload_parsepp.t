@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests => 2;
 use File::Temp ('tempdir');
 
 # This test verifies that XML::Reader uses XML::Parsepp as fallback if
@@ -24,5 +24,3 @@ use XML::Reader; # no specification of a backend
 
 ok($INC{'XML/Parsepp.pm'},'XML::Parsepp is used as a backend');
 ok(! exists $INC{'XML/Parser.pm'}, 'XML::Parser is not used');
-
-done_testing;
