@@ -37,9 +37,7 @@ sub import {
         }
     }
 
-    if (defined $act_module) {
-        activate($act_module);
-    }
+    activate($act_module);
 
     XML::Reader->export_to_level(1, $calling_module, @plist);
 }
@@ -47,14 +45,27 @@ sub import {
 sub activate {
     my ($mod) = @_;
 
-    if ($mod eq 'XML::Parser') {
-        require XML::Parser;
+    if (defined $mod) {
+        if ($mod eq 'XML::Parser') {
+            require XML::Parser;
+        }
+        elsif ($mod eq 'XML::Parsepp') {
+            require XML::Parsepp;
+        }
+        else {
+            die "Can't identify module = '$mod'";
+        }
     }
-    elsif ($mod eq 'XML::Parsepp') {
-        require XML::Parsepp;
-    }
-    else {
-        die "Can't identify module = '$mod'";
+    else { # No backend provided - try to do the right thing
+        $mod = 'XML::Parser';
+        eval { require XML::Parser; };
+        if ($@) {
+            $mod = 'XML::Parsepp';
+            eval { require XML::Parsepp; };
+            if ($@) {
+                die "Error: Either XML::Parser or XML::Parsepp must be installed to run XML::Reader";
+            }
+        }
     }
 
     $use_module = $mod;
@@ -1063,9 +1074,12 @@ you use XML::Reader::PP (which uses XML::Parsepp).
 
 However, if you use XML::Reader directly, here is how you switch between XML::Parser and XML::Parsepp:
 
-XML::Reader uses XML::Parser as the underlying Parser module. That works very well, except for cases where
-people don't have a C-compiler available to install XML::Parser. In those cases, XML::Parsepp can be used
-as a pure Perl alternative to XML::Parser. Here is an example:
+If no parser is given in the C<use> statement, XML::Reader tries to load XML::Parser.  That works very well, except
+for cases where people don't have a C-compiler available to install XML::Parser.  If loading XML::Parser fails, the
+module falls back to loading XML::Parsepp.
+
+It is also possible to explicitly select the parser. In the example below, XML::Parser is chosen explicitly, so
+compilation will fail if that module isn't available.
 
   use XML::Reader qw(XML::Parser);
 

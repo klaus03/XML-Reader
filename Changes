@@ -1,6 +1,11 @@
 Revision history for XML-Reader
 
-0.66 - 2018-01-30T09:30:00+01:00
+0.66 - 2018-01-30T10:00:00+01:00
+
+  [DOCUMENTATION]
+
+  - 'use' this module now defaults to using XML::Parser, and only if
+    this fails, fallback to XML::Parsepp.
 
   [DOCUMENTATION]
 
