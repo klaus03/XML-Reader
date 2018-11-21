@@ -2430,7 +2430,7 @@ example where we want to slurp the name, the street and the city of all customer
 the path '/data/order/database/customer' and we also want to slurp the supplier in
 '/data/supplier':
 
-  use XML::Reader qw(slurp_xml);
+  use XML::Reader qw(XML::Parser slurp_xml);
 
   my $line2 = q{
   <data>
